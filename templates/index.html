@@ -2,17 +2,131 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>學生登入</title>
+    <title>Python 學習平台</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }
+        .form-container { border: 1px solid #ddd; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+        .form-container h2 { margin-top: 0; color: #333; }
+        input[type="text"], input[type="password"], select { width: 100%; padding: 8px; margin: 5px 0 15px 0; border: 1px solid #ddd; border-radius: 3px; box-sizing: border-box; }
+        button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; width: 100%; }
+        button:hover { background-color: #45a049; }
+        .register-btn { background-color: #008CBA; }
+        .register-btn:hover { background-color: #007B9A; }
+        .toggle-link { color: #007B9A; cursor: pointer; text-decoration: underline; }
+        .hidden { display: none; }
+    </style>
 </head>
 <body>
     <h1>Python 學習平台</h1>
-    <h2>學生登入</h2>
-    <form id="loginForm" action="/login" method="post">
-        <label for="username">帳號：</label>
-        <input type="text" id="username" name="username" required><br><br>
-        <label for="password">密碼：</label>
-        <input type="password" id="password" name="password" required><br><br>
-        <button type="submit">登入</button>
-    </form>
+    
+    <!-- 登入表單 -->
+    <div id="loginContainer" class="form-container">
+        <h2>學生登入</h2>
+        <form action="/login" method="post">
+            <label for="loginGrade">年級：</label>
+            <select id="loginGrade" name="grade" required>
+                <option value="">請選擇年級</option>
+                <option value="七年級">七年級</option>
+                <option value="八年級">八年級</option>
+                <option value="九年級">九年級</option>
+            </select>
+            
+            <label for="loginClass">班級：</label>
+            <select id="loginClass" name="class_num" required>
+                <option value="">請選擇班級</option>
+                <option value="1">1班</option>
+                <option value="2">2班</option>
+                <option value="3">3班</option>
+                <option value="4">4班</option>
+                <option value="5">5班</option>
+                <option value="6">6班</option>
+                <option value="7">7班</option>
+                <option value="8">8班</option>
+                <option value="9">9班</option>
+                <option value="10">10班</option>
+                <option value="11">11班</option>
+                <option value="12">12班</option>
+                <option value="13">13班</option>
+                <option value="14">14班</option>
+                <option value="15">15班</option>
+                <option value="16">16班</option>
+                <option value="17">17班</option>
+                <option value="18">18班</option>
+                <option value="19">19班</option>
+                <option value="20">20班</option>
+            </select>
+            
+            <label for="loginUsername">姓名：</label>
+            <input type="text" id="loginUsername" name="username" required>
+            <label for="loginPassword">密碼：</label>
+            <input type="password" id="loginPassword" name="password" required>
+            <button type="submit">登入</button>
+        </form>
+        <p style="text-align: center; margin-top: 15px;">
+            還沒有帳號？<span class="toggle-link" onclick="showRegister()">立即註冊</span>
+        </p>
+    </div>
+    
+    <!-- 註冊表單 -->
+    <div id="registerContainer" class="form-container hidden">
+        <h2>學生註冊</h2>
+        <form action="/register" method="post">
+            <label for="registerGrade">年級：</label>
+            <select id="registerGrade" name="grade" required>
+                <option value="">請選擇年級</option>
+                <option value="七年級">七年級</option>
+                <option value="八年級">八年級</option>
+                <option value="九年級">九年級</option>
+            </select>
+            
+            <label for="registerClass">班級：</label>
+            <select id="registerClass" name="class_num" required>
+                <option value="">請選擇班級</option>
+                <option value="1">1班</option>
+                <option value="2">2班</option>
+                <option value="3">3班</option>
+                <option value="4">4班</option>
+                <option value="5">5班</option>
+                <option value="6">6班</option>
+                <option value="7">7班</option>
+                <option value="8">8班</option>
+                <option value="9">9班</option>
+                <option value="10">10班</option>
+                <option value="11">11班</option>
+                <option value="12">12班</option>
+                <option value="13">13班</option>
+                <option value="14">14班</option>
+                <option value="15">15班</option>
+                <option value="16">16班</option>
+                <option value="17">17班</option>
+                <option value="18">18班</option>
+                <option value="19">19班</option>
+                <option value="20">20班</option>
+            </select>
+            
+            <label for="registerUsername">姓名：</label>
+            <input type="text" id="registerUsername" name="username" required>
+            <label for="registerPassword">密碼：</label>
+            <input type="password" id="registerPassword" name="password" required>
+            <label for="confirmPassword">確認密碼：</label>
+            <input type="password" id="confirmPassword" name="confirm_password" required>
+            <button type="submit" class="register-btn">註冊</button>
+        </form>
+        <p style="text-align: center; margin-top: 15px;">
+            已有帳號？<span class="toggle-link" onclick="showLogin()">返回登入</span>
+        </p>
+    </div>
+
+    <script>
+        function showRegister() {
+            document.getElementById('loginContainer').classList.add('hidden');
+            document.getElementById('registerContainer').classList.remove('hidden');
+        }
+        
+        function showLogin() {
+            document.getElementById('registerContainer').classList.add('hidden');
+            document.getElementById('loginContainer').classList.remove('hidden');
+        }
+    </script>
 </body>
 </html>

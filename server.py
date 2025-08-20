@@ -17,60 +17,85 @@ def setup_database():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
-            username TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL
+            grade TEXT NOT NULL,
+            class_num TEXT NOT NULL,
+            username TEXT NOT NULL,
+            password TEXT NOT NULL,
+            UNIQUE(grade, class_num, username)
         )
     ''')
     # 建立 scores 表格
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS scores (
             id INTEGER PRIMARY KEY,
+            grade TEXT NOT NULL,
+            class_num TEXT NOT NULL,
             username TEXT NOT NULL,
             problem_id INTEGER NOT NULL,
             score REAL NOT NULL,
             submission_time TEXT NOT NULL,
-            FOREIGN KEY (username) REFERENCES users (username),
-            UNIQUE (username, problem_id)
+            FOREIGN KEY (grade, class_num, username) REFERENCES users (grade, class_num, username),
+            UNIQUE (grade, class_num, username, problem_id)
         )
     ''')
     conn.commit()
     conn.close()
 
-def authenticate_user(username, password):
+def authenticate_user(grade, class_num, username, password):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+    cursor.execute("SELECT * FROM users WHERE grade=? AND class_num=? AND username=? AND password=?", 
+                   (grade, class_num, username, password))
     user = cursor.fetchone()
     conn.close()
     return user is not None
+
+def register_user(grade, class_num, username, password):
+    """注册新用户"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO users (grade, class_num, username, password) VALUES (?, ?, ?, ?)", 
+                       (grade, class_num, username, password))
+        conn.commit()
+        conn.close()
+        return True, "注册成功！"
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False, f"该年级班级中已存在用户名 '{username}'，请选择其他用户名。"
+    except Exception as e:
+        conn.close()
+        return False, f"注册失败：{str(e)}"
 
 def generate_session_id():
     """生成唯一的 session ID"""
     return uuid.uuid4().hex
 
-def create_session(username):
+def create_session(grade, class_num, username):
     """为用户创建新的 session"""
     cleanup_expired_sessions()  # 先清理过期的 sessions
     
     session_id = generate_session_id()
     SESSIONS[session_id] = {
+        'grade': grade,
+        'class_num': class_num,
         'username': username,
         'created_time': time.time()
     }
     return session_id
 
-def get_username_from_session(session_id):
-    """根据 session_id 获取用户名"""
+def get_user_from_session(session_id):
+    """根据 session_id 获取用户信息"""
     if not session_id or session_id not in SESSIONS:
-        return None
+        return None, None, None
     
     session_data = SESSIONS[session_id]
     # 检查是否过期
     if time.time() - session_data['created_time'] > SESSION_TIMEOUT:
         del SESSIONS[session_id]
-        return None
+        return None, None, None
     
-    return session_data['username']
+    return session_data['grade'], session_data['class_num'], session_data['username']
 
 def cleanup_expired_sessions():
     """清理过期的 sessions"""
@@ -161,7 +186,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             # 检查用户是否已登录
             cookies = parse_cookies(self.headers.get('Cookie', ''))
             session_id = cookies.get('session_id')
-            username = get_username_from_session(session_id)
+            grade, class_num, username = get_user_from_session(session_id)
             
             if not username:
                 # 未登录，重定向到登录页面
@@ -170,7 +195,37 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 return
             
-            self.path = 'templates/dashboard.html'
+            # 读取 dashboard 模板并替换用户信息
+            try:
+                with open('templates/dashboard.html', 'r', encoding='utf-8') as f:
+                    dashboard_content = f.read()
+                
+                # 替换占位符
+                dashboard_content = dashboard_content.replace('{{USERNAME}}', username)
+                dashboard_content = dashboard_content.replace('{{GRADE}}', grade)
+                dashboard_content = dashboard_content.replace('{{CLASS}}', class_num)
+                
+                # 发送自定义的 HTML 响应
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(dashboard_content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self.send_error(404, "Dashboard template not found")
+        elif self.path == '/logout':
+            # 處理登出請求
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            if session_id and session_id in SESSIONS:
+                del SESSIONS[session_id]
+            
+            # 重定向到登录页面并清除 Cookie
+            self.send_response(302)
+            self.send_header('Location', '/')
+            self.send_header('Set-Cookie', 'session_id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT')
+            self.end_headers()
+            return
         
         try:
             return http.server.SimpleHTTPRequestHandler.do_GET(self)
@@ -184,12 +239,14 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             post_data = self.rfile.read(content_length)
             post_data_str = post_data.decode('utf-8')
             parsed_data = urllib.parse.parse_qs(post_data_str)
+            grade = parsed_data.get('grade', [''])[0]
+            class_num = parsed_data.get('class_num', [''])[0]
             username = parsed_data.get('username', [''])[0]
             password = parsed_data.get('password', [''])[0]
             
-            if authenticate_user(username, password):
+            if authenticate_user(grade, class_num, username, password):
                 # 创建 session
-                session_id = create_session(username)
+                session_id = create_session(grade, class_num, username)
                 
                 # 发送重定向响应，并设置 Cookie
                 self.send_response(302)
@@ -200,7 +257,53 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html; charset=utf-8')
                 self.end_headers()
-                error_message = f"帳號或密碼錯誤！請返回<a href='/'>登入頁面</a>重試。"
+                error_message = f"年級、班級、帳號或密碼錯誤！請返回<a href='/'>登入頁面</a>重試。"
+                self.wfile.write(error_message.encode('utf-8'))
+        
+        # 檢查是否為註冊請求
+        elif self.path == '/register':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            post_data_str = post_data.decode('utf-8')
+            parsed_data = urllib.parse.parse_qs(post_data_str)
+            grade = parsed_data.get('grade', [''])[0]
+            class_num = parsed_data.get('class_num', [''])[0]
+            username = parsed_data.get('username', [''])[0]
+            password = parsed_data.get('password', [''])[0]
+            confirm_password = parsed_data.get('confirm_password', [''])[0]
+            
+            # 验证输入
+            if not grade or not class_num or not username or not password:
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                error_message = f"所有字段都不能为空！<a href='/'>返回</a>"
+                self.wfile.write(error_message.encode('utf-8'))
+                return
+            
+            if password != confirm_password:
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                error_message = f"两次输入的密码不一致！<a href='/'>返回</a>"
+                self.wfile.write(error_message.encode('utf-8'))
+                return
+            
+            # 尝试注册用户
+            success, message = register_user(grade, class_num, username, password)
+            if success:
+                # 注册成功，自动登录
+                session_id = create_session(grade, class_num, username)
+                self.send_response(302)
+                self.send_header('Location', '/dashboard.html')
+                self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=7200')
+                self.end_headers()
+            else:
+                # 注册失败，显示错误信息
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                error_message = f"{message}<a href='/'>返回</a>"
                 self.wfile.write(error_message.encode('utf-8'))
         
         # 檢查是否為程式碼提交請求
@@ -208,7 +311,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             # 验证 session
             cookies = parse_cookies(self.headers.get('Cookie', ''))
             session_id = cookies.get('session_id')
-            username = get_username_from_session(session_id)
+            grade, class_num, username = get_user_from_session(session_id)
             
             if not username:
                 # 未登录，重定向到登录页面
@@ -245,18 +348,18 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                         except (ValueError, IndexError):
                             pass
 
-                    # 將成績存入資料庫
+                    # 將成績存入資料庫（存在即更新）
                     conn = sqlite3.connect(DB_FILE)
                     cursor = conn.cursor()
                     cursor.execute(
                         '''
-                        INSERT INTO scores (username, problem_id, score, submission_time)
-                        VALUES (?, ?, ?, ?)
-                        ON CONFLICT(username, problem_id) DO UPDATE SET
+                        INSERT INTO scores (grade, class_num, username, problem_id, score, submission_time)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(grade, class_num, username, problem_id) DO UPDATE SET
                             score = excluded.score,
                             submission_time = excluded.submission_time
                         ''',
-                        (username, problem_id, score_percentage, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+                        (grade, class_num, username, problem_id, score_percentage, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
                     )
                     conn.commit()
                     conn.close()
@@ -277,20 +380,6 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_error(400, "沒有選擇檔案")
             else:
                 self.send_error(400, "沒有找到 'codeFile' 欄位")
-        
-        # 處理登出請求
-        elif self.path == '/logout':
-            # 获取并清除 session
-            cookies = parse_cookies(self.headers.get('Cookie', ''))
-            session_id = cookies.get('session_id')
-            if session_id and session_id in SESSIONS:
-                del SESSIONS[session_id]
-            
-            # 重定向到登录页面并清除 Cookie
-            self.send_response(302)
-            self.send_header('Location', '/')
-            self.send_header('Set-Cookie', 'session_id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT')
-            self.end_headers()
         
         else:
             self.send_error(404, "Not Found")
