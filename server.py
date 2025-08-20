@@ -1,15 +1,13 @@
-import http.server
-import socketserver
-import urllib.parse
-import os
-import sqlite3
-import cgi
-import subprocess
-import glob
-import datetime
+import http.server, socketserver, urllib.parse, os
+import sqlite3, cgi, subprocess, glob, datetime
+import uuid, time
 
 PORT = 8000
 DB_FILE = 'users.db'
+
+# Session 管理
+SESSIONS = {}  # {session_id: {'username': 'xxx', 'created_time': timestamp}}
+SESSION_TIMEOUT = 2 * 60 * 60  # 2小时过期
 
 def setup_database():
     """設定並建立資料庫表格"""
@@ -45,6 +43,54 @@ def authenticate_user(username, password):
     user = cursor.fetchone()
     conn.close()
     return user is not None
+
+def generate_session_id():
+    """生成唯一的 session ID"""
+    return uuid.uuid4().hex
+
+def create_session(username):
+    """为用户创建新的 session"""
+    cleanup_expired_sessions()  # 先清理过期的 sessions
+    
+    session_id = generate_session_id()
+    SESSIONS[session_id] = {
+        'username': username,
+        'created_time': time.time()
+    }
+    return session_id
+
+def get_username_from_session(session_id):
+    """根据 session_id 获取用户名"""
+    if not session_id or session_id not in SESSIONS:
+        return None
+    
+    session_data = SESSIONS[session_id]
+    # 检查是否过期
+    if time.time() - session_data['created_time'] > SESSION_TIMEOUT:
+        del SESSIONS[session_id]
+        return None
+    
+    return session_data['username']
+
+def cleanup_expired_sessions():
+    """清理过期的 sessions"""
+    current_time = time.time()
+    expired_sessions = [
+        sid for sid, data in SESSIONS.items() 
+        if current_time - data['created_time'] > SESSION_TIMEOUT
+    ]
+    for sid in expired_sessions:
+        del SESSIONS[sid]
+
+def parse_cookies(cookie_header):
+    """解析 Cookie 字符串，返回字典"""
+    cookies = {}
+    if cookie_header:
+        for item in cookie_header.split(';'):
+            if '=' in item:
+                key, value = item.strip().split('=', 1)
+                cookies[key] = value
+    return cookies
 
 def grade_submission(submission_path, problem_num):
     """
@@ -112,6 +158,18 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/':
             self.path = 'templates/index.html'
         elif self.path == '/dashboard.html':
+            # 检查用户是否已登录
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            username = get_username_from_session(session_id)
+            
+            if not username:
+                # 未登录，重定向到登录页面
+                self.send_response(302)
+                self.send_header('Location', '/')
+                self.end_headers()
+                return
+            
             self.path = 'templates/dashboard.html'
         
         try:
@@ -130,8 +188,13 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             password = parsed_data.get('password', [''])[0]
             
             if authenticate_user(username, password):
+                # 创建 session
+                session_id = create_session(username)
+                
+                # 发送重定向响应，并设置 Cookie
                 self.send_response(302)
                 self.send_header('Location', '/dashboard.html')
+                self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=7200')  # 2小时
                 self.end_headers()
             else:
                 self.send_response(200)
@@ -142,6 +205,18 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         
         # 檢查是否為程式碼提交請求
         elif self.path == '/submit_code':
+            # 验证 session
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            username = get_username_from_session(session_id)
+            
+            if not username:
+                # 未登录，重定向到登录页面
+                self.send_response(302)
+                self.send_header('Location', '/')
+                self.end_headers()
+                return
+            
             # 注意：這裡不能先讀取 rfile，cgi.FieldStorage 需要直接從 rfile 解析 multipart/form-data
             form = cgi.FieldStorage(
                 fp=self.rfile, 
@@ -153,8 +228,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             if 'codeFile' in form:
                 file_item = form['codeFile']
                 if file_item.filename:
-                    # 暫時硬編碼使用者和題目ID
-                    username = "test_user"
+                    # 使用从 session 中获取的真实用户名
                     problem_id = 1
                     
                     submission_path = os.path.join('submissions', file_item.filename)
@@ -204,6 +278,20 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 self.send_error(400, "沒有找到 'codeFile' 欄位")
         
+        # 處理登出請求
+        elif self.path == '/logout':
+            # 获取并清除 session
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            if session_id and session_id in SESSIONS:
+                del SESSIONS[session_id]
+            
+            # 重定向到登录页面并清除 Cookie
+            self.send_response(302)
+            self.send_header('Location', '/')
+            self.send_header('Set-Cookie', 'session_id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT')
+            self.end_headers()
+        
         else:
             self.send_error(404, "Not Found")
 
@@ -219,6 +307,7 @@ if not os.path.exists('submissions'):
 if not os.path.exists('problems'):
     os.makedirs('problems')
 setup_database()
+cleanup_expired_sessions()  # 服务器启动时清理过期 sessions
 Handler = MyHandler
 httpd = socketserver.TCPServer(("", PORT), Handler)
 
