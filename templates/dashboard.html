@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>個人主頁</title>
+</head>
+<body>
+    <h1>歡迎來到你的個人主頁！</h1>
+    <p>在這裡，你可以提交你的 Python 程式碼，系統會自動批改並給你成績。</p>
+    
+    <hr>
+    
+    <h2>提交作業</h2>
+    <form action="/submit_code" method="post" enctype="multipart/form-data">
+        <label for="codeFile">請選擇你的 Python 程式碼檔案 (.py)：</label>
+        <input type="file" id="codeFile" name="codeFile" accept=".py" required><br><br>
+        <button type="submit">提交程式碼</button>
+    </form>
+
+</body>
+</html>
