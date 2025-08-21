@@ -118,7 +118,7 @@
             border-color: #667eea;
         }
 
-        .test-case {
+        .test-case-group {
             background: #f8f9fa;
             border-radius: 10px;
             padding: 20px;
@@ -127,64 +127,48 @@
             position: relative;
         }
 
-        .test-case-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .test-case-title {
+        .test-case-group h4 {
             font-weight: bold;
             color: #333;
             font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 5px;
+            display: block;
+            font-size: 14px;
+        }
+
+        .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            min-height: 80px;
+            font-family: monospace;
         }
 
         .remove-test-case {
             background: #dc3545;
             color: white;
             border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
+            padding: 8px 12px;
+            border-radius: 5px;
             cursor: pointer;
             font-size: 12px;
+            margin-top: 10px;
         }
 
         .remove-test-case:hover {
             background: #c82333;
-        }
-
-        .test-case-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .test-input,
-        .test-output {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .test-label {
-            font-weight: bold;
-            color: #666;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .test-textarea {
-            font-family: monospace;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        .test-textarea:focus {
-            outline: none;
-            border-color: #667eea;
         }
 
         .add-test-case {
@@ -283,7 +267,7 @@
         <div id="successMessage" class="success-message"></div>
         <div id="errorMessage" class="error-message"></div>
 
-        <form id="editForm" action="/admin/update-problem" method="post">
+        <form id="editForm" action="/admin/edit-problem/{{PROBLEM_ID}}" method="post">
             <input type="hidden" name="problem_id" value="{{PROBLEM_ID}}">
 
             <!-- 題目描述 -->
@@ -319,49 +303,45 @@
             const testCasesContainer = document.getElementById('testCases');
             
             const testCaseDiv = document.createElement('div');
-            testCaseDiv.className = 'test-case';
+            testCaseDiv.className = 'test-case-group';
             testCaseDiv.innerHTML = `
-                <div class="test-case-header">
-                    <div class="test-case-title">測試點 ${testCaseCount}</div>
-                    <button type="button" class="remove-test-case" onclick="removeTestCase(this)">移除</button>
+                <h4>測試案例 ${testCaseCount}</h4>
+                <div class="input-group">
+                    <label>輸入：</label>
+                    <textarea name="test_input_${testCaseCount - 1}" placeholder="輸入數據"></textarea>
                 </div>
-                <div class="test-case-content">
-                    <div class="test-input">
-                        <div class="test-label">輸入：</div>
-                        <textarea class="test-textarea" name="input_${testCaseCount}" placeholder="請輸入測試輸入..."></textarea>
-                    </div>
-                    <div class="test-output">
-                        <div class="test-label">預期輸出：</div>
-                        <textarea class="test-textarea" name="output_${testCaseCount}" placeholder="請輸入預期輸出..."></textarea>
-                    </div>
+                <div class="input-group">
+                    <label>預期輸出：</label>
+                    <textarea name="test_output_${testCaseCount - 1}" placeholder="預期輸出"></textarea>
                 </div>
+                <button type="button" class="remove-test-case" onclick="removeTestCase(this)">移除此測試案例</button>
             `;
             
             testCasesContainer.appendChild(testCaseDiv);
         }
 
         function removeTestCase(button) {
-            const testCase = button.closest('.test-case');
+            const testCase = button.closest('.test-case-group');
             testCase.remove();
             updateTestCaseNumbers();
         }
 
         function updateTestCaseNumbers() {
-            const testCases = document.querySelectorAll('.test-case');
+            const testCases = document.querySelectorAll('.test-case-group');
             testCases.forEach((testCase, index) => {
-                const title = testCase.querySelector('.test-case-title');
-                title.textContent = `測試點 ${index + 1}`;
+                const title = testCase.querySelector('h4');
+                title.textContent = `測試案例 ${index + 1}`;
                 
                 const inputs = testCase.querySelectorAll('textarea');
-                inputs[0].name = `input_${index + 1}`;
-                inputs[1].name = `output_${index + 1}`;
+                inputs[0].name = `test_input_${index}`;
+                inputs[1].name = `test_output_${index}`;
             });
             testCaseCount = testCases.length;
         }
 
         // 表單提交處理
         document.getElementById('editForm').addEventListener('submit', function(e) {
-            const testCases = document.querySelectorAll('.test-case');
+            const testCases = document.querySelectorAll('.test-case-group');
             if (testCases.length === 0) {
                 e.preventDefault();
                 showMessage('error', '至少需要一個測試點！');
@@ -396,10 +376,10 @@
         // 檢查 URL 參數以顯示成功或錯誤訊息
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('success')) {
-            showMessage('success', '題目更新成功！');
+            showMessage('success', decodeURIComponent(urlParams.get('success')));
         }
         if (urlParams.get('error')) {
-            showMessage('error', urlParams.get('error'));
+            showMessage('error', decodeURIComponent(urlParams.get('error')));
         }
     </script>
 </body>

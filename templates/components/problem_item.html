@@ -1,0 +1,11 @@
+<div class="problem-item">
+    <div class="problem-content">
+        <div class="problem-name">{{PROBLEM_NAME}}</div>
+        <div class="problem-info">{{PROBLEM_INFO}}</div>
+    </div>
+    <div class="problem-actions">
+        <a href="/admin/view-problem/{{PROBLEM_NAME}}" class="action-btn view-btn">👁 查看</a>
+        <a href="/admin/edit-problem/{{PROBLEM_NAME}}" class="action-btn edit-btn">✏️ 編輯</a>
+        <button onclick="deleteProblem('{{PROBLEM_NAME}}')" class="action-btn delete-btn">🗑️ 刪除</button>
+    </div>
+</div>

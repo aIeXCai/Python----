@@ -335,10 +335,10 @@
         // 檢查URL參數顯示消息
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('success')) {
-            showMessage('success', urlParams.get('success'));
+            showMessage('success', decodeURIComponent(urlParams.get('success')));
         }
         if (urlParams.get('error')) {
-            showMessage('error', urlParams.get('error'));
+            showMessage('error', decodeURIComponent(urlParams.get('error')));
         }
     </script>
 </body>

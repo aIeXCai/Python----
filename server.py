@@ -5,6 +5,35 @@ import uuid, time
 PORT = 8000
 DB_FILE = 'users.db'
 
+def load_template_component(component_name):
+    """加载模板组件"""
+    try:
+        component_path = f'templates/components/{component_name}.html'
+        with open(component_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        return f"<!-- Template component {component_name} not found -->"
+
+def render_template_component(component_name, **kwargs):
+    """渲染模板组件"""
+    template = load_template_component(component_name)
+    for key, value in kwargs.items():
+        template = template.replace(f'{{{{{key}}}}}', str(value))
+    return template
+
+def render_main_template(template_path, **kwargs):
+    """渲染主模板文件"""
+    try:
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+        
+        for key, value in kwargs.items():
+            template_content = template_content.replace(f'{{{{{key}}}}}', str(value))
+        
+        return template_content
+    except FileNotFoundError:
+        return f"<!-- Template {template_path} not found -->"
+
 # Session 管理
 SESSIONS = {}  # {session_id: {'username': 'xxx', 'created_time': timestamp, 'role': 'student/teacher'}}
 SESSION_TIMEOUT = 2 * 60 * 60  # 2小时过期
@@ -442,19 +471,11 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 problems_html = ""
                 for problem in problems:
                     status_info = f"{problem['test_cases']} 個測試點" if problem['test_cases'] > 0 else "無測試點"
-                    problems_html += f"""
-                    <div class="problem-item">
-                        <div class="problem-content">
-                            <div class="problem-name">{problem['name']}</div>
-                            <div class="problem-info">{status_info}</div>
-                        </div>
-                        <div class="problem-actions">
-                            <a href="/admin/view-problem/{problem['name']}" class="action-btn view-btn">👁 查看</a>
-                            <a href="/admin/edit-problem/{problem['name']}" class="action-btn edit-btn">✏️ 編輯</a>
-                            <button onclick="deleteProblem('{problem['name']}')" class="action-btn delete-btn">🗑️ 刪除</button>
-                        </div>
-                    </div>
-                    """
+                    problems_html += render_template_component(
+                        'problem_item',
+                        PROBLEM_NAME=problem['name'],
+                        PROBLEM_INFO=status_info
+                    )
             else:
                 problems_html = '<div class="no-problems">目前沒有任何題目</div>'
             
@@ -502,35 +523,28 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             
             # 读取题目详情模板
             try:
-                with open('templates/problem_detail.html', 'r', encoding='utf-8') as f:
-                    template_content = f.read()
-                
                 # 构建测试案例HTML
                 test_cases_html = ""
                 for i, test_case in enumerate(problem_details['test_cases'], 1):
-                    test_cases_html += f"""
-                    <div class="test-case">
-                        <h4>測試案例 {i}</h4>
-                        <div class="test-case-content">
-                            <div class="input-section">
-                                <strong>輸入：</strong>
-                                <pre>{test_case['input']}</pre>
-                            </div>
-                            <div class="output-section">
-                                <strong>預期輸出：</strong>
-                                <pre>{test_case['output']}</pre>
-                            </div>
-                        </div>
-                    </div>
-                    """
+                    test_cases_html += render_template_component(
+                        'test_case_item',
+                        CASE_NUMBER=i,
+                        TEST_INPUT=test_case['input'],
+                        TEST_OUTPUT=test_case['output']
+                    )
                 
                 if not test_cases_html:
                     test_cases_html = '<div class="no-test-cases">此題目尚無測試案例</div>'
                 
-                # 替换占位符
-                template_content = template_content.replace('{{PROBLEM_NAME}}', problem_details['name'])
-                template_content = template_content.replace('{{PROBLEM_DESCRIPTION}}', problem_details['description'])
-                template_content = template_content.replace('{{TEST_CASES}}', test_cases_html)
+                # 渲染模板
+                template_content = render_main_template(
+                    'templates/problem_detail.html',
+                    PROBLEM_NAME=problem_details['name'],
+                    PROBLEM_ID=problem_details['name'],
+                    PROBLEM_DESCRIPTION=problem_details['description'],
+                    TEST_CASES_HTML=test_cases_html,
+                    TEST_CASES_COUNT=len(problem_details['test_cases'])
+                )
                 
                 # 发送响应
                 self.send_response(200)
@@ -568,32 +582,26 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             
             # 读取题目编辑模板
             try:
-                with open('templates/problem_edit.html', 'r', encoding='utf-8') as f:
-                    template_content = f.read()
-                
                 # 构建测试案例输入框HTML
                 test_cases_html = ""
                 for i, test_case in enumerate(problem_details['test_cases']):
-                    test_cases_html += f"""
-                    <div class="test-case-group">
-                        <h4>測試案例 {i + 1}</h4>
-                        <div class="input-group">
-                            <label>輸入：</label>
-                            <textarea name="test_input_{i}" placeholder="輸入數據">{test_case['input']}</textarea>
-                        </div>
-                        <div class="input-group">
-                            <label>預期輸出：</label>
-                            <textarea name="test_output_{i}" placeholder="預期輸出">{test_case['output']}</textarea>
-                        </div>
-                        <button type="button" class="remove-test-case" onclick="removeTestCase(this)">移除此測試案例</button>
-                    </div>
-                    """
+                    test_cases_html += render_template_component(
+                        'test_case_edit',
+                        CASE_NUMBER=i + 1,
+                        CASE_INDEX=i,
+                        TEST_INPUT=test_case['input'],
+                        TEST_OUTPUT=test_case['output']
+                    )
                 
-                # 替换占位符
-                template_content = template_content.replace('{{PROBLEM_NAME}}', problem_details['name'])
-                template_content = template_content.replace('{{PROBLEM_DESCRIPTION}}', problem_details['description'])
-                template_content = template_content.replace('{{TEST_CASES}}', test_cases_html)
-                template_content = template_content.replace('{{TEST_CASES_COUNT}}', str(len(problem_details['test_cases'])))
+                # 渲染模板
+                template_content = render_main_template(
+                    'templates/problem_edit.html',
+                    PROBLEM_NAME=problem_details['name'],
+                    PROBLEM_ID=problem_details['name'],
+                    PROBLEM_DESCRIPTION=problem_details['description'],
+                    TEST_CASES_HTML=test_cases_html,
+                    TEST_CASES_COUNT=len(problem_details['test_cases'])
+                )
                 
                 # 发送响应
                 self.send_response(200)
@@ -903,13 +911,13 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_header('Location', '/admin/problems?success=1')
                     self.end_headers()
                 else:
-                    error_msg = urllib.parse.quote(message)
+                    error_msg = urllib.parse.quote(message, safe='', encoding='utf-8')
                     self.send_response(302)
                     self.send_header('Location', f'/admin/problems?error={error_msg}')
                     self.end_headers()
                 
             except Exception as e:
-                error_msg = urllib.parse.quote(f"上傳失敗：{str(e)}")
+                error_msg = urllib.parse.quote(f"上傳失敗：{str(e)}", safe='', encoding='utf-8')
                 self.send_response(302)
                 self.send_header('Location', f'/admin/problems?error={error_msg}')
                 self.end_headers()
@@ -968,17 +976,18 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 success, message = update_problem(problem_name, description, test_cases)
                 
                 if success:
+                    success_msg = urllib.parse.quote("題目更新成功", safe='', encoding='utf-8')
                     self.send_response(302)
-                    self.send_header('Location', f'/admin/view-problem/{problem_name}?success=題目更新成功')
+                    self.send_header('Location', f'/admin/view-problem/{problem_name}?success={success_msg}')
                     self.end_headers()
                 else:
-                    error_msg = urllib.parse.quote(message)
+                    error_msg = urllib.parse.quote(message, safe='', encoding='utf-8')
                     self.send_response(302)
                     self.send_header('Location', f'/admin/edit-problem/{problem_name}?error={error_msg}')
                     self.end_headers()
                 
             except Exception as e:
-                error_msg = urllib.parse.quote(f"更新失敗：{str(e)}")
+                error_msg = urllib.parse.quote(f"更新失敗：{str(e)}", safe='', encoding='utf-8')
                 self.send_response(302)
                 self.send_header('Location', f'/admin/edit-problem/{problem_name}?error={error_msg}')
                 self.end_headers()
@@ -1011,17 +1020,18 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 success, message = delete_problem(problem_name)
                 
                 if success:
+                    success_msg = urllib.parse.quote("題目刪除成功", safe='', encoding='utf-8')
                     self.send_response(302)
-                    self.send_header('Location', '/admin/problems?success=題目刪除成功')
+                    self.send_header('Location', f'/admin/problems?success={success_msg}')
                     self.end_headers()
                 else:
-                    error_msg = urllib.parse.quote(message)
+                    error_msg = urllib.parse.quote(message, safe='', encoding='utf-8')
                     self.send_response(302)
                     self.send_header('Location', f'/admin/problems?error={error_msg}')
                     self.end_headers()
                 
             except Exception as e:
-                error_msg = urllib.parse.quote(f"刪除失敗：{str(e)}")
+                error_msg = urllib.parse.quote(f"刪除失敗：{str(e)}", safe='', encoding='utf-8')
                 self.send_response(302)
                 self.send_header('Location', f'/admin/problems?error={error_msg}')
                 self.end_headers()

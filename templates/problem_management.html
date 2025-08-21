@@ -93,7 +93,7 @@
 
         .problems-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
         }
@@ -106,8 +106,8 @@
             transition: all 0.3s;
             position: relative;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .problem-item:hover {
@@ -119,6 +119,7 @@
 
         .problem-content {
             flex: 1;
+            margin-bottom: 8px;
         }
 
         .problem-name {
@@ -135,23 +136,27 @@
 
         .problem-actions {
             display: flex;
-            gap: 8px;
-            flex-shrink: 0;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         .action-btn {
-            padding: 6px 12px;
+            padding: 6px 10px;
             border: none;
             border-radius: 6px;
             text-decoration: none;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s;
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            gap: 3px;
             white-space: nowrap;
+            flex: 1;
+            min-width: 0;
+            justify-content: center;
         }
 
         .view-btn {
@@ -447,10 +452,15 @@
         // 檢查 URL 參數以顯示成功或錯誤訊息
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('success')) {
-            showMessage('success', '題目上傳成功！');
+            const successMsg = urlParams.get('success');
+            if (successMsg === '1') {
+                showMessage('success', '題目上傳成功！');
+            } else {
+                showMessage('success', decodeURIComponent(successMsg));
+            }
         }
         if (urlParams.get('error')) {
-            showMessage('error', urlParams.get('error'));
+            showMessage('error', decodeURIComponent(urlParams.get('error')));
         }
 
         // 刪除題目功能
