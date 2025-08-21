@@ -1374,23 +1374,24 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Expires', '0')
         super().end_headers()
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-if not os.path.exists('submissions'):
-    os.makedirs('submissions')
-if not os.path.exists('problems'):
-    os.makedirs('problems')
-setup_database()
-cleanup_expired_sessions()  # 服务器启动时清理过期 sessions
-Handler = MyHandler
-httpd = socketserver.TCPServer(("", PORT), Handler)
+if __name__ == '__main__':
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    if not os.path.exists('submissions'):
+        os.makedirs('submissions')
+    if not os.path.exists('problems'):
+        os.makedirs('problems')
+    setup_database()
+    cleanup_expired_sessions()  # 服务器启动时清理过期 sessions
+    Handler = MyHandler
+    httpd = socketserver.TCPServer(("", PORT), Handler)
 
-print(f"伺服器已啟動，請在瀏覽器中輸入 http://localhost:{PORT}")
-print("按下 Ctrl + C 即可停止伺服器")
+    print(f"伺服器已啟動，請在瀏覽器中輸入 http://localhost:{PORT}")
+    print("按下 Ctrl + C 即可停止伺服器")
 
-try:
-    httpd.serve_forever()
-except KeyboardInterrupt:
-    pass
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
 
-httpd.server_close()
-print("伺服器已關閉")
+    httpd.server_close()
+    print("伺服器已關閉")

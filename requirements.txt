@@ -2,6 +2,8 @@
 # 在此文件中列出你的Python项目所需的所有依赖包，每行一个包名。
 # 示例：
 flask
+requests
+selenium
 # 注意：sqlite3 和 cgi 是 Python 标准库的一部分，不需要安装
 # 如有需要可添加更多依赖，例如：
 # requests
