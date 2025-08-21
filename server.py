@@ -216,6 +216,104 @@ def save_uploaded_problem(problem_id, description_file, test_files):
             shutil.rmtree(problem_dir)
         return False, f"上傳失敗：{str(e)}"
 
+def get_problem_details(problem_name):
+    """获取题目详细信息"""
+    problem_dir = f'problems/{problem_name}'
+    
+    if not os.path.exists(problem_dir):
+        return None
+    
+    details = {
+        'name': problem_name,
+        'description': '',
+        'test_cases': []
+    }
+    
+    # 读取描述文件
+    description_path = os.path.join(problem_dir, 'description.txt')
+    if os.path.exists(description_path):
+        try:
+            with open(description_path, 'r', encoding='utf-8') as f:
+                details['description'] = f.read()
+        except UnicodeDecodeError:
+            with open(description_path, 'r', encoding='gbk') as f:
+                details['description'] = f.read()
+    
+    # 读取测试点
+    input_files = sorted(glob.glob(os.path.join(problem_dir, 'input*.txt')))
+    output_files = sorted(glob.glob(os.path.join(problem_dir, 'output*.txt')))
+    
+    for i, (input_file, output_file) in enumerate(zip(input_files, output_files), 1):
+        try:
+            with open(input_file, 'r', encoding='utf-8') as f:
+                input_content = f.read()
+        except UnicodeDecodeError:
+            with open(input_file, 'r', encoding='gbk') as f:
+                input_content = f.read()
+        
+        try:
+            with open(output_file, 'r', encoding='utf-8') as f:
+                output_content = f.read()
+        except UnicodeDecodeError:
+            with open(output_file, 'r', encoding='gbk') as f:
+                output_content = f.read()
+        
+        details['test_cases'].append({
+            'number': i,
+            'input': input_content,
+            'output': output_content
+        })
+    
+    return details
+
+def delete_problem(problem_name):
+    """删除题目"""
+    problem_dir = f'problems/{problem_name}'
+    
+    if not os.path.exists(problem_dir):
+        return False, f"題目 {problem_name} 不存在！"
+    
+    try:
+        import shutil
+        shutil.rmtree(problem_dir)
+        return True, f"題目 {problem_name} 刪除成功！"
+    except Exception as e:
+        return False, f"刪除失敗：{str(e)}"
+
+def update_problem(problem_name, description, test_cases_data):
+    """更新题目信息"""
+    problem_dir = f'problems/{problem_name}'
+    
+    if not os.path.exists(problem_dir):
+        return False, f"題目 {problem_name} 不存在！"
+    
+    try:
+        # 更新描述文件
+        description_path = os.path.join(problem_dir, 'description.txt')
+        with open(description_path, 'w', encoding='utf-8') as f:
+            f.write(description)
+        
+        # 删除现有的测试点文件
+        for file in glob.glob(os.path.join(problem_dir, 'input*.txt')):
+            os.remove(file)
+        for file in glob.glob(os.path.join(problem_dir, 'output*.txt')):
+            os.remove(file)
+        
+        # 写入新的测试点
+        for i, test_case in enumerate(test_cases_data, 1):
+            input_path = os.path.join(problem_dir, f'input{i}.txt')
+            output_path = os.path.join(problem_dir, f'output{i}.txt')
+            
+            with open(input_path, 'w', encoding='utf-8') as f:
+                f.write(test_case['input'])
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(test_case['output'])
+        
+        return True, f"題目 {problem_name} 更新成功！"
+    except Exception as e:
+        return False, f"更新失敗：{str(e)}"
+
 def parse_cookies(cookie_header):
     """解析 Cookie 字符串，返回字典"""
     cookies = {}
@@ -345,9 +443,16 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 for problem in problems:
                     status_info = f"{problem['test_cases']} 個測試點" if problem['test_cases'] > 0 else "無測試點"
                     problems_html += f"""
-                    <div class="problem-item" onclick="viewProblem('{problem['name']}')">
-                        <div class="problem-name">{problem['name']}</div>
-                        <div class="problem-info">{status_info}</div>
+                    <div class="problem-item">
+                        <div class="problem-content">
+                            <div class="problem-name">{problem['name']}</div>
+                            <div class="problem-info">{status_info}</div>
+                        </div>
+                        <div class="problem-actions">
+                            <a href="/admin/view-problem/{problem['name']}" class="action-btn view-btn">👁 查看</a>
+                            <a href="/admin/edit-problem/{problem['name']}" class="action-btn edit-btn">✏️ 編輯</a>
+                            <button onclick="deleteProblem('{problem['name']}')" class="action-btn delete-btn">🗑️ 刪除</button>
+                        </div>
                     </div>
                     """
             else:
@@ -369,6 +474,135 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 return
             except FileNotFoundError:
                 self.send_error(404, "Problem management template not found")
+        elif urllib.parse.urlparse(self.path).path.startswith('/admin/view-problem/'):
+            # 查看题目详情页面
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            # 提取题目名称
+            parsed_path = urllib.parse.urlparse(self.path).path
+            problem_name = parsed_path.split('/admin/view-problem/', 1)[1]
+            if not problem_name:
+                self.send_error(400, "Missing problem name")
+                return
+            
+            # 获取题目详情
+            problem_details = get_problem_details(problem_name)
+            if not problem_details:
+                self.send_error(404, "Problem not found")
+                return
+            
+            # 读取题目详情模板
+            try:
+                with open('templates/problem_detail.html', 'r', encoding='utf-8') as f:
+                    template_content = f.read()
+                
+                # 构建测试案例HTML
+                test_cases_html = ""
+                for i, test_case in enumerate(problem_details['test_cases'], 1):
+                    test_cases_html += f"""
+                    <div class="test-case">
+                        <h4>測試案例 {i}</h4>
+                        <div class="test-case-content">
+                            <div class="input-section">
+                                <strong>輸入：</strong>
+                                <pre>{test_case['input']}</pre>
+                            </div>
+                            <div class="output-section">
+                                <strong>預期輸出：</strong>
+                                <pre>{test_case['output']}</pre>
+                            </div>
+                        </div>
+                    </div>
+                    """
+                
+                if not test_cases_html:
+                    test_cases_html = '<div class="no-test-cases">此題目尚無測試案例</div>'
+                
+                # 替换占位符
+                template_content = template_content.replace('{{PROBLEM_NAME}}', problem_details['name'])
+                template_content = template_content.replace('{{PROBLEM_DESCRIPTION}}', problem_details['description'])
+                template_content = template_content.replace('{{TEST_CASES}}', test_cases_html)
+                
+                # 发送响应
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(template_content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self.send_error(404, "Problem detail template not found")
+        elif urllib.parse.urlparse(self.path).path.startswith('/admin/edit-problem/'):
+            # 编辑题目页面
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            # 提取题目名称
+            parsed_path = urllib.parse.urlparse(self.path).path
+            problem_name = parsed_path.split('/admin/edit-problem/', 1)[1]
+            if not problem_name:
+                self.send_error(400, "Missing problem name")
+                return
+            
+            # 获取题目详情
+            problem_details = get_problem_details(problem_name)
+            if not problem_details:
+                self.send_error(404, "Problem not found")
+                return
+            
+            # 读取题目编辑模板
+            try:
+                with open('templates/problem_edit.html', 'r', encoding='utf-8') as f:
+                    template_content = f.read()
+                
+                # 构建测试案例输入框HTML
+                test_cases_html = ""
+                for i, test_case in enumerate(problem_details['test_cases']):
+                    test_cases_html += f"""
+                    <div class="test-case-group">
+                        <h4>測試案例 {i + 1}</h4>
+                        <div class="input-group">
+                            <label>輸入：</label>
+                            <textarea name="test_input_{i}" placeholder="輸入數據">{test_case['input']}</textarea>
+                        </div>
+                        <div class="input-group">
+                            <label>預期輸出：</label>
+                            <textarea name="test_output_{i}" placeholder="預期輸出">{test_case['output']}</textarea>
+                        </div>
+                        <button type="button" class="remove-test-case" onclick="removeTestCase(this)">移除此測試案例</button>
+                    </div>
+                    """
+                
+                # 替换占位符
+                template_content = template_content.replace('{{PROBLEM_NAME}}', problem_details['name'])
+                template_content = template_content.replace('{{PROBLEM_DESCRIPTION}}', problem_details['description'])
+                template_content = template_content.replace('{{TEST_CASES}}', test_cases_html)
+                template_content = template_content.replace('{{TEST_CASES_COUNT}}', str(len(problem_details['test_cases'])))
+                
+                # 发送响应
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(template_content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self.send_error(404, "Problem edit template not found")
         elif self.path == '/dashboard.html':
             # 检查学生是否已登录
             cookies = parse_cookies(self.headers.get('Cookie', ''))
@@ -676,6 +910,118 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 
             except Exception as e:
                 error_msg = urllib.parse.quote(f"上傳失敗：{str(e)}")
+                self.send_response(302)
+                self.send_header('Location', f'/admin/problems?error={error_msg}')
+                self.end_headers()
+        
+        # 檢查是否為編輯題目請求
+        elif urllib.parse.urlparse(self.path).path.startswith('/admin/edit-problem/'):
+            # 验证老师身份
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            # 提取题目名称
+            parsed_path = urllib.parse.urlparse(self.path).path
+            problem_name = parsed_path.split('/admin/edit-problem/', 1)[1]
+            if not problem_name:
+                self.send_response(302)
+                self.send_header('Location', '/admin/problems?error=無效的題目名稱')
+                self.end_headers()
+                return
+            
+            try:
+                # 解析表单数据
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                post_data_str = post_data.decode('utf-8')
+                parsed_data = urllib.parse.parse_qs(post_data_str)
+                
+                description = parsed_data.get('description', [''])[0]
+                if not description:
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/edit-problem/{problem_name}?error=請填寫題目描述')
+                    self.end_headers()
+                    return
+                
+                # 收集测试案例
+                test_cases = []
+                i = 0
+                while f'test_input_{i}' in parsed_data and f'test_output_{i}' in parsed_data:
+                    test_input = parsed_data[f'test_input_{i}'][0].strip()
+                    test_output = parsed_data[f'test_output_{i}'][0].strip()
+                    if test_input and test_output:  # 只添加非空的测试案例
+                        test_cases.append({
+                            'input': test_input,
+                            'output': test_output
+                        })
+                    i += 1
+                
+                # 更新题目
+                success, message = update_problem(problem_name, description, test_cases)
+                
+                if success:
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/view-problem/{problem_name}?success=題目更新成功')
+                    self.end_headers()
+                else:
+                    error_msg = urllib.parse.quote(message)
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/edit-problem/{problem_name}?error={error_msg}')
+                    self.end_headers()
+                
+            except Exception as e:
+                error_msg = urllib.parse.quote(f"更新失敗：{str(e)}")
+                self.send_response(302)
+                self.send_header('Location', f'/admin/edit-problem/{problem_name}?error={error_msg}')
+                self.end_headers()
+        
+        # 檢查是否為刪除題目請求
+        elif urllib.parse.urlparse(self.path).path.startswith('/admin/delete-problem/'):
+            # 验证老师身份
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            # 提取题目名称
+            parsed_path = urllib.parse.urlparse(self.path).path
+            problem_name = parsed_path.split('/admin/delete-problem/', 1)[1]
+            if not problem_name:
+                self.send_response(302)
+                self.send_header('Location', '/admin/problems?error=無效的題目名稱')
+                self.end_headers()
+                return
+            
+            try:
+                # 删除题目
+                success, message = delete_problem(problem_name)
+                
+                if success:
+                    self.send_response(302)
+                    self.send_header('Location', '/admin/problems?success=題目刪除成功')
+                    self.end_headers()
+                else:
+                    error_msg = urllib.parse.quote(message)
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/problems?error={error_msg}')
+                    self.end_headers()
+                
+            except Exception as e:
+                error_msg = urllib.parse.quote(f"刪除失敗：{str(e)}")
                 self.send_response(302)
                 self.send_header('Location', f'/admin/problems?error={error_msg}')
                 self.end_headers()
