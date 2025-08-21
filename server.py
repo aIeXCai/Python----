@@ -5,6 +5,8 @@ import uuid, time
 PORT = 8000
 DB_FILE = 'users.db'
 
+# <!-- 组件模块 -->
+# 加载模板组件
 def load_template_component(component_name):
     """加载模板组件"""
     try:
@@ -14,6 +16,7 @@ def load_template_component(component_name):
     except FileNotFoundError:
         return f"<!-- Template component {component_name} not found -->"
 
+# 渲染模板组件
 def render_template_component(component_name, **kwargs):
     """渲染模板组件"""
     template = load_template_component(component_name)
@@ -21,6 +24,7 @@ def render_template_component(component_name, **kwargs):
         template = template.replace(f'{{{{{key}}}}}', str(value))
     return template
 
+# 渲染主模板
 def render_main_template(template_path, **kwargs):
     """渲染主模板文件"""
     try:
@@ -43,6 +47,7 @@ TEACHER_CREDENTIALS = {
     'alex': 'teacher123',
 }
 
+# 数据库初始化
 def setup_database():
     """設定並建立資料庫表格"""
     conn = sqlite3.connect(DB_FILE)
@@ -75,6 +80,8 @@ def setup_database():
     conn.commit()
     conn.close()
 
+# <!-- 认证与注册 -->
+# 用户认证
 def authenticate_user(grade, class_num, username, password):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -84,10 +91,12 @@ def authenticate_user(grade, class_num, username, password):
     conn.close()
     return user is not None
 
+# 教师认证
 def authenticate_teacher(username, password):
     """验证老师账号密码（硬编码验证）"""
     return username in TEACHER_CREDENTIALS and TEACHER_CREDENTIALS[username] == password
 
+# 用户注册
 def register_user(grade, class_num, username, password):
     """注册新用户"""
     conn = sqlite3.connect(DB_FILE)
@@ -105,10 +114,15 @@ def register_user(grade, class_num, username, password):
         conn.close()
         return False, f"注册失败：{str(e)}"
 
+
+
+# <!-- Session 管理 -->
+# 生成唯一的 session ID
 def generate_session_id():
     """生成唯一的 session ID"""
     return uuid.uuid4().hex
 
+# 创建新的 session
 def create_session(username, role='student', grade=None, class_num=None):
     """为用户创建新的 session"""
     cleanup_expired_sessions()  # 先清理过期的 sessions
@@ -123,6 +137,7 @@ def create_session(username, role='student', grade=None, class_num=None):
     }
     return session_id
 
+# 根据 session_id 获取用户信息
 def get_user_from_session(session_id):
     """根据 session_id 获取用户信息"""
     if not session_id or session_id not in SESSIONS:
@@ -136,6 +151,7 @@ def get_user_from_session(session_id):
     
     return session_data
 
+# 清理过期的 sessions
 def cleanup_expired_sessions():
     """清理过期的 sessions"""
     current_time = time.time()
@@ -146,6 +162,10 @@ def cleanup_expired_sessions():
     for sid in expired_sessions:
         del SESSIONS[sid]
 
+
+
+# <!-- 题目管理 -->
+# 获取所有题目列表
 def get_problems_list():
     """获取所有题目列表"""
     problems_dir = 'problems'
@@ -171,6 +191,7 @@ def get_problems_list():
     problems.sort(key=lambda x: int(x['name'].replace('problem', '')) if x['name'].replace('problem', '').isdigit() else 0)
     return problems
 
+# 保存上传的题目
 def save_uploaded_problem(problem_id, description_file, test_files):
     """保存上传的题目文件"""
     problem_dir = f'problems/problem{problem_id}'
@@ -245,6 +266,7 @@ def save_uploaded_problem(problem_id, description_file, test_files):
             shutil.rmtree(problem_dir)
         return False, f"上傳失敗：{str(e)}"
 
+# 获取题目详细信息
 def get_problem_details(problem_name):
     """获取题目详细信息"""
     problem_dir = f'problems/{problem_name}'
@@ -295,6 +317,7 @@ def get_problem_details(problem_name):
     
     return details
 
+# 删除题目
 def delete_problem(problem_name):
     """删除题目"""
     problem_dir = f'problems/{problem_name}'
@@ -309,6 +332,7 @@ def delete_problem(problem_name):
     except Exception as e:
         return False, f"刪除失敗：{str(e)}"
 
+# 更新题目
 def update_problem(problem_name, description, test_cases_data):
     """更新题目信息"""
     problem_dir = f'problems/{problem_name}'
@@ -343,6 +367,97 @@ def update_problem(problem_name, description, test_cases_data):
     except Exception as e:
         return False, f"更新失敗：{str(e)}"
 
+
+
+
+# <!-- 学生管理 -->
+# 获取所有学生
+def get_all_students():
+    """获取所有学生列表"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, grade, class_num, username, password FROM users ORDER BY grade, class_num, username")
+    students = cursor.fetchall()
+    conn.close()
+    return students
+
+# 根据ID获取学生信息
+def get_student_by_id(student_id):
+    """根据ID获取学生信息"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, grade, class_num, username, password FROM users WHERE id=?", (student_id,))
+    student = cursor.fetchone()
+    conn.close()
+    return student
+
+# 更新学生信息
+def update_student(student_id, grade, class_num, username, password=None):
+    """更新学生信息"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    try:
+        if password:
+            cursor.execute(
+                "UPDATE users SET grade=?, class_num=?, username=?, password=? WHERE id=?",
+                (grade, class_num, username, password, student_id)
+            )
+        else:
+            cursor.execute(
+                "UPDATE users SET grade=?, class_num=?, username=? WHERE id=?",
+                (grade, class_num, username, student_id)
+            )
+        
+        # 同时更新 scores 表中的相关信息
+        cursor.execute(
+            "UPDATE scores SET grade=?, class_num=?, username=? WHERE grade=(SELECT grade FROM users WHERE id=?) AND class_num=(SELECT class_num FROM users WHERE id=?) AND username=(SELECT username FROM users WHERE id=?)",
+            (grade, class_num, username, student_id, student_id, student_id)
+        )
+        
+        conn.commit()
+        conn.close()
+        return True, "学生信息更新成功！"
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False, f"该年级班级中已存在用户名 '{username}'，请选择其他用户名。"
+    except Exception as e:
+        conn.close()
+        return False, f"更新失败：{str(e)}"
+
+# 删除学生
+def delete_student(student_id):
+    """删除学生"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    try:
+        # 先获取学生信息用于删除相关成绩记录
+        cursor.execute("SELECT grade, class_num, username FROM users WHERE id=?", (student_id,))
+        student_info = cursor.fetchone()
+        
+        if not student_info:
+            conn.close()
+            return False, "学生不存在！"
+        
+        grade, class_num, username = student_info
+        
+        # 删除相关成绩记录
+        cursor.execute("DELETE FROM scores WHERE grade=? AND class_num=? AND username=?", 
+                      (grade, class_num, username))
+        
+        # 删除学生记录
+        cursor.execute("DELETE FROM users WHERE id=?", (student_id,))
+        
+        conn.commit()
+        conn.close()
+        return True, f"学生 {username} 删除成功！"
+    except Exception as e:
+        conn.close()
+        return False, f"删除失败：{str(e)}"
+
+
+
+
+# <!-- 解析 Cookie -->
 def parse_cookies(cookie_header):
     """解析 Cookie 字符串，返回字典"""
     cookies = {}
@@ -353,6 +468,8 @@ def parse_cookies(cookie_header):
                 cookies[key] = value
     return cookies
 
+
+# <!-- 自动批改 -->
 def grade_submission(submission_path, problem_num):
     """
     自動批改學生程式碼，採用測試點法則。
@@ -414,6 +531,9 @@ def grade_submission(submission_path, problem_num):
     
     return True, f"{summary}\n\n詳細報告：\n{full_report}"
 
+
+
+# <!-- 请求处理 -->
 class MyHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/':
@@ -611,6 +731,110 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 return
             except FileNotFoundError:
                 self.send_error(404, "Problem edit template not found")
+        elif urllib.parse.urlparse(self.path).path == '/admin/students':
+            # 学生管理页面
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            # 获取学生列表
+            students = get_all_students()
+            
+            # 生成学生列表HTML
+            if students:
+                students_html = ""
+                for student in students:
+                    student_id, grade, class_num, username, password = student
+                    students_html += f"""
+                    <tr>
+                        <td>{student_id}</td>
+                        <td>{grade}</td>
+                        <td>{class_num}</td>
+                        <td>{username}</td>
+                        <td>
+                            <span class="password-cell" data-password="{password}">••••••</span>
+                            <span class="password-toggle">显示</span>
+                        </td>
+                        <td>
+                            <a href="/admin/edit-student/{student_id}" class="btn btn-edit">编辑</a>
+                            <a href="/admin/delete-student/{student_id}" class="btn btn-delete" 
+                               onclick="return confirm('确定要删除学生 {username} 吗？这将删除该学生的所有相关数据。')">删除</a>
+                        </td>
+                    </tr>
+                    """
+            else:
+                students_html = '<tr><td colspan="6" class="no-students">目前没有任何学生</td></tr>'
+            
+            # 读取学生管理模板并替换占位符
+            try:
+                with open('templates/student_management.html', 'r', encoding='utf-8') as f:
+                    template_content = f.read()
+                
+                # 替换占位符
+                template_content = template_content.replace('{{STUDENTS_LIST}}', students_html)
+                
+                # 发送自定义的 HTML 响应
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(template_content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self.send_error(404, "Student management template not found")
+        elif urllib.parse.urlparse(self.path).path.startswith('/admin/edit-student/'):
+            # 编辑学生页面
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            # 提取学生ID
+            parsed_path = urllib.parse.urlparse(self.path).path
+            student_id = parsed_path.split('/admin/edit-student/', 1)[1]
+            if not student_id or not student_id.isdigit():
+                self.send_error(400, "Invalid student ID")
+                return
+            
+            # 获取学生信息
+            student = get_student_by_id(int(student_id))
+            if not student:
+                self.send_error(404, "Student not found")
+                return
+            
+            student_id, grade, class_num, username, password = student
+            
+            # 读取学生编辑模板
+            try:
+                with open('templates/student_edit.html', 'r', encoding='utf-8') as f:
+                    template_content = f.read()
+                
+                # 替换占位符
+                template_content = template_content.replace('{{STUDENT_ID}}', str(student_id))
+                template_content = template_content.replace('{{STUDENT_GRADE}}', grade)
+                template_content = template_content.replace('{{STUDENT_CLASS}}', class_num)
+                template_content = template_content.replace('{{STUDENT_USERNAME}}', username)
+                
+                # 发送响应
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(template_content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self.send_error(404, "Student edit template not found")
         elif self.path == '/dashboard.html':
             # 检查学生是否已登录
             cookies = parse_cookies(self.headers.get('Cookie', ''))
@@ -1034,6 +1258,111 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 error_msg = urllib.parse.quote(f"刪除失敗：{str(e)}", safe='', encoding='utf-8')
                 self.send_response(302)
                 self.send_header('Location', f'/admin/problems?error={error_msg}')
+                self.end_headers()
+        
+        # 检查是否为编辑学生请求
+        elif urllib.parse.urlparse(self.path).path.startswith('/admin/edit-student/'):
+            # 验证老师身份
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            # 提取学生ID
+            parsed_path = urllib.parse.urlparse(self.path).path
+            student_id = parsed_path.split('/admin/edit-student/', 1)[1]
+            if not student_id or not student_id.isdigit():
+                self.send_response(302)
+                self.send_header('Location', '/admin/students?error=無效的學生ID')
+                self.end_headers()
+                return
+            
+            try:
+                # 解析表单数据
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                post_data_str = post_data.decode('utf-8')
+                parsed_data = urllib.parse.parse_qs(post_data_str)
+                
+                grade = parsed_data.get('grade', [''])[0].strip()
+                class_num = parsed_data.get('class_num', [''])[0].strip()
+                username = parsed_data.get('username', [''])[0].strip()
+                password = parsed_data.get('password', [''])[0].strip()
+                
+                if not grade or not class_num or not username:
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/edit-student/{student_id}?error=年級、班級和用戶名不能為空')
+                    self.end_headers()
+                    return
+                
+                # 更新学生信息
+                success, message = update_student(int(student_id), grade, class_num, username, password if password else None)
+                
+                if success:
+                    success_msg = urllib.parse.quote("學生信息更新成功", safe='', encoding='utf-8')
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/students?success={success_msg}')
+                    self.end_headers()
+                else:
+                    error_msg = urllib.parse.quote(message, safe='', encoding='utf-8')
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/edit-student/{student_id}?error={error_msg}')
+                    self.end_headers()
+                
+            except Exception as e:
+                error_msg = urllib.parse.quote(f"更新失敗：{str(e)}", safe='', encoding='utf-8')
+                self.send_response(302)
+                self.send_header('Location', f'/admin/edit-student/{student_id}?error={error_msg}')
+                self.end_headers()
+        
+        # 检查是否为删除学生请求
+        elif urllib.parse.urlparse(self.path).path.startswith('/admin/delete-student/'):
+            # 验证老师身份
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            # 提取学生ID
+            parsed_path = urllib.parse.urlparse(self.path).path
+            student_id = parsed_path.split('/admin/delete-student/', 1)[1]
+            if not student_id or not student_id.isdigit():
+                self.send_response(302)
+                self.send_header('Location', '/admin/students?error=無效的學生ID')
+                self.end_headers()
+                return
+            
+            try:
+                # 删除学生
+                success, message = delete_student(int(student_id))
+                
+                if success:
+                    success_msg = urllib.parse.quote(message, safe='', encoding='utf-8')
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/students?success={success_msg}')
+                    self.end_headers()
+                else:
+                    error_msg = urllib.parse.quote(message, safe='', encoding='utf-8')
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/students?error={error_msg}')
+                    self.end_headers()
+                
+            except Exception as e:
+                error_msg = urllib.parse.quote(f"刪除失敗：{str(e)}", safe='', encoding='utf-8')
+                self.send_response(302)
+                self.send_header('Location', f'/admin/students?error={error_msg}')
                 self.end_headers()
         
         else:

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>編輯學生 - Python 學習平台</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .student-edit {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .edit-form {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-group .help-text {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .message {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="student-edit">
+        <a href="/admin/students" class="back-link">← 返回學生管理</a>
+        
+        <div class="header">
+            <h1>編輯學生信息</h1>
+        </div>
+        
+        <!-- 错误消息显示 -->
+        <script>
+            const urlParams = new URLSearchParams(window.location.search);
+            const error = urlParams.get('error');
+            
+            if (error) {
+                document.write('<div class="message error">' + decodeURIComponent(error) + '</div>');
+            }
+        </script>
+        
+        <form class="edit-form" method="POST" action="/admin/edit-student/{{STUDENT_ID}}">
+            <div class="form-group">
+                <label for="grade">年級：</label>
+                <input type="text" id="grade" name="grade" value="{{STUDENT_GRADE}}" required>
+                <div class="help-text">請輸入學生的年級（如：七年級、八年級等）</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="class_num">班級：</label>
+                <input type="text" id="class_num" name="class_num" value="{{STUDENT_CLASS}}" required>
+                <div class="help-text">請輸入學生的班級（如：1班、2班等）</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="username">用戶名：</label>
+                <input type="text" id="username" name="username" value="{{STUDENT_USERNAME}}" required>
+                <div class="help-text">用戶名在同年級同班級中必須唯一</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">新密碼：</label>
+                <input type="password" id="password" name="password" placeholder="留空則不修改密碼">
+                <div class="help-text">如需修改密碼請輸入新密碼，否則請留空</div>
+            </div>
+            
+            <div class="btn-group">
+                <button type="submit" class="btn btn-primary">保存修改</button>
+                <a href="/admin/students" class="btn btn-secondary">取消</a>
+            </div>
+        </form>
+    </div>
+    
+    <script>
+        // 表单验证
+        document.querySelector('.edit-form').addEventListener('submit', function(e) {
+            const grade = document.getElementById('grade').value.trim();
+            const classNum = document.getElementById('class_num').value.trim();
+            const username = document.getElementById('username').value.trim();
+            
+            if (!grade || !classNum || !username) {
+                e.preventDefault();
+                alert('年級、班級和用戶名不能為空！');
+                return false;
+            }
+        });
+    </script>
+</body>
+</html>
