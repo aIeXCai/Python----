@@ -117,6 +117,105 @@ def cleanup_expired_sessions():
     for sid in expired_sessions:
         del SESSIONS[sid]
 
+def get_problems_list():
+    """获取所有题目列表"""
+    problems_dir = 'problems'
+    problems = []
+    
+    if os.path.exists(problems_dir):
+        for item in os.listdir(problems_dir):
+            item_path = os.path.join(problems_dir, item)
+            if os.path.isdir(item_path) and item.startswith('problem'):
+                # 检查题目文件夹中是否有必要的文件
+                description_file = os.path.join(item_path, 'description.txt')
+                input_files = glob.glob(os.path.join(item_path, 'input*.txt'))
+                output_files = glob.glob(os.path.join(item_path, 'output*.txt'))
+                
+                problems.append({
+                    'name': item,
+                    'path': item_path,
+                    'has_description': os.path.exists(description_file),
+                    'test_cases': min(len(input_files), len(output_files))
+                })
+    
+    # 按題目編號排序
+    problems.sort(key=lambda x: int(x['name'].replace('problem', '')) if x['name'].replace('problem', '').isdigit() else 0)
+    return problems
+
+def save_uploaded_problem(problem_id, description_file, test_files):
+    """保存上传的题目文件"""
+    problem_dir = f'problems/problem{problem_id}'
+    
+    # 检查题目是否已存在
+    if os.path.exists(problem_dir):
+        return False, f"題目 {problem_id} 已經存在！"
+    
+    try:
+        # 创建题目文件夹
+        os.makedirs(problem_dir, exist_ok=True)
+        
+        # 保存描述文件
+        description_path = os.path.join(problem_dir, 'description.txt')
+        with open(description_path, 'wb') as f:
+            if hasattr(description_file, 'file'):
+                f.write(description_file.file.read())
+            else:
+                f.write(description_file.value)
+        
+        # 整理测试文件
+        input_files = []
+        output_files = []
+        
+        for file_item in test_files:
+            filename = file_item.filename.lower()
+            if filename.startswith('input') and filename.endswith('.txt'):
+                input_files.append(file_item)
+            elif filename.startswith('output') and filename.endswith('.txt'):
+                output_files.append(file_item)
+        
+        # 按数字排序
+        input_files.sort(key=lambda x: int(''.join(filter(str.isdigit, x.filename))) or 0)
+        output_files.sort(key=lambda x: int(''.join(filter(str.isdigit, x.filename))) or 0)
+        
+        # 检查输入和输出文件数量是否匹配
+        if len(input_files) != len(output_files):
+            # 清理已创建的文件夹
+            import shutil
+            shutil.rmtree(problem_dir)
+            return False, f"輸入檔案數量 ({len(input_files)}) 與輸出檔案數量 ({len(output_files)}) 不匹配！"
+        
+        if len(input_files) == 0:
+            import shutil
+            shutil.rmtree(problem_dir)
+            return False, "未找到有效的測試點檔案！"
+        
+        # 保存测试文件，重新命名为标准格式
+        for i, (input_file, output_file) in enumerate(zip(input_files, output_files), 1):
+            # 保存输入文件
+            input_path = os.path.join(problem_dir, f'input{i}.txt')
+            with open(input_path, 'wb') as f:
+                if hasattr(input_file, 'file'):
+                    f.write(input_file.file.read())
+                else:
+                    f.write(input_file.value)
+            
+            # 保存输出文件
+            output_path = os.path.join(problem_dir, f'output{i}.txt')
+            with open(output_path, 'wb') as f:
+                if hasattr(output_file, 'file'):
+                    f.write(output_file.file.read())
+                else:
+                    f.write(output_file.value)
+        
+        return True, f"題目 {problem_id} 上傳成功！包含 {len(input_files)} 個測試點。"
+        
+    except Exception as e:
+        # 如果出错，清理已创建的文件夹
+        if os.path.exists(problem_dir):
+            import shutil
+            shutil.rmtree(problem_dir)
+        return False, f"上傳失敗：{str(e)}"
+
 def parse_cookies(cookie_header):
     """解析 Cookie 字符串，返回字典"""
     cookies = {}
@@ -224,6 +323,52 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 return
             except FileNotFoundError:
                 self.send_error(404, "Admin dashboard template not found")
+        elif urllib.parse.urlparse(self.path).path == '/admin/problems':
+            # 题目管理页面
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            # 获取题目列表
+            problems = get_problems_list()
+            
+            # 生成题目列表HTML
+            if problems:
+                problems_html = ""
+                for problem in problems:
+                    status_info = f"{problem['test_cases']} 個測試點" if problem['test_cases'] > 0 else "無測試點"
+                    problems_html += f"""
+                    <div class="problem-item" onclick="viewProblem('{problem['name']}')">
+                        <div class="problem-name">{problem['name']}</div>
+                        <div class="problem-info">{status_info}</div>
+                    </div>
+                    """
+            else:
+                problems_html = '<div class="no-problems">目前沒有任何題目</div>'
+            
+            # 读取题目管理模板并替换占位符
+            try:
+                with open('templates/problem_management.html', 'r', encoding='utf-8') as f:
+                    template_content = f.read()
+                
+                # 替换占位符
+                template_content = template_content.replace('{{PROBLEMS_LIST}}', problems_html)
+                
+                # 发送自定义的 HTML 响应
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(template_content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self.send_error(404, "Problem management template not found")
         elif self.path == '/dashboard.html':
             # 检查学生是否已登录
             cookies = parse_cookies(self.headers.get('Cookie', ''))
@@ -450,6 +595,90 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_error(400, "沒有選擇檔案")
             else:
                 self.send_error(400, "沒有找到 'codeFile' 欄位")
+        
+        # 檢查是否為題目上傳請求
+        elif self.path == '/admin/upload-problem':
+            # 验证老师身份
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            try:
+                # 解析 multipart/form-data
+                form = cgi.FieldStorage(
+                    fp=self.rfile,
+                    headers=self.headers,
+                    environ={'REQUEST_METHOD': 'POST',
+                            'CONTENT_TYPE': self.headers['Content-Type']}
+                )
+                
+                # 获取题目编号
+                problem_id = form.getvalue('problem_id')
+                if not problem_id or not problem_id.isdigit():
+                    self.send_response(302)
+                    self.send_header('Location', '/admin/problems?error=請輸入有效的題目編號')
+                    self.end_headers()
+                    return
+                
+                # 获取描述文件
+                if 'description' not in form:
+                    self.send_response(302)
+                    self.send_header('Location', '/admin/problems?error=請上傳題目描述檔案')
+                    self.end_headers()
+                    return
+                
+                description_file = form['description']
+                if not description_file.filename:
+                    self.send_response(302)
+                    self.send_header('Location', '/admin/problems?error=請選擇題目描述檔案')
+                    self.end_headers()
+                    return
+                
+                # 获取测试文件
+                if 'test_files' not in form:
+                    self.send_response(302)
+                    self.send_header('Location', '/admin/problems?error=請上傳測試點檔案')
+                    self.end_headers()
+                    return
+                
+                test_files = form['test_files']
+                if not isinstance(test_files, list):
+                    test_files = [test_files]
+                
+                # 过滤空文件
+                test_files = [f for f in test_files if f.filename]
+                
+                if not test_files:
+                    self.send_response(302)
+                    self.send_header('Location', '/admin/problems?error=請選擇測試點檔案')
+                    self.end_headers()
+                    return
+                
+                # 保存题目
+                success, message = save_uploaded_problem(problem_id, description_file, test_files)
+                
+                if success:
+                    self.send_response(302)
+                    self.send_header('Location', '/admin/problems?success=1')
+                    self.end_headers()
+                else:
+                    error_msg = urllib.parse.quote(message)
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/problems?error={error_msg}')
+                    self.end_headers()
+                
+            except Exception as e:
+                error_msg = urllib.parse.quote(f"上傳失敗：{str(e)}")
+                self.send_response(302)
+                self.send_header('Location', f'/admin/problems?error={error_msg}')
+                self.end_headers()
         
         else:
             self.send_error(404, "Not Found")
