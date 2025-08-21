@@ -455,6 +455,107 @@ def delete_student(student_id):
         return False, f"删除失败：{str(e)}"
 
 
+# <!-- 成绩管理相关函数 -->
+def get_all_scores():
+    """获取所有学生的最新成绩"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    # 获取每个学生每道题的最新成绩
+    cursor.execute('''
+        SELECT s.grade, s.class_num, s.username, s.problem_id, s.score, s.submission_time
+        FROM scores s
+        INNER JOIN (
+            SELECT grade, class_num, username, problem_id, MAX(submission_time) as latest_time
+            FROM scores
+            GROUP BY grade, class_num, username, problem_id
+        ) latest ON s.grade = latest.grade 
+                AND s.class_num = latest.class_num 
+                AND s.username = latest.username 
+                AND s.problem_id = latest.problem_id 
+                AND s.submission_time = latest.latest_time
+        ORDER BY s.grade, s.class_num, s.username, s.problem_id
+    ''')
+    
+    scores = cursor.fetchall()
+    conn.close()
+    return scores
+
+def get_scores_by_filter(grade_filter=None, class_filter=None, problem_filter=None):
+    """根据条件筛选成绩"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    # 构建查询条件
+    where_conditions = []
+    params = []
+    
+    if grade_filter:
+        where_conditions.append("grade = ?")
+        params.append(grade_filter)
+    
+    if class_filter:
+        where_conditions.append("class_num = ?")
+        params.append(class_filter)
+    
+    if problem_filter:
+        where_conditions.append("problem_id = ?")
+        params.append(problem_filter)
+    
+    where_clause = ""
+    if where_conditions:
+        where_clause = "WHERE " + " AND ".join(where_conditions)
+    
+    query = f'''
+        SELECT s.grade, s.class_num, s.username, s.problem_id, s.score, s.submission_time
+        FROM scores s
+        INNER JOIN (
+            SELECT grade, class_num, username, problem_id, MAX(submission_time) as latest_time
+            FROM scores
+            {where_clause}
+            GROUP BY grade, class_num, username, problem_id
+        ) latest ON s.grade = latest.grade 
+                AND s.class_num = latest.class_num 
+                AND s.username = latest.username 
+                AND s.problem_id = latest.problem_id 
+                AND s.submission_time = latest.latest_time
+    '''
+    
+    if where_conditions:
+        # 为主查询添加相同的WHERE条件
+        main_where = " AND ".join([f"s.{cond}" for cond in where_conditions])
+        query += f" WHERE {main_where}"
+        params_final = params + params  # 子查询和主查询都需要参数
+    else:
+        params_final = []
+    
+    query += " ORDER BY s.grade, s.class_num, s.username, s.problem_id"
+    
+    cursor.execute(query, params_final)
+    scores = cursor.fetchall()
+    conn.close()
+    return scores
+
+def get_grade_class_options():
+    """获取所有年级班级选项"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    # 获取所有年级
+    cursor.execute("SELECT DISTINCT grade FROM users ORDER BY grade")
+    grades = [row[0] for row in cursor.fetchall()]
+    
+    # 获取所有班级
+    cursor.execute("SELECT DISTINCT class_num FROM users ORDER BY class_num")
+    classes = [row[0] for row in cursor.fetchall()]
+    
+    conn.close()
+    return grades, classes
+
+def get_problem_options():
+    """获取所有题目选项"""
+    problems_data = get_problems_list()
+    return [problem['name'] for problem in problems_data]
 
 
 # <!-- 解析 Cookie -->
@@ -788,6 +889,83 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 return
             except FileNotFoundError:
                 self.send_error(404, "Student management template not found")
+        elif urllib.parse.urlparse(self.path).path == '/admin/scores':
+            # 成绩管理页面
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            # 解析查询参数
+            parsed_url = urllib.parse.urlparse(self.path)
+            query_params = urllib.parse.parse_qs(parsed_url.query)
+            
+            grade_filter = query_params.get('grade', [None])[0]
+            class_filter = query_params.get('class', [None])[0]
+            problem_filter = query_params.get('problem', [None])[0]
+            
+            # 获取筛选选项
+            grades, classes = get_grade_class_options()
+            problems = get_problem_options()
+            
+            # 获取成绩数据
+            if grade_filter or class_filter or problem_filter:
+                scores = get_scores_by_filter(grade_filter, class_filter, problem_filter)
+            else:
+                scores = get_all_scores()
+            
+            # 构建成绩表格数据
+            # 先组织数据结构：{学生: {题目: 分数}}
+            score_matrix = {}
+            all_problems = set()
+            all_students = set()
+            
+            for score in scores:
+                grade, class_num, username, problem_id, score_value, submission_time = score
+                student_key = f"{grade}-{class_num}-{username}"
+                all_students.add(student_key)
+                all_problems.add(problem_id)
+                
+                if student_key not in score_matrix:
+                    score_matrix[student_key] = {}
+                score_matrix[student_key][problem_id] = {
+                    'score': score_value,
+                    'time': submission_time
+                }
+            
+            # 生成表格HTML
+            scores_html = self.generate_scores_table(score_matrix, sorted(all_students), sorted(all_problems))
+            
+            # 生成筛选选项HTML
+            grade_options = self.generate_filter_options(grades, grade_filter, "全部年级")
+            class_options = self.generate_filter_options(classes, class_filter, "全部班级")  
+            problem_options = self.generate_filter_options(problems, problem_filter, "全部题目")
+            
+            # 读取成绩管理模板
+            try:
+                with open('templates/score_management.html', 'r', encoding='utf-8') as f:
+                    template_content = f.read()
+                
+                # 替换占位符
+                template_content = template_content.replace('{{SCORES_TABLE}}', scores_html)
+                template_content = template_content.replace('{{GRADE_OPTIONS}}', grade_options)
+                template_content = template_content.replace('{{CLASS_OPTIONS}}', class_options)
+                template_content = template_content.replace('{{PROBLEM_OPTIONS}}', problem_options)
+                
+                # 发送响应
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(template_content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self.send_error(404, "Score management template not found")
         elif urllib.parse.urlparse(self.path).path.startswith('/admin/edit-student/'):
             # 编辑学生页面
             cookies = parse_cookies(self.headers.get('Cookie', ''))
@@ -1373,6 +1551,55 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Pragma', 'no-cache')
         self.send_header('Expires', '0')
         super().end_headers()
+
+    def generate_scores_table(self, score_matrix, students, problems):
+        """生成成绩表格HTML"""
+        if not students or not problems:
+            return '<tr><td colspan="100%" class="no-data">暂无成绩数据</td></tr>'
+        
+        # 表头
+        header_html = '<tr><th>学生</th>'
+        for problem in problems:
+            header_html += f'<th>{problem}</th>'
+        header_html += '</tr>'
+        
+        # 表格内容
+        rows_html = ''
+        for student in students:
+            grade, class_num, username = student.split('-')
+            rows_html += f'<tr><td class="student-info">{grade} {class_num} - {username}</td>'
+            
+            for problem in problems:
+                if student in score_matrix and problem in score_matrix[student]:
+                    score_info = score_matrix[student][problem]
+                    score = score_info['score']
+                    time = score_info['time']
+                    
+                    # 根据分数添加样式类
+                    if score >= 90:
+                        score_class = 'score-excellent'
+                    elif score >= 80:
+                        score_class = 'score-good'
+                    elif score >= 60:
+                        score_class = 'score-pass'
+                    else:
+                        score_class = 'score-fail'
+                    
+                    rows_html += f'<td class="score-cell {score_class}" title="提交时间: {time}">{score:.1f}</td>'
+                else:
+                    rows_html += '<td class="score-cell score-empty">-</td>'
+            
+            rows_html += '</tr>'
+        
+        return header_html + rows_html
+
+    def generate_filter_options(self, options, selected_value, default_text):
+        """生成筛选选项HTML"""
+        html = f'<option value="">{default_text}</option>'
+        for option in options:
+            selected = 'selected' if option == selected_value else ''
+            html += f'<option value="{option}" {selected}>{option}</option>'
+        return html
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
