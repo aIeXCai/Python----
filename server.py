@@ -6,8 +6,13 @@ PORT = 8000
 DB_FILE = 'users.db'
 
 # Session 管理
-SESSIONS = {}  # {session_id: {'username': 'xxx', 'created_time': timestamp}}
+SESSIONS = {}  # {session_id: {'username': 'xxx', 'created_time': timestamp, 'role': 'student/teacher'}}
 SESSION_TIMEOUT = 2 * 60 * 60  # 2小时过期
+
+# 老师账号配置
+TEACHER_CREDENTIALS = {
+    'alex': 'teacher123',
+}
 
 def setup_database():
     """設定並建立資料庫表格"""
@@ -50,6 +55,10 @@ def authenticate_user(grade, class_num, username, password):
     conn.close()
     return user is not None
 
+def authenticate_teacher(username, password):
+    """验证老师账号密码（硬编码验证）"""
+    return username in TEACHER_CREDENTIALS and TEACHER_CREDENTIALS[username] == password
+
 def register_user(grade, class_num, username, password):
     """注册新用户"""
     conn = sqlite3.connect(DB_FILE)
@@ -71,15 +80,16 @@ def generate_session_id():
     """生成唯一的 session ID"""
     return uuid.uuid4().hex
 
-def create_session(grade, class_num, username):
+def create_session(username, role='student', grade=None, class_num=None):
     """为用户创建新的 session"""
     cleanup_expired_sessions()  # 先清理过期的 sessions
     
     session_id = generate_session_id()
     SESSIONS[session_id] = {
+        'username': username,
+        'role': role,
         'grade': grade,
         'class_num': class_num,
-        'username': username,
         'created_time': time.time()
     }
     return session_id
@@ -87,15 +97,15 @@ def create_session(grade, class_num, username):
 def get_user_from_session(session_id):
     """根据 session_id 获取用户信息"""
     if not session_id or session_id not in SESSIONS:
-        return None, None, None
+        return None
     
     session_data = SESSIONS[session_id]
     # 检查是否过期
     if time.time() - session_data['created_time'] > SESSION_TIMEOUT:
         del SESSIONS[session_id]
-        return None, None, None
+        return None
     
-    return session_data['grade'], session_data['class_num'], session_data['username']
+    return session_data
 
 def cleanup_expired_sessions():
     """清理过期的 sessions"""
@@ -182,14 +192,46 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/':
             self.path = 'templates/index.html'
-        elif self.path == '/dashboard.html':
-            # 检查用户是否已登录
+        elif self.path == '/teacher':
+            # 老师登录页面
+            self.path = 'templates/teacher_login.html'
+        elif self.path == '/admin':
+            # 检查老师是否已登录
             cookies = parse_cookies(self.headers.get('Cookie', ''))
             session_id = cookies.get('session_id')
-            grade, class_num, username = get_user_from_session(session_id)
+            user_data = get_user_from_session(session_id)
             
-            if not username:
-                # 未登录，重定向到登录页面
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+            
+            # 读取管理后台模板并替换用户信息
+            try:
+                with open('templates/admin_dashboard.html', 'r', encoding='utf-8') as f:
+                    admin_content = f.read()
+                
+                # 替换占位符
+                admin_content = admin_content.replace('{{USERNAME}}', user_data['username'])
+                
+                # 发送自定义的 HTML 响应
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(admin_content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self.send_error(404, "Admin dashboard template not found")
+        elif self.path == '/dashboard.html':
+            # 检查学生是否已登录
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'student':
+                # 未登录或不是学生，重定向到登录页面
                 self.send_response(302)
                 self.send_header('Location', '/')
                 self.end_headers()
@@ -201,9 +243,9 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                     dashboard_content = f.read()
                 
                 # 替换占位符
-                dashboard_content = dashboard_content.replace('{{USERNAME}}', username)
-                dashboard_content = dashboard_content.replace('{{GRADE}}', grade)
-                dashboard_content = dashboard_content.replace('{{CLASS}}', class_num)
+                dashboard_content = dashboard_content.replace('{{USERNAME}}', user_data['username'])
+                dashboard_content = dashboard_content.replace('{{GRADE}}', user_data['grade'])
+                dashboard_content = dashboard_content.replace('{{CLASS}}', user_data['class_num'])
                 
                 # 发送自定义的 HTML 响应
                 self.send_response(200)
@@ -245,8 +287,8 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             password = parsed_data.get('password', [''])[0]
             
             if authenticate_user(grade, class_num, username, password):
-                # 创建 session
-                session_id = create_session(grade, class_num, username)
+                # 创建学生 session
+                session_id = create_session(username, 'student', grade, class_num)
                 
                 # 发送重定向响应，并设置 Cookie
                 self.send_response(302)
@@ -258,6 +300,31 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header('Content-type', 'text/html; charset=utf-8')
                 self.end_headers()
                 error_message = f"年級、班級、帳號或密碼錯誤！請返回<a href='/'>登入頁面</a>重試。"
+                self.wfile.write(error_message.encode('utf-8'))
+        
+        # 檢查是否為老師登入請求
+        elif self.path == '/teacher-login':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            post_data_str = post_data.decode('utf-8')
+            parsed_data = urllib.parse.parse_qs(post_data_str)
+            username = parsed_data.get('username', [''])[0]
+            password = parsed_data.get('password', [''])[0]
+            
+            if authenticate_teacher(username, password):
+                # 创建老师 session
+                session_id = create_session(username, 'teacher')
+                
+                # 发送重定向响应到管理后台，并设置 Cookie
+                self.send_response(302)
+                self.send_header('Location', '/admin')
+                self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=7200')  # 2小时
+                self.end_headers()
+            else:
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                error_message = f"帳號或密碼錯誤！請返回<a href='/teacher'>老師登入頁面</a>重試。"
                 self.wfile.write(error_message.encode('utf-8'))
         
         # 檢查是否為註冊請求
@@ -311,10 +378,10 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             # 验证 session
             cookies = parse_cookies(self.headers.get('Cookie', ''))
             session_id = cookies.get('session_id')
-            grade, class_num, username = get_user_from_session(session_id)
+            user_data = get_user_from_session(session_id)
             
-            if not username:
-                # 未登录，重定向到登录页面
+            if not user_data or user_data.get('role') != 'student':
+                # 未登录或不是学生，重定向到登录页面
                 self.send_response(302)
                 self.send_header('Location', '/')
                 self.end_headers()
@@ -331,7 +398,10 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             if 'codeFile' in form:
                 file_item = form['codeFile']
                 if file_item.filename:
-                    # 使用从 session 中获取的真实用户名
+                    # 使用从 session 中获取的真实用户名和信息
+                    username = user_data['username']
+                    grade = user_data['grade']
+                    class_num = user_data['class_num']
                     problem_id = 1
                     
                     submission_path = os.path.join('submissions', file_item.filename)

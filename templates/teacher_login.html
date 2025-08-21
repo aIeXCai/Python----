@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老師登入 - Python學習平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .logo-section {
+            margin-bottom: 30px;
+        }
+
+        .logo-section h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .logo-section p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .teacher-badge {
+            background: #ff6b6b;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin: 10px 0;
+            display: inline-block;
+            font-weight: bold;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .login-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 16px;
+            padding: 10px;
+            display: inline-block;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .divider {
+            margin: 20px 0;
+            border-top: 1px solid #eee;
+            position: relative;
+        }
+
+        .note {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+            border-left: 4px solid #ff6b6b;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo-section">
+            <h1>🎓 Python學習平台</h1>
+            <div class="teacher-badge">👨‍🏫 老師專屬登入</div>
+            <p>管理後台入口</p>
+        </div>
+        
+        <form action="/teacher-login" method="post">
+            <div class="form-group">
+                <label for="username">教師帳號：</label>
+                <input type="text" id="username" name="username" required placeholder="請輸入教師帳號">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">密碼：</label>
+                <input type="password" id="password" name="password" required placeholder="請輸入密碼">
+            </div>
+            
+            <button type="submit" class="login-btn">👨‍🏫 老師登入</button>
+        </form>
+
+        <div class="divider"></div>
+        
+        <a href="/" class="back-link">🔙 返回學生登入頁面</a>
+        
+        <div class="note">
+            <strong>注意：</strong>此頁面僅供授課老師使用。如果您是學生，請點擊上方按鈕返回學生登入頁面。<br>
+            <strong>測試帳號：</strong>admin / teacher123 或 teacher / admin123
+        </div>
+    </div>
+</body>
+</html>
