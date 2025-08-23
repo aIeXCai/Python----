@@ -626,6 +626,47 @@ def get_student_submissions(grade, class_num, username, problem_id):
     conn.close()
     return submissions
 
+# 获取管理后台统计数据
+def get_admin_statistics():
+    """获取管理后台的统计数据"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    # 获取注册学生数
+    cursor.execute("SELECT COUNT(*) FROM users")
+    total_students = cursor.fetchone()[0]
+    
+    # 获取可用题目数
+    problems = get_problems_list()
+    total_problems = len(problems)
+    
+    # 获取今日提交数
+    today = datetime.datetime.now().strftime('%Y-%m-%d')
+    cursor.execute("SELECT COUNT(*) FROM scores WHERE DATE(submission_time) = ?", (today,))
+    today_submissions = cursor.fetchone()[0]
+    
+    # 获取平均成绩
+    cursor.execute('''
+        SELECT AVG(max_scores.best_score) as avg_score
+        FROM (
+            SELECT MAX(score) as best_score
+            FROM scores 
+            GROUP BY grade, class_num, username, problem_id
+        ) as max_scores
+    ''')
+    
+    avg_result = cursor.fetchone()[0]
+    avg_score = round(avg_result, 1) if avg_result else 0
+    
+    conn.close()
+    
+    return {
+        'total_students': total_students,
+        'total_problems': total_problems,
+        'today_submissions': today_submissions,
+        'avg_score': avg_score
+    }
+
 # 获取学生的学习统计数据
 def get_student_statistics(grade, class_num, username):
     """获取学生的学习统计数据"""
@@ -797,11 +838,22 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             
             # 读取管理后台模板并替换用户信息
             try:
+                # 获取统计数据
+                stats = get_admin_statistics()
+                print(f"[DEBUG] 获取到的统计数据: {stats}")
+                
                 with open('templates/admin_dashboard.html', 'r', encoding='utf-8') as f:
                     admin_content = f.read()
                 
                 # 替换占位符
                 admin_content = admin_content.replace('{{USERNAME}}', user_data['username'])
+                
+                # 替换统计数据占位符
+                admin_content = admin_content.replace('{{TOTAL_STUDENTS}}', str(stats['total_students']))
+                admin_content = admin_content.replace('{{TOTAL_PROBLEMS}}', str(stats['total_problems']))
+                admin_content = admin_content.replace('{{TODAY_SUBMISSIONS}}', str(stats['today_submissions']))
+                admin_content = admin_content.replace('{{AVG_SCORE}}', f"{stats['avg_score']}%")
+                print(f"[DEBUG] 模板替换完成")
                 
                 # 发送自定义的 HTML 响应
                 self.send_response(200)
@@ -810,7 +862,11 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(admin_content.encode('utf-8'))
                 return
             except FileNotFoundError:
+                print("[DEBUG] 模板文件未找到")
                 self.send_error(404, "Admin dashboard template not found")
+            except Exception as e:
+                print(f"[DEBUG] 处理管理后台时出错: {e}")
+                self.send_error(500, f"Error processing admin dashboard: {e}")
         elif urllib.parse.urlparse(self.path).path == '/admin/problems':
             # 题目管理页面
             cookies = parse_cookies(self.headers.get('Cookie', ''))
