@@ -73,8 +73,7 @@ def setup_database():
             problem_id INTEGER NOT NULL,
             score REAL NOT NULL,
             submission_time TEXT NOT NULL,
-            FOREIGN KEY (grade, class_num, username) REFERENCES users (grade, class_num, username),
-            UNIQUE (grade, class_num, username, problem_id)
+            FOREIGN KEY (grade, class_num, username) REFERENCES users (grade, class_num, username)
         )
     ''')
     conn.commit()
@@ -177,8 +176,16 @@ def get_problems_list():
             if os.path.isdir(item_path) and item.startswith('problem'):
                 # 检查题目文件夹中是否有必要的文件
                 description_file = os.path.join(item_path, 'description.txt')
-                input_files = glob.glob(os.path.join(item_path, 'input*.txt'))
-                output_files = glob.glob(os.path.join(item_path, 'output*.txt'))
+                
+                # 首先检查tests子目录下的测试文件
+                tests_dir = os.path.join(item_path, 'tests')
+                if os.path.exists(tests_dir):
+                    input_files = glob.glob(os.path.join(tests_dir, 'input*.txt'))
+                    output_files = glob.glob(os.path.join(tests_dir, 'output*.txt'))
+                else:
+                    # 如果没有tests子目录，检查直接在问题目录下的文件
+                    input_files = glob.glob(os.path.join(item_path, 'input*.txt'))
+                    output_files = glob.glob(os.path.join(item_path, 'output*.txt'))
                 
                 problems.append({
                     'name': item,
@@ -290,9 +297,15 @@ def get_problem_details(problem_name):
             with open(description_path, 'r', encoding='gbk') as f:
                 details['description'] = f.read()
     
-    # 读取测试点
-    input_files = sorted(glob.glob(os.path.join(problem_dir, 'input*.txt')))
-    output_files = sorted(glob.glob(os.path.join(problem_dir, 'output*.txt')))
+    # 读取测试点 - 优先从tests子目录读取
+    tests_dir = os.path.join(problem_dir, 'tests')
+    if os.path.exists(tests_dir):
+        input_files = sorted(glob.glob(os.path.join(tests_dir, 'input*.txt')))
+        output_files = sorted(glob.glob(os.path.join(tests_dir, 'output*.txt')))
+    else:
+        # 如果没有tests子目录，从问题根目录读取
+        input_files = sorted(glob.glob(os.path.join(problem_dir, 'input*.txt')))
+        output_files = sorted(glob.glob(os.path.join(problem_dir, 'output*.txt')))
     
     for i, (input_file, output_file) in enumerate(zip(input_files, output_files), 1):
         try:
@@ -556,6 +569,133 @@ def get_problem_options():
     """获取所有题目选项"""
     problems_data = get_problems_list()
     return [problem['name'] for problem in problems_data]
+
+
+
+
+# <!-- 学生答题系统相关函数 -->
+# 获取学生某道题目的完成状态
+def get_student_problem_status(grade, class_num, username):
+    """获取学生的题目完成状态"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    # 获取学生所有题目的最高分数
+    cursor.execute('''
+        SELECT problem_id, MAX(score) as best_score, COUNT(*) as attempts
+        FROM scores 
+        WHERE grade=? AND class_num=? AND username=?
+        GROUP BY problem_id
+    ''', (grade, class_num, username))
+    
+    student_scores = {}
+    for row in cursor.fetchall():
+        problem_id, best_score, attempts = row
+        student_scores[problem_id] = {
+            'best_score': best_score,
+            'attempts': attempts,
+            'status': 'status-completed' if best_score >= 80 else 'status-attempted'
+        }
+    
+    conn.close()
+    return student_scores
+
+# 获取学生某题目的提交历史
+def get_student_submissions(grade, class_num, username, problem_id):
+    """获取学生某题目的提交历史"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT score, submission_time
+        FROM scores 
+        WHERE grade=? AND class_num=? AND username=? AND problem_id=?
+        ORDER BY submission_time DESC
+        LIMIT 10
+    ''', (grade, class_num, username, problem_id))
+    
+    submissions = []
+    for row in cursor.fetchall():
+        score, submission_time = row
+        submissions.append({
+            'score': score,
+            'submitTime': submission_time,
+            'fileName': f'problem{problem_id}.py'  # 使用固定的文件名格式
+        })
+    
+    conn.close()
+    return submissions
+
+# 获取学生的学习统计数据
+def get_student_statistics(grade, class_num, username):
+    """获取学生的学习统计数据"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    # 获取总题目数
+    problems = get_problems_list()
+    total_problems = len(problems)
+    
+    # 获取已完成题目数（得分>=80分）
+    cursor.execute('''
+        SELECT COUNT(DISTINCT problem_id) as completed
+        FROM scores 
+        WHERE grade=? AND class_num=? AND username=? AND score >= 80
+    ''', (grade, class_num, username))
+    completed_problems = cursor.fetchone()[0]
+    
+    # 获取平均分
+    cursor.execute('''
+        SELECT AVG(max_scores.best_score) as avg_score
+        FROM (
+            SELECT problem_id, MAX(score) as best_score
+            FROM scores 
+            WHERE grade=? AND class_num=? AND username=?
+            GROUP BY problem_id
+        ) max_scores
+    ''', (grade, class_num, username))
+    avg_result = cursor.fetchone()[0]
+    average_score = round(avg_result, 1) if avg_result else 0
+    
+    # 获取班级排名（基于平均分）
+    cursor.execute('''
+        SELECT COUNT(*) + 1 as rank
+        FROM (
+            SELECT username, AVG(max_scores.best_score) as student_avg
+            FROM (
+                SELECT username, problem_id, MAX(score) as best_score
+                FROM scores 
+                WHERE grade=? AND class_num=? AND username != ?
+                GROUP BY username, problem_id
+            ) max_scores
+            GROUP BY username
+            HAVING student_avg > ?
+        ) rankings
+    ''', (grade, class_num, username, average_score))
+    rank = cursor.fetchone()[0]
+    
+    conn.close()
+    
+    return {
+        'total_problems': total_problems,
+        'completed_problems': completed_problems,
+        'average_score': average_score,
+        'rank': rank
+    }
+
+# 保存学生提交记录
+def save_student_submission(grade, class_num, username, problem_id, score, submission_time):
+    """保存学生提交记录到数据库"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT INTO scores (grade, class_num, username, problem_id, score, submission_time)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (grade, class_num, username, problem_id, score, submission_time))
+    
+    conn.commit()
+    conn.close()
 
 
 # <!-- 解析 Cookie -->
@@ -1019,31 +1159,190 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             session_id = cookies.get('session_id')
             user_data = get_user_from_session(session_id)
             
+            print(f"[DEBUG] Dashboard request - session_id: {session_id}")
+            print(f"[DEBUG] Dashboard request - user_data: {user_data}")
+            
             if not user_data or user_data.get('role') != 'student':
                 # 未登录或不是学生，重定向到登录页面
+                print(f"[DEBUG] Dashboard - redirecting to login")
                 self.send_response(302)
                 self.send_header('Location', '/')
                 self.end_headers()
                 return
             
+            # 获取题目列表和学生状态
+            problems = get_problems_list()
+            print(f"[DEBUG] Dashboard - found {len(problems)} problems")
+            
+            student_status = get_student_problem_status(
+                user_data['grade'], user_data['class_num'], user_data['username']
+            )
+            
+            # 生成题目列表HTML
+            problems_html = ""
+            if problems:
+                for problem in problems:
+                    problem_id = problem['name'].replace('problem', '')
+                    status_info = student_status.get(int(problem_id), {})
+                    status_class = status_info.get('status', 'status-new')
+                    
+                    problems_html += f'''
+                    <div class="problem-item {status_class}" onclick="selectProblem('{problem_id}')">
+                        <div class="problem-info">
+                            <h4>題目 {problem_id}</h4>
+                            <p>{problem['test_cases']} 個測試點</p>
+                        </div>
+                        <div class="problem-status {status_class}">
+                            {'已完成' if status_class == 'status-completed' else '已嘗試' if status_class == 'status-attempted' else '未開始'}
+                        </div>
+                    </div>
+                    '''
+            else:
+                problems_html = '<p style="text-align: center; color: #666; padding: 20px;">暫無題目</p>'
+            
             # 读取 dashboard 模板并替换用户信息
             try:
+                print(f"[DEBUG] Dashboard - reading template file")
                 with open('templates/dashboard.html', 'r', encoding='utf-8') as f:
                     dashboard_content = f.read()
+                
+                print(f"[DEBUG] Dashboard - template file size: {len(dashboard_content)} characters")
                 
                 # 替换占位符
                 dashboard_content = dashboard_content.replace('{{USERNAME}}', user_data['username'])
                 dashboard_content = dashboard_content.replace('{{GRADE}}', user_data['grade'])
                 dashboard_content = dashboard_content.replace('{{CLASS}}', user_data['class_num'])
+                dashboard_content = dashboard_content.replace('{{PROBLEMS_LIST}}', problems_html)
+                
+                print(f"[DEBUG] Dashboard - after replacement: {len(dashboard_content)} characters")
+                print(f"[DEBUG] Dashboard - problems_html length: {len(problems_html)} characters")
                 
                 # 发送自定义的 HTML 响应
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html; charset=utf-8')
                 self.end_headers()
                 self.wfile.write(dashboard_content.encode('utf-8'))
+                print(f"[DEBUG] Dashboard - response sent successfully")
                 return
             except FileNotFoundError:
+                print(f"[ERROR] Dashboard template not found")
                 self.send_error(404, "Dashboard template not found")
+            except Exception as e:
+                print(f"[ERROR] Dashboard template processing error: {e}")
+                self.send_error(500, "Dashboard template processing error")
+        elif self.path == '/api/problems':
+            # API: 获取题目列表
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'student':
+                self.send_response(401)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(b'{"error": "Unauthorized"}')
+                return
+            
+            # 获取题目列表和学生状态
+            problems = get_problems_list()
+            student_status = get_student_problem_status(
+                user_data['grade'], user_data['class_num'], user_data['username']
+            )
+            
+            problems_data = []
+            for problem in problems:
+                problem_id = problem['name'].replace('problem', '')
+                status_info = student_status.get(int(problem_id), {})
+                
+                problems_data.append({
+                    'id': problem_id,
+                    'title': f'題目 {problem_id}',
+                    'difficulty': '中等',
+                    'status': status_info.get('status', 'status-new'),
+                    'testCases': problem['test_cases']
+                })
+            
+            import json
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(problems_data, ensure_ascii=False).encode('utf-8'))
+            return
+        elif urllib.parse.urlparse(self.path).path.startswith('/api/problem/'):
+            # API: 获取题目详情
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'student':
+                self.send_response(401)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(b'{"error": "Unauthorized"}')
+                return
+            
+            # 提取题目ID
+            parsed_path = urllib.parse.urlparse(self.path).path
+            problem_id = parsed_path.split('/api/problem/', 1)[1]
+            
+            problem_name = f'problem{problem_id}'
+            problem_details = get_problem_details(problem_name)
+            
+            if not problem_details:
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(b'{"error": "Problem not found"}')
+                return
+            
+            # 构建测试案例数据
+            test_cases = []
+            for test_case in problem_details['test_cases']:
+                test_cases.append({
+                    'input': test_case['input'],
+                    'output': test_case['output']
+                })
+            
+            problem_data = {
+                'id': problem_id,
+                'title': f'題目 {problem_id}',
+                'description': problem_details['description'],
+                'testCases': test_cases
+            }
+            
+            import json
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(problem_data, ensure_ascii=False).encode('utf-8'))
+            return
+        elif urllib.parse.urlparse(self.path).path.startswith('/api/submissions/'):
+            # API: 获取学生提交历史
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+            
+            if not user_data or user_data.get('role') != 'student':
+                self.send_response(401)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(b'{"error": "Unauthorized"}')
+                return
+            
+            # 提取题目ID
+            parsed_path = urllib.parse.urlparse(self.path).path
+            problem_id = parsed_path.split('/api/submissions/', 1)[1]
+            
+            submissions = get_student_submissions(
+                user_data['grade'], user_data['class_num'], user_data['username'], int(problem_id)
+            )
+            
+            import json
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(submissions, ensure_ascii=False).encode('utf-8'))
+            return
         elif self.path == '/logout':
             # 處理登出請求
             cookies = parse_cookies(self.headers.get('Cookie', ''))
@@ -1060,10 +1359,49 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         
         try:
             return http.server.SimpleHTTPRequestHandler.do_GET(self)
-        except FileNotFoundError:
+        except FileNotFoundError as e:
+            print(f"[404 ERROR] File not found for path: {self.path}")
+            print(f"[404 ERROR] Working directory: {os.getcwd()}")
+            print(f"[404 ERROR] Exception: {e}")
             self.send_error(404, "File Not Found")
+        except ConnectionAbortedError:
+            # 连接被客户端中断，静默处理
+            print(f"[INFO] Connection aborted by client for path: {self.path}")
+            pass
+        except BrokenPipeError:
+            # 管道断开错误，静默处理
+            print(f"[INFO] Broken pipe for path: {self.path}")
+            pass
+        except Exception as e:
+            # 其他异常，记录并发送500错误
+            print(f"[ERROR] Unexpected error in do_GET for path {self.path}: {e}")
+            try:
+                self.send_error(500, "Internal Server Error")
+            except:
+                # 如果连发送错误响应都失败，就静默处理
+                pass
             
     def do_POST(self):
+        try:
+            self._handle_post_request()
+        except ConnectionAbortedError:
+            # 连接被客户端中断，静默处理
+            print(f"[INFO] Connection aborted by client for POST path: {self.path}")
+            pass
+        except BrokenPipeError:
+            # 管道断开错误，静默处理
+            print(f"[INFO] Broken pipe for POST path: {self.path}")
+            pass
+        except Exception as e:
+            # 其他异常，记录并发送500错误
+            print(f"[ERROR] Unexpected error in do_POST for path {self.path}: {e}")
+            try:
+                self.send_error(500, "Internal Server Error")
+            except:
+                # 如果连发送错误响应都失败，就静默处理
+                pass
+    
+    def _handle_post_request(self):
         # 檢查是否為登入請求
         if self.path == '/login':
             content_length = int(self.headers['Content-Length'])
@@ -1079,17 +1417,22 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 # 创建学生 session
                 session_id = create_session(username, 'student', grade, class_num)
                 
+                print(f"[INFO] 用户登录成功: {grade}-{class_num}-{username}, session: {session_id}")
+                
                 # 发送重定向响应，并设置 Cookie
                 self.send_response(302)
                 self.send_header('Location', '/dashboard.html')
                 self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=7200')  # 2小时
                 self.end_headers()
+                return
             else:
+                print(f"[INFO] 用户登录失败: {grade}-{class_num}-{username}")
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html; charset=utf-8')
                 self.end_headers()
                 error_message = f"年級、班級、帳號或密碼錯誤！請返回<a href='/'>登入頁面</a>重試。"
                 self.wfile.write(error_message.encode('utf-8'))
+                return
         
         # 檢查是否為老師登入請求
         elif self.path == '/teacher-login':
@@ -1170,10 +1513,12 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             user_data = get_user_from_session(session_id)
             
             if not user_data or user_data.get('role') != 'student':
-                # 未登录或不是学生，重定向到登录页面
-                self.send_response(302)
-                self.send_header('Location', '/')
+                # 返回JSON错误响应
+                import json
+                self.send_response(401)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
                 self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "message": "請先登入"}, ensure_ascii=False).encode('utf-8'))
                 return
             
             # 注意：這裡不能先讀取 rfile，cgi.FieldStorage 需要直接從 rfile 解析 multipart/form-data
@@ -1184,61 +1529,92 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                         'CONTENT_TYPE': self.headers['Content-Type'],
                         })
             
-            if 'codeFile' in form:
+            import json
+            
+            if 'codeFile' in form and 'problem_id' in form:
                 file_item = form['codeFile']
-                if file_item.filename:
-                    # 使用从 session 中获取的真实用户名和信息
-                    username = user_data['username']
-                    grade = user_data['grade']
-                    class_num = user_data['class_num']
-                    problem_id = 1
-                    
-                    submission_path = os.path.join('submissions', file_item.filename)
-                    with open(submission_path, 'wb') as f:
-                        f.write(file_item.file.read())
-                    
-                    is_ok, grade_result = grade_submission(submission_path, problem_id)
-                    
-                    # 從回傳結果中提取分數
-                    score_percentage = 0
-                    if "得分率:" in grade_result:
-                        try:
-                            score_percentage = float(grade_result.split("得分率:")[1].split("%")[0].strip())
-                        except (ValueError, IndexError):
-                            pass
-
-                    # 將成績存入資料庫（存在即更新）
-                    conn = sqlite3.connect(DB_FILE)
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        '''
-                        INSERT INTO scores (grade, class_num, username, problem_id, score, submission_time)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(grade, class_num, username, problem_id) DO UPDATE SET
-                            score = excluded.score,
-                            submission_time = excluded.submission_time
-                        ''',
-                        (grade, class_num, username, problem_id, score_percentage, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-                    )
-                    conn.commit()
-                    conn.close()
-                    
-                    # 读取结果模板文件
-                    with open('templates/result.html', 'r', encoding='utf-8') as f:
-                        template = f.read()
-                    
-                    # 替换占位符
-                    response_message = template.replace('{{GRADE_RESULT}}', grade_result)
-
-                    # 返回渲染后的HTML页面
-                    self.send_response(200)
-                    self.send_header('Content-type', 'text/html; charset=utf-8')
-                    self.end_headers()
-                    self.wfile.write(response_message.encode('utf-8'))
+                problem_id = form.getvalue('problem_id')
+                
+                if file_item.filename and problem_id:
+                    try:
+                        # 使用从 session 中获取的真实用户名和信息
+                        username = user_data['username']
+                        grade = user_data['grade']
+                        class_num = user_data['class_num']
+                        
+                        # 生成唯一的文件名
+                        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                        safe_filename = f"{username}_{problem_id}_{timestamp}_{file_item.filename}"
+                        submission_path = os.path.join('submissions', safe_filename)
+                        
+                        # 保存文件
+                        with open(submission_path, 'wb') as f:
+                            f.write(file_item.file.read())
+                        
+                        # 批改代码
+                        is_ok, grade_result = grade_submission(submission_path, int(problem_id))
+                        
+                        # 從回傳結果中提取分數
+                        score_percentage = 0
+                        if "得分率:" in grade_result:
+                            try:
+                                score_percentage = float(grade_result.split("得分率:")[1].split("%")[0].strip())
+                            except (ValueError, IndexError):
+                                pass
+                        
+                        # 將成績存入資料庫（允许多次提交）
+                        save_student_submission(
+                            grade, class_num, username, int(problem_id), 
+                            score_percentage, 
+                            datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        )
+                        
+                        # 返回JSON成功响应
+                        response_data = {
+                            "success": True,
+                            "message": "程式碼提交成功！",
+                            "score": score_percentage,
+                            "details": grade_result
+                        }
+                        
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json; charset=utf-8')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(response_data, ensure_ascii=False).encode('utf-8'))
+                        
+                    except Exception as e:
+                        # 返回JSON错误响应
+                        response_data = {
+                            "success": False,
+                            "message": f"處理失敗：{str(e)}"
+                        }
+                        
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json; charset=utf-8')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(response_data, ensure_ascii=False).encode('utf-8'))
                 else:
-                    self.send_error(400, "沒有選擇檔案")
+                    # 返回JSON错误响应
+                    response_data = {
+                        "success": False,
+                        "message": "請選擇檔案並指定題目"
+                    }
+                    
+                    self.send_response(400)
+                    self.send_header('Content-type', 'application/json; charset=utf-8')
+                    self.end_headers()
+                    self.wfile.write(json.dumps(response_data, ensure_ascii=False).encode('utf-8'))
             else:
-                self.send_error(400, "沒有找到 'codeFile' 欄位")
+                # 返回JSON错误响应
+                response_data = {
+                    "success": False,
+                    "message": "缺少必要的提交資料"
+                }
+                
+                self.send_response(400)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps(response_data, ensure_ascii=False).encode('utf-8'))
         
         # 檢查是否為題目上傳請求
         elif self.path == '/admin/upload-problem':
@@ -1551,6 +1927,39 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Pragma', 'no-cache')
         self.send_header('Expires', '0')
         super().end_headers()
+    
+    def log_message(self, format, *args):
+        """重写日志方法，过滤连接错误消息"""
+        message = format % args
+        # 过滤掉常见的客户端断开连接错误
+        if not any(error in message for error in ['ConnectionAbortedError', 'WinError 10053', 'BrokenPipeError']):
+            super().log_message(format, *args)
+    
+    def safe_write(self, data):
+        """安全地写入响应数据，处理连接断开错误"""
+        try:
+            if isinstance(data, str):
+                data = data.encode('utf-8')
+            self.wfile.write(data)
+            return True
+        except (ConnectionAbortedError, BrokenPipeError, ConnectionResetError):
+            print(f"[INFO] Client disconnected during write for path: {self.path}")
+            return False
+        except Exception as e:
+            print(f"[ERROR] Unexpected error during write for path {self.path}: {e}")
+            return False
+    
+    def safe_send_response(self, code, message=None):
+        """安全地发送HTTP响应，处理连接断开错误"""
+        try:
+            self.send_response(code, message)
+            return True
+        except (ConnectionAbortedError, BrokenPipeError, ConnectionResetError):
+            print(f"[INFO] Client disconnected during response for path: {self.path}")
+            return False
+        except Exception as e:
+            print(f"[ERROR] Unexpected error during response for path {self.path}: {e}")
+            return False
 
     def generate_scores_table(self, score_matrix, students, problems):
         """生成成绩表格HTML"""
