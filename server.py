@@ -3,7 +3,8 @@ import sqlite3, cgi, subprocess, glob, datetime
 import uuid, time
 
 PORT = 8000
-DB_FILE = 'users.db'
+# 使用绝对路径确保数据库文件在正确位置
+DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 # <!-- 组件模块 -->
 # 加载模板组件
@@ -167,8 +168,13 @@ def cleanup_expired_sessions():
 # 获取所有题目列表
 def get_problems_list():
     """获取所有题目列表"""
-    problems_dir = 'problems'
+    # 使用绝对路径确保能找到problems目录
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    problems_dir = os.path.join(script_dir, 'problems')
     problems = []
+    
+    print(f"[DEBUG] 查找题目目录: {problems_dir}")
+    print(f"[DEBUG] 目录是否存在: {os.path.exists(problems_dir)}")
     
     if os.path.exists(problems_dir):
         for item in os.listdir(problems_dir):
@@ -201,7 +207,9 @@ def get_problems_list():
 # 保存上传的题目
 def save_uploaded_problem(problem_id, description_file, test_files):
     """保存上传的题目文件"""
-    problem_dir = f'problems/problem{problem_id}'
+    # 使用绝对路径
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    problem_dir = os.path.join(script_dir, 'problems', f'problem{problem_id}')
     
     # 检查题目是否已存在
     if os.path.exists(problem_dir):
@@ -276,7 +284,12 @@ def save_uploaded_problem(problem_id, description_file, test_files):
 # 获取题目详细信息
 def get_problem_details(problem_name):
     """获取题目详细信息"""
-    problem_dir = f'problems/{problem_name}'
+    # 使用绝对路径
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    problem_dir = os.path.join(script_dir, 'problems', problem_name)
+    
+    print(f"[DEBUG] 查找题目详情: {problem_dir}")
+    print(f"[DEBUG] 目录是否存在: {os.path.exists(problem_dir)}")
     
     if not os.path.exists(problem_dir):
         return None
@@ -348,7 +361,9 @@ def delete_problem(problem_name):
 # 更新题目
 def update_problem(problem_name, description, test_cases_data):
     """更新题目信息"""
-    problem_dir = f'problems/{problem_name}'
+    # 使用绝对路径
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    problem_dir = os.path.join(script_dir, 'problems', problem_name)
     
     if not os.path.exists(problem_dir):
         return False, f"題目 {problem_name} 不存在！"
@@ -603,6 +618,10 @@ def get_student_problem_status(grade, class_num, username):
 # 获取学生某题目的提交历史
 def get_student_submissions(grade, class_num, username, problem_id):
     """获取学生某题目的提交历史"""
+    print(f"[DEBUG] 查询提交记录: grade={grade}, class={class_num}, user={username}, problem={problem_id}")
+    print(f"[DEBUG] 数据库文件: {DB_FILE}")
+    print(f"[DEBUG] 数据库文件存在: {os.path.exists(DB_FILE)}")
+    
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
@@ -2075,15 +2094,30 @@ if __name__ == '__main__':
     setup_database()
     cleanup_expired_sessions()  # 服务器启动时清理过期 sessions
     Handler = MyHandler
-    httpd = socketserver.TCPServer(("", PORT), Handler)
 
-    print(f"伺服器已啟動，請在瀏覽器中輸入 http://localhost:{PORT}")
-    print("按下 Ctrl + C 即可停止伺服器")
-
+    # 使用多线程服务器以支持并发请求
     try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        pass
+        class ThreadingHTTPServer(socketserver.ThreadingTCPServer):
+            allow_reuse_address = True
 
-    httpd.server_close()
-    print("伺服器已關閉")
+        httpd = ThreadingHTTPServer(("", PORT), Handler)
+        # 增加请求队列大小以减少短时期连接被拒绝的概率
+        try:
+            httpd.request_queue_size = 128
+        except Exception:
+            pass
+        # 使工作线程为守护线程，便于进程退出
+        httpd.daemon_threads = True
+
+        print(f"伺服器已啟動，請在瀏覽器中輸入 http://localhost:{PORT}")
+        print("按下 Ctrl + C 即可停止伺服器")
+
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            pass
+
+        httpd.server_close()
+        print("伺服器已關閉")
+    except Exception as e:
+        print(f"啟動伺服器時發生錯誤: {e}")
