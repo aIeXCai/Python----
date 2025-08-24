@@ -53,7 +53,7 @@ def setup_database():
     """設定並建立資料庫表格"""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # 建立 users 表格
+    # 建立 users 表格，包含 role 字段以区分学生/老师
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
@@ -61,6 +61,7 @@ def setup_database():
             class_num TEXT NOT NULL,
             username TEXT NOT NULL,
             password TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'student',
             UNIQUE(grade, class_num, username)
         )
     ''')

@@ -21,8 +21,10 @@ from unittest.mock import patch, MagicMock
 import sys
 import time
 
-# 添加父目录到Python路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 添加项目根目录到 Python 路径，确保能导入根目录下的模块（例如 server.py）
+# test_backend.py 在 tests/StudentModule 下，向上三层到达项目根
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
 
 # 导入服务器模块
 import server
@@ -87,7 +89,7 @@ class TestStudentManagement(unittest.TestCase):
         self.assertEqual(first_student[3], '张三')  # 用户名
         self.assertEqual(first_student[4], 'password123')  # 密码
         
-        print("✅ 获取学生列表测试通过")
+        print("获取学生列表测试通过")
     
     def test_get_student_by_id(self):
         """测试根据ID获取学生信息"""
@@ -99,9 +101,9 @@ class TestStudentManagement(unittest.TestCase):
         # 测试不存在的学生
         student = server.get_student_by_id(999)
         self.assertIsNone(student)
-        
-        print("✅ 根据ID获取学生信息测试通过")
-    
+
+        print("根据ID获取学生信息测试通过")
+
     def test_register_user(self):
         """测试用户注册功能"""
         # 测试正常注册
@@ -118,7 +120,7 @@ class TestStudentManagement(unittest.TestCase):
         self.assertFalse(success)
         self.assertIn("已存在用户名", message)
         
-        print("✅ 用户注册功能测试通过")
+        print("用户注册功能测试通过")
     
     def test_update_student(self):
         """测试更新学生信息"""
@@ -146,7 +148,7 @@ class TestStudentManagement(unittest.TestCase):
         self.assertFalse(success)
         self.assertIn("已存在用户名", message)
         
-        print("✅ 更新学生信息测试通过")
+        print("更新学生信息测试通过")
     
     def test_delete_student(self):
         """测试删除学生功能"""
@@ -168,7 +170,7 @@ class TestStudentManagement(unittest.TestCase):
         self.assertFalse(success)
         self.assertEqual(message, "学生不存在！")
         
-        print("✅ 删除学生功能测试通过")
+        print("删除学生功能测试通过")
     
     def test_authenticate_user(self):
         """测试用户认证功能"""
@@ -184,7 +186,7 @@ class TestStudentManagement(unittest.TestCase):
         is_authenticated = server.authenticate_user('七年级', '1班', '不存在', 'password123')
         self.assertFalse(is_authenticated)
         
-        print("✅ 用户认证功能测试通过")
+        print("用户认证功能测试通过")
     
     def test_filter_functionality_simulation(self):
         """模拟测试筛选功能（前端逻辑）"""
@@ -206,7 +208,7 @@ class TestStudentManagement(unittest.TestCase):
         zhang_students = [s for s in students if '张' in s[3]]
         self.assertEqual(len(zhang_students), 1)
         
-        print("✅ 筛选功能模拟测试通过")
+        print("筛选功能模拟测试通过")
 
 
 class TestSessionManagement(unittest.TestCase):
@@ -229,7 +231,7 @@ class TestSessionManagement(unittest.TestCase):
         self.assertEqual(session_data['grade'], '七年级')
         self.assertEqual(session_data['class_num'], '1班')
         
-        print("✅ 创建session测试通过")
+        print("创建session测试通过")
     
     def test_get_user_from_session(self):
         """测试从session获取用户信息"""
@@ -245,7 +247,7 @@ class TestSessionManagement(unittest.TestCase):
         invalid_user_data = server.get_user_from_session('invalid_session_id')
         self.assertIsNone(invalid_user_data)
         
-        print("✅ 从session获取用户信息测试通过")
+        print("从session获取用户信息测试通过")
     
     def test_session_timeout(self):
         """测试session超时"""
@@ -262,12 +264,12 @@ class TestSessionManagement(unittest.TestCase):
         # 验证过期session已被删除
         self.assertNotIn(session_id, server.SESSIONS)
         
-        print("✅ session超时测试通过")
+        print("session超时测试通过")
 
 
 def run_performance_test():
     """性能测试：测试大量学生数据的处理"""
-    print("\n🚀 开始性能测试...")
+    print("\n开始性能测试...")
     
     # 创建临时数据库
     temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
@@ -299,7 +301,7 @@ def run_performance_test():
         
         conn.commit()
         insert_time = time.time() - start_time
-        print(f"✅ 插入1000个学生耗时: {insert_time:.4f}秒")
+        print(f"插入1000个学生耗时: {insert_time:.4f}秒")
         
         conn.close()
         
@@ -308,16 +310,16 @@ def run_performance_test():
         students = server.get_all_students()
         query_time = time.time() - start_time
         
-        print(f"✅ 查询1000个学生耗时: {query_time:.4f}秒")
-        print(f"✅ 查询到 {len(students)} 个学生")
+        print(f"查询1000个学生耗时: {query_time:.4f}秒")
+        print(f"查询到 {len(students)} 个学生")
         
         # 测试筛选性能（模拟前端操作）
         start_time = time.time()
         filtered_students = [s for s in students if s[1] == '7年级' and s[2] == '1班']
         filter_time = time.time() - start_time
         
-        print(f"✅ 筛选耗时: {filter_time:.4f}秒")
-        print(f"✅ 筛选结果: {len(filtered_students)} 个学生")
+        print(f"筛选耗时: {filter_time:.4f}秒")
+        print(f"筛选结果: {len(filtered_students)} 个学生")
         
     finally:
         server.DB_FILE = original_db_file
@@ -326,7 +328,7 @@ def run_performance_test():
 
 def run_integration_test():
     """集成测试：测试完整的学生管理流程"""
-    print("\n🔄 开始集成测试...")
+    print("\n开始集成测试...")
     
     # 创建临时数据库
     temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
@@ -342,13 +344,13 @@ def run_integration_test():
         print("1. 测试注册新学生...")
         success, message = server.register_user('七年级', '1班', '测试学生', 'testpass123')
         assert success, f"注册失败: {message}"
-        print("   ✅ 学生注册成功")
+        print("学生注册成功")
         
         # 2. 验证学生可以登录
         print("2. 测试学生登录...")
         is_authenticated = server.authenticate_user('七年级', '1班', '测试学生', 'testpass123')
         assert is_authenticated, "学生登录失败"
-        print("   ✅ 学生登录成功")
+        print("学生登录成功")
         
         # 3. 获取学生信息
         print("3. 测试获取学生信息...")
@@ -356,7 +358,7 @@ def run_integration_test():
         assert len(students) == 1, "学生数量不正确"
         student = students[0]
         assert student[3] == '测试学生', "学生用户名不正确"
-        print("   ✅ 学生信息获取成功")
+        print("学生信息获取成功")
         
         # 4. 更新学生信息
         print("4. 测试更新学生信息...")
@@ -369,13 +371,13 @@ def run_integration_test():
         assert updated_student[1] == '八年级', "年级更新失败"
         assert updated_student[2] == '2班', "班级更新失败"
         assert updated_student[3] == '更新学生', "用户名更新失败"
-        print("   ✅ 学生信息更新成功")
+        print("学生信息更新成功")
         
         # 5. 验证新密码有效
         print("5. 测试新密码登录...")
         is_authenticated = server.authenticate_user('八年级', '2班', '更新学生', 'newpass456')
         assert is_authenticated, "新密码登录失败"
-        print("   ✅ 新密码登录成功")
+        print("新密码登录成功")
         
         # 6. 删除学生
         print("6. 测试删除学生...")
@@ -388,9 +390,9 @@ def run_integration_test():
         
         students = server.get_all_students()
         assert len(students) == 0, "学生数量应为0"
-        print("   ✅ 学生删除成功")
+        print("学生删除成功")
         
-        print("🎉 集成测试全部通过！")
+        print("集成测试全部通过！")
         
     finally:
         server.DB_FILE = original_db_file
@@ -398,11 +400,11 @@ def run_integration_test():
 
 
 if __name__ == '__main__':
-    print("🧪 开始学生管理模块完整测试")
+    print("开始学生管理模块完整测试")
     print("=" * 50)
     
     # 运行单元测试
-    print("\n📋 单元测试:")
+    print("\n单元测试:")
     unittest.main(argv=[''], verbosity=2, exit=False)
     
     # 运行性能测试
@@ -412,4 +414,4 @@ if __name__ == '__main__':
     run_integration_test()
     
     print("\n" + "=" * 50)
-    print("🎉 所有测试完成！")
+    print("所有测试完成！")

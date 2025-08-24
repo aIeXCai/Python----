@@ -12,8 +12,9 @@ import random
 import datetime
 from typing import List, Dict, Tuple
 
-# 添加当前目录到Python路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# 添加项目根目录到 Python 路径
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
 import server
 
 class ScoreManagementTester:
