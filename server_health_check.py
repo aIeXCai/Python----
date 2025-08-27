@@ -11,7 +11,7 @@ import json
 from datetime import datetime, timedelta
 
 class ServerHealthChecker:
-    def __init__(self, db_path="student_data.db"):
+    def __init__(self, db_path="users.db"):
         self.db_path = db_path
         
     def check_database_health(self):
