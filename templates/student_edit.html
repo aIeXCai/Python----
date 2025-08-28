@@ -162,6 +162,12 @@
                 <input type="text" id="username" name="username" value="{{STUDENT_USERNAME}}" required>
                 <div class="help-text">用戶名在同年級同班級中必須唯一</div>
             </div>
+
+            <div class="form-group">
+                <label for="student_number">學號：</label>
+                <input type="text" id="student_number" name="student_number" value="{{STUDENT_NUMBER}}" required>
+                <div class="help-text">學號在同一班級中必須唯一</div>
+            </div>
             
             <div class="form-group">
                 <label for="password">新密碼：</label>
@@ -182,10 +188,11 @@
             const grade = document.getElementById('grade').value.trim();
             const classNum = document.getElementById('class_num').value.trim();
             const username = document.getElementById('username').value.trim();
-            
-            if (!grade || !classNum || !username) {
+            const studentNumber = document.getElementById('student_number').value.trim();
+
+            if (!grade || !classNum || !username || !studentNumber) {
                 e.preventDefault();
-                alert('年級、班級和用戶名不能為空！');
+                alert('年級、班級、用戶名和學號不能為空！');
                 return false;
             }
         });

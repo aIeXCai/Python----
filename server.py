@@ -529,7 +529,12 @@ def get_scores_by_filter(grade_filter=None, class_filter=None, problem_filter=No
     
     if problem_filter:
         where_conditions.append("problem_id = ?")
-        params.append(problem_filter)
+        # 尝试将传入的 problem_filter 转为整数，以匹配 scores.problem_id
+        try:
+            pf = int(problem_filter)
+        except Exception:
+            pf = problem_filter
+        params.append(pf)
     
     where_clause = ""
     if where_conditions:
@@ -584,7 +589,17 @@ def get_grade_class_options():
 def get_problem_options():
     """获取所有题目选项"""
     problems_data = get_problems_list()
-    return [problem['name'] for problem in problems_data]
+    options = []
+    for problem in problems_data:
+        name = problem.get('name', '')
+        # 从 'problemX' 中提取数字 X
+        try:
+            num = int(name.replace('problem', ''))
+            options.append(num)
+        except Exception:
+            # 回退：保留原始名称
+            options.append(name)
+    return options
 
 
 
@@ -652,8 +667,8 @@ def get_admin_statistics():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
-    # 获取注册学生数
-    cursor.execute("SELECT COUNT(*) FROM users")
+    # 获取注册学生数（仅统计 role='student'）
+    cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'student'")
     total_students = cursor.fetchone()[0]
     
     # 获取可用题目数
@@ -1121,10 +1136,13 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             # 解析查询参数
             parsed_url = urllib.parse.urlparse(self.path)
             query_params = urllib.parse.parse_qs(parsed_url.query)
+            print(f"[DEBUG] /admin/scores query string: {parsed_url.query}")
+            print(f"[DEBUG] /admin/scores parsed query params: {query_params}")
             
             grade_filter = query_params.get('grade', [None])[0]
             class_filter = query_params.get('class', [None])[0]
             problem_filter = query_params.get('problem', [None])[0]
+            print(f"[DEBUG] /admin/scores filters -> grade: {grade_filter}, class: {class_filter}, problem: {problem_filter}")
             
             # 获取筛选选项
             grades, classes = get_grade_class_options()
@@ -1173,6 +1191,16 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 template_content = template_content.replace('{{GRADE_OPTIONS}}', grade_options)
                 template_content = template_content.replace('{{CLASS_OPTIONS}}', class_options)
                 template_content = template_content.replace('{{PROBLEM_OPTIONS}}', problem_options)
+                # 注入总学生数（仅统计 role='student'）
+                try:
+                    conn = sqlite3.connect(DB_FILE)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'student'")
+                    total_students = cursor.fetchone()[0]
+                    conn.close()
+                except Exception:
+                    total_students = 0
+                template_content = template_content.replace('{{TOTAL_STUDENTS}}', str(total_students))
                 
                 # 发送响应
                 self.send_response(200)
@@ -2041,25 +2069,44 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         """生成成绩表格HTML"""
         if not students or not problems:
             return '<tr><td colspan="100%" class="no-data">暂无成绩数据</td></tr>'
-        
-        # 表头
-        header_html = '<tr><th>学生</th>'
+
+        # 表头（加入学号列）
+        header_html = '<tr><th>学生</th><th>学号</th>'
         for problem in problems:
             header_html += f'<th>{problem}</th>'
         header_html += '</tr>'
-        
+
         # 表格内容
         rows_html = ''
+        # 为了显示学号，从 users 表查询 student_number（兼容旧库若无此字段则显示 '-'）
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
         for student in students:
-            grade, class_num, username = student.split('-')
+            # student 格式通常为 'grade-class-username'
+            try:
+                grade, class_num, username = student.split('-')
+            except Exception:
+                # 容错：如果格式不符，直接显示原始字符串
+                grade = class_num = ''
+                username = student
+
+            # 查询学号（可能不存在该列）
+            try:
+                cursor.execute("SELECT student_number FROM users WHERE grade=? AND class_num=? AND username=?", (grade, class_num, username))
+                sn_row = cursor.fetchone()
+                student_number = sn_row[0] if sn_row and sn_row[0] is not None else '-'
+            except Exception:
+                student_number = '-'
+
             rows_html += f'<tr><td class="student-info">{grade} {class_num} - {username}</td>'
-            
+            rows_html += f'<td>{student_number}</td>'
+
             for problem in problems:
                 if student in score_matrix and problem in score_matrix[student]:
                     score_info = score_matrix[student][problem]
                     score = score_info['score']
                     time = score_info['time']
-                    
+
                     # 根据分数添加样式类
                     if score >= 90:
                         score_class = 'score-excellent'
@@ -2069,21 +2116,26 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                         score_class = 'score-pass'
                     else:
                         score_class = 'score-fail'
-                    
+
                     rows_html += f'<td class="score-cell {score_class}" title="提交时间: {time}">{score:.1f}</td>'
                 else:
                     rows_html += '<td class="score-cell score-empty">-</td>'
-            
+
             rows_html += '</tr>'
-        
+        conn.close()
+
         return header_html + rows_html
 
     def generate_filter_options(self, options, selected_value, default_text):
         """生成筛选选项HTML"""
         html = f'<option value="">{default_text}</option>'
         for option in options:
-            selected = 'selected' if option == selected_value else ''
-            html += f'<option value="{option}" {selected}>{option}</option>'
+            # 使用字符串比较，避免类型不一致导致选中状态失效
+            opt_val = str(option)
+            sel_val = '' if selected_value is None else str(selected_value)
+            selected = 'selected' if opt_val == sel_val else ''
+            display = f'题目{opt_val}' if isinstance(option, int) or (isinstance(option, str) and option.isdigit()) else str(option)
+            html += f'<option value="{opt_val}" {selected}>{display}</option>'
         return html
 
 if __name__ == '__main__':

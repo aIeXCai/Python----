@@ -417,6 +417,16 @@
                 </div>
                 
                 <div class="form-group">
+                    <label for="loginStudentNumber">學號</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-id-badge"></i>
+                        <select id="loginStudentNumber" name="student_number" required>
+                            <option value="">請選擇學號（1-50）</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
                     <label for="loginPassword">密碼</label>
                     <div class="input-wrapper">
                         <i class="fas fa-lock"></i>
@@ -496,11 +506,21 @@
                 </div>
                 
                 <div class="form-group">
+                    <label for="registerStudentNumber">學號</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-id-badge"></i>
+                        <select id="registerStudentNumber" name="student_number" required>
+                            <option value="">請選擇學號（1-50）</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
                     <label for="registerPassword">密碼</label>
                     <div class="input-wrapper">
                         <i class="fas fa-lock"></i>
                         <input type="password" id="registerPassword" name="password" required 
-                               placeholder="請設定登入密碼" minlength="6">
+                               placeholder="請設定登入密碼" minlength="1">
                     </div>
                 </div>
                 
@@ -594,6 +614,17 @@
         // 页面加载动画
         window.addEventListener('load', function() {
             document.body.style.opacity = '1';
+            // 填充登录和注册页面的学号下拉（1-50）
+            const selects = [document.getElementById('registerStudentNumber'), document.getElementById('loginStudentNumber')];
+            selects.forEach(sel => {
+                if (!sel) return;
+                for (let i = 1; i <= 50; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = i.toString();
+                    opt.textContent = i.toString();
+                    sel.appendChild(opt);
+                }
+            });
         });
     </script>
 </body>

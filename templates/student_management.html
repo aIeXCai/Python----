@@ -297,6 +297,7 @@
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>學號</th>
                     <th>年級</th>
                     <th>班級</th>
                     <th>用戶名</th>
@@ -321,12 +322,13 @@
             
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
-                if (cells.length >= 4) {
-                    const grade = cells[1].textContent.trim();
-                    const classNum = cells[2].textContent.trim();
-                    grades.add(grade);
-                    classes.add(grade + '-' + classNum);
-                }
+                        if (cells.length >= 5) {
+                            // 列顺序: ID(0), 學號(1), 年級(2), 班級(3), 用戶名(4), 密碼(5), 操作(6)
+                            const grade = cells[2].textContent.trim();
+                            const classNum = cells[3].textContent.trim();
+                            grades.add(grade);
+                            classes.add(grade + '-' + classNum);
+                        }
             });
             
             document.getElementById('total-students').textContent = totalStudents;
@@ -393,10 +395,10 @@
                     }
                     
                     const cells = row.querySelectorAll('td');
-                    if (cells.length >= 4) {
-                        const grade = cells[1].textContent.trim();
-                        const classNum = cells[2].textContent.trim();
-                        const username = cells[3].textContent.trim().toLowerCase();
+                    if (cells.length >= 5) {
+                        const grade = cells[2].textContent.trim();
+                        const classNum = cells[3].textContent.trim();
+                        const username = cells[4].textContent.trim().toLowerCase();
                         
                         const gradeMatch = !selectedGrade || grade === selectedGrade;
                         const classMatch = !selectedClass || classNum === selectedClass;
@@ -432,13 +434,13 @@
                 }
                 
                 // 如果没有结果，显示提示
-                if (visibleCount === 0 && (selectedGrade || selectedClass || searchUsername)) {
+            if (visibleCount === 0 && (selectedGrade || selectedClass || searchUsername)) {
                     const tbody = document.querySelector('.students-table tbody');
                     let noResultRow = document.getElementById('no-result-row');
                     if (!noResultRow) {
                         noResultRow = document.createElement('tr');
                         noResultRow.id = 'no-result-row';
-                        noResultRow.innerHTML = '<td colspan="6" class="no-students">沒有符合篩選條件的學生</td>';
+                noResultRow.innerHTML = '<td colspan="7" class="no-students">沒有符合篩選條件的學生</td>';
                         tbody.appendChild(noResultRow);
                     }
                     noResultRow.style.display = '';

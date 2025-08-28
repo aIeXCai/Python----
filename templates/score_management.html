@@ -270,7 +270,7 @@
         <!-- 统计信息 -->
         <div class="stats-bar" id="statsBar">
             <div class="stat-item">
-                <div class="stat-number" id="totalStudents">0</div>
+                <div class="stat-number" id="totalStudents">{{TOTAL_STUDENTS}}</div>
                 <div class="stat-label">总学生数</div>
             </div>
             <div class="stat-item">
@@ -342,7 +342,13 @@
             
             // 从表头计算题目数
             const headers = table.querySelectorAll('th');
-            totalProblems = Math.max(0, headers.length - 1); // 减去学生列
+            if (!headers || headers.length === 0) {
+                totalProblems = 0;
+            } else {
+                // 排除第一列（学生列），读取题目列的文本并去重，防止重复的 <th> 导致计数偏大
+                const problemHeaders = Array.from(headers).slice(2).map(h => h.textContent.trim()).filter(Boolean);
+                totalProblems = [...new Set(problemHeaders)].length;
+            }
             
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
