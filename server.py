@@ -79,6 +79,20 @@ def setup_database():
         )
     ''')
     conn.commit()
+    # 兼容旧数据库：尝试添加 student_number 字段并创建班级内学号唯一索引
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN student_number TEXT")
+    except Exception:
+        # 已存在或无法添加时忽略
+        pass
+
+    try:
+        # 创建索引以保证 (grade, class_num, student_number) 唯一
+        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_grade_class_stuno ON users(grade, class_num, student_number)")
+    except Exception:
+        pass
+
+    conn.commit()
     conn.close()
 
 # <!-- 认证与注册 -->
@@ -98,18 +112,29 @@ def authenticate_teacher(username, password):
     return username in TEACHER_CREDENTIALS and TEACHER_CREDENTIALS[username] == password
 
 # 用户注册
-def register_user(grade, class_num, username, password):
-    """注册新用户"""
+def register_user(grade, class_num, username, password, student_number=None):
+    """注册新用户，支持可选的 student_number"""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO users (grade, class_num, username, password) VALUES (?, ?, ?, ?)", 
-                       (grade, class_num, username, password))
+        # 如果 users 表有 student_number 列则插入该字段
+        cursor.execute("PRAGMA table_info(users)")
+        cols = [row[1] for row in cursor.fetchall()]
+        if 'student_number' in cols:
+            cursor.execute("INSERT INTO users (grade, class_num, student_number, username, password) VALUES (?, ?, ?, ?, ?)", 
+                           (grade, class_num, student_number, username, password))
+        else:
+            cursor.execute("INSERT INTO users (grade, class_num, username, password) VALUES (?, ?, ?, ?)", 
+                           (grade, class_num, username, password))
+
         conn.commit()
         conn.close()
         return True, "注册成功！"
-    except sqlite3.IntegrityError:
+    except sqlite3.IntegrityError as ie:
         conn.close()
+        msg = str(ie)
+        if 'idx_users_grade_class_stuno' in msg or 'student_number' in msg:
+            return False, f"该班级中学号 '{student_number}' 已被使用，请选择其他学号。"
         return False, f"该年级班级中已存在用户名 '{username}'，请选择其他用户名。"
     except Exception as e:
         conn.close()
@@ -438,33 +463,53 @@ def get_student_by_id(student_id):
     return student
 
 # 更新学生信息
-def update_student(student_id, grade, class_num, username, password=None):
-    """更新学生信息"""
+def update_student(student_id, grade, class_num, username, password=None, student_number=None):
+    """更新学生信息，支持更新 student_number"""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     try:
-        if password:
-            cursor.execute(
-                "UPDATE users SET grade=?, class_num=?, username=?, password=? WHERE id=?",
-                (grade, class_num, username, password, student_id)
-            )
+        # 判断 users 表是否有 student_number 字段
+        cursor.execute("PRAGMA table_info(users)")
+        cols = [row[1] for row in cursor.fetchall()]
+
+        if 'student_number' in cols:
+            if password:
+                cursor.execute(
+                    "UPDATE users SET grade=?, class_num=?, student_number=?, username=?, password=? WHERE id=?",
+                    (grade, class_num, student_number, username, password, student_id)
+                )
+            else:
+                cursor.execute(
+                    "UPDATE users SET grade=?, class_num=?, student_number=?, username=? WHERE id=?",
+                    (grade, class_num, student_number, username, student_id)
+                )
         else:
-            cursor.execute(
-                "UPDATE users SET grade=?, class_num=?, username=? WHERE id=?",
-                (grade, class_num, username, student_id)
-            )
-        
-        # 同时更新 scores 表中的相关信息
+            if password:
+                cursor.execute(
+                    "UPDATE users SET grade=?, class_num=?, username=?, password=? WHERE id=?",
+                    (grade, class_num, username, password, student_id)
+                )
+            else:
+                cursor.execute(
+                    "UPDATE users SET grade=?, class_num=?, username=? WHERE id=?",
+                    (grade, class_num, username, student_id)
+                )
+
+        # 同时更新 scores 表中的相关信息（如果学生信息变更）
+        # 旧查询通过 users 表的旧值定位，直接使用 student_id 子查询来匹配并更新
         cursor.execute(
             "UPDATE scores SET grade=?, class_num=?, username=? WHERE grade=(SELECT grade FROM users WHERE id=?) AND class_num=(SELECT class_num FROM users WHERE id=?) AND username=(SELECT username FROM users WHERE id=?)",
             (grade, class_num, username, student_id, student_id, student_id)
         )
-        
+
         conn.commit()
         conn.close()
         return True, "学生信息更新成功！"
-    except sqlite3.IntegrityError:
+    except sqlite3.IntegrityError as ie:
         conn.close()
+        msg = str(ie)
+        if 'idx_users_grade_class_stuno' in msg or 'student_number' in msg:
+            return False, f"该班级中学号 '{student_number}' 已被使用，请选择其他学号。"
         return False, f"该年级班级中已存在用户名 '{username}'，请选择其他用户名。"
     except Exception as e:
         conn.close()
@@ -476,9 +521,12 @@ def delete_student(student_id):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     try:
+        print(f"[DEBUG] delete_student called with id={student_id}")
+        print(f"[DEBUG] DB file: {DB_FILE}, exists: {os.path.exists(DB_FILE)}")
         # 先获取学生信息用于删除相关成绩记录
         cursor.execute("SELECT grade, class_num, username FROM users WHERE id=?", (student_id,))
         student_info = cursor.fetchone()
+        print(f"[DEBUG] student_info fetched: {student_info}")
         
         if not student_info:
             conn.close()
@@ -497,6 +545,7 @@ def delete_student(student_id):
         conn.close()
         return True, f"学生 {username} 删除成功！"
     except Exception as e:
+        print(f"[DEBUG] delete_student exception: {e}")
         conn.close()
         return False, f"删除失败：{str(e)}"
 
@@ -1285,7 +1334,8 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_error(404, "Student not found")
                 return
             
-            student_id, grade, class_num, username, password = student
+            # student tuple: (id, grade, class_num, student_number, username, password)
+            student_id, grade, class_num, student_number, username, password = student
             
             # 读取学生编辑模板
             try:
@@ -1297,6 +1347,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 template_content = template_content.replace('{{STUDENT_GRADE}}', grade)
                 template_content = template_content.replace('{{STUDENT_CLASS}}', class_num)
                 template_content = template_content.replace('{{STUDENT_USERNAME}}', username)
+                template_content = template_content.replace('{{STUDENT_NUMBER}}', str(student_number) if student_number is not None else '')
                 
                 # 发送响应
                 self.send_response(200)
@@ -1625,7 +1676,8 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             confirm_password = parsed_data.get('confirm_password', [''])[0]
             
             # 验证输入
-            if not grade or not class_num or not username or not password:
+            student_number = parsed_data.get('student_number', [''])[0]
+            if not grade or not class_num or not username or not password or not student_number:
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html; charset=utf-8')
                 self.end_headers()
@@ -1642,7 +1694,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 return
             
             # 尝试注册用户
-            success, message = register_user(grade, class_num, username, password)
+            success, message = register_user(grade, class_num, username, password, student_number)
             if success:
                 # 注册成功，自动登录
                 session_id = create_session(grade, class_num, username)
@@ -2001,6 +2053,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 class_num = parsed_data.get('class_num', [''])[0].strip()
                 username = parsed_data.get('username', [''])[0].strip()
                 password = parsed_data.get('password', [''])[0].strip()
+                student_number = parsed_data.get('student_number', [''])[0].strip()
                 
                 if not grade or not class_num or not username:
                     self.send_response(302)
@@ -2009,7 +2062,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                     return
                 
                 # 更新学生信息
-                success, message = update_student(int(student_id), grade, class_num, username, password if password else None)
+                success, message = update_student(int(student_id), grade, class_num, username, password if password else None, student_number if student_number else None)
                 
                 if success:
                     success_msg = urllib.parse.quote("學生信息更新成功", safe='', encoding='utf-8')
@@ -2060,17 +2113,20 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_response(302)
                     self.send_header('Location', f'/admin/students?success={success_msg}')
                     self.end_headers()
+                    return
                 else:
                     error_msg = urllib.parse.quote(message, safe='', encoding='utf-8')
                     self.send_response(302)
                     self.send_header('Location', f'/admin/students?error={error_msg}')
                     self.end_headers()
+                    return
                 
             except Exception as e:
                 error_msg = urllib.parse.quote(f"刪除失敗：{str(e)}", safe='', encoding='utf-8')
                 self.send_response(302)
                 self.send_header('Location', f'/admin/students?error={error_msg}')
                 self.end_headers()
+                return
         
         else:
             self.send_error(404, "Not Found")

@@ -348,16 +348,17 @@
             const applyButton = document.getElementById('apply-filter');
             const resetButton = document.getElementById('reset-filter');
             
-            // 收集所有年级和班级
+            // 收集所有年级和班级（与表头列顺序对齐：ID(0), 学号(1), 年级(2), 班级(3), ...）
             const grades = new Set();
             const classes = new Set();
-            
+
             rows.forEach(row => {
                 if (!row.querySelector('.no-students')) {
                     const cells = row.querySelectorAll('td');
                     if (cells.length >= 4) {
-                        const grade = cells[1].textContent.trim();
-                        const classNum = cells[2].textContent.trim();
+                        // 使用 cells[2] 为年级，cells[3] 为班级，保证与表头一致
+                        const grade = cells[2].textContent.trim();
+                        const classNum = cells[3].textContent.trim();
                         grades.add(grade);
                         classes.add(classNum);
                     }
