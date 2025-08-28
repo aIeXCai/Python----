@@ -405,8 +405,17 @@ def get_all_students():
     """获取所有学生列表"""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, grade, class_num, username, password FROM users ORDER BY grade, class_num, username")
-    students = cursor.fetchall()
+    # 检查 users 表中是否存在 student_number 字段，兼容旧数据库
+    cursor.execute("PRAGMA table_info(users)")
+    cols = [row[1] for row in cursor.fetchall()]
+    if 'student_number' in cols:
+        cursor.execute("SELECT id, grade, class_num, student_number, username, password FROM users ORDER BY grade, class_num, student_number, username")
+        students = cursor.fetchall()
+    else:
+        cursor.execute("SELECT id, grade, class_num, username, password FROM users ORDER BY grade, class_num, username")
+        rows = cursor.fetchall()
+        # 在缺少 student_number 的旧表上使用占位符 '-'
+        students = [(r[0], r[1], r[2], '-', r[3], r[4]) for r in rows]
     conn.close()
     return students
 
@@ -415,8 +424,16 @@ def get_student_by_id(student_id):
     """根据ID获取学生信息"""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, grade, class_num, username, password FROM users WHERE id=?", (student_id,))
-    student = cursor.fetchone()
+    # 检查是否有 student_number 字段
+    cursor.execute("PRAGMA table_info(users)")
+    cols = [row[1] for row in cursor.fetchall()]
+    if 'student_number' in cols:
+        cursor.execute("SELECT id, grade, class_num, student_number, username, password FROM users WHERE id=?", (student_id,))
+        student = cursor.fetchone()
+    else:
+        cursor.execute("SELECT id, grade, class_num, username, password FROM users WHERE id=?", (student_id,))
+        row = cursor.fetchone()
+        student = (row[0], row[1], row[2], '-', row[3], row[4]) if row else None
     conn.close()
     return student
 
@@ -852,6 +869,35 @@ def grade_submission(submission_path, problem_num):
 
 # <!-- 请求处理 -->
 class MyHandler(http.server.SimpleHTTPRequestHandler):
+    def generate_filter_options(self, options, selected_value, default_text, is_problem=False):
+        """生成筛选下拉的 HTML 片段
+
+        参数:
+          options: 可迭代的选项（数字或字符串）
+          selected_value: 当前选中值
+          default_text: 默认选项文本
+          is_problem: 如果为 True，数字选项会显示为 '题目X'
+        """
+        html = f'<option value="">{default_text}</option>'
+        for opt in options:
+            val = opt
+            try:
+                is_int = isinstance(opt, int) or (isinstance(opt, str) and str(opt).isdigit())
+            except Exception:
+                is_int = False
+
+            if is_problem and is_int:
+                try:
+                    label = f'题目{int(opt)}'
+                except Exception:
+                    label = str(opt)
+            else:
+                label = str(opt)
+
+            selected = ' selected' if str(opt) == str(selected_value) else ''
+            html += f'<option value="{val}"{selected}>{label}</option>'
+        return html
+    
     def do_GET(self):
         if self.path == '/':
             self.path = 'templates/index.html'
@@ -1083,26 +1129,28 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             if students:
                 students_html = ""
                 for student in students:
-                    student_id, grade, class_num, username, password = student
+                    # student tuple: (id, grade, class_num, student_number, username, password)
+                    student_id, grade, class_num, student_number, username, password = student
                     students_html += f"""
                     <tr>
                         <td>{student_id}</td>
+                        <td>{student_number}</td>
                         <td>{grade}</td>
                         <td>{class_num}</td>
                         <td>{username}</td>
                         <td>
-                            <span class="password-cell" data-password="{password}">••••••</span>
-                            <span class="password-toggle">显示</span>
+                            <span class=\"password-cell\" data-password=\"{password}\">••••••</span>
+                            <span class=\"password-toggle\">显示</span>
                         </td>
                         <td>
-                            <a href="/admin/edit-student/{student_id}" class="btn btn-edit">编辑</a>
-                            <a href="/admin/delete-student/{student_id}" class="btn btn-delete" 
-                               onclick="return confirm('确定要删除学生 {username} 吗？这将删除该学生的所有相关数据。')">删除</a>
+                            <a href=\"/admin/edit-student/{student_id}\" class=\"btn btn-edit\">编辑</a>
+                            <a href=\"/admin/delete-student/{student_id}\" class=\"btn btn-delete\" 
+                               onclick=\"return confirm('确定要删除学生 {username} 吗？这将删除该学生的所有相关数据。')\">删除</a>
                         </td>
                     </tr>
                     """
             else:
-                students_html = '<tr><td colspan="6" class="no-students">目前没有任何学生</td></tr>'
+                students_html = '<tr><td colspan="7" class="no-students">目前没有任何学生</td></tr>'
             
             # 读取学生管理模板并替换占位符
             try:
@@ -1178,8 +1226,9 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             
             # 生成筛选选项HTML
             grade_options = self.generate_filter_options(grades, grade_filter, "全部年级")
-            class_options = self.generate_filter_options(classes, class_filter, "全部班级")  
-            problem_options = self.generate_filter_options(problems, problem_filter, "全部题目")
+            class_options = self.generate_filter_options(classes, class_filter, "全部班级")
+            # 对题目选项单独传入 is_problem=True，以便显示为 "题目X"
+            problem_options = self.generate_filter_options(problems, problem_filter, "全部题目", is_problem=True)
             
             # 读取成绩管理模板
             try:
@@ -2070,8 +2119,8 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         if not students or not problems:
             return '<tr><td colspan="100%" class="no-data">暂无成绩数据</td></tr>'
 
-        # 表头（加入学号列）
-        header_html = '<tr><th>学生</th><th>学号</th>'
+        # 表头（拆分学生信息为 年级 / 班级 / 学号 / 姓名）
+        header_html = '<tr><th>年级</th><th>班级</th><th>学号</th><th>姓名</th>'
         for problem in problems:
             header_html += f'<th>{problem}</th>'
         header_html += '</tr>'
@@ -2098,8 +2147,11 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             except Exception:
                 student_number = '-'
 
-            rows_html += f'<tr><td class="student-info">{grade} {class_num} - {username}</td>'
+            # 列顺序：年级 / 班级 / 学号 / 姓名
+            rows_html += f'<tr><td>{grade}</td>'
+            rows_html += f'<td>{class_num}</td>'
             rows_html += f'<td>{student_number}</td>'
+            rows_html += f'<td class="student-info">{username}</td>'
 
             for problem in problems:
                 if student in score_matrix and problem in score_matrix[student]:
@@ -2126,16 +2178,33 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
 
         return header_html + rows_html
 
-    def generate_filter_options(self, options, selected_value, default_text):
-        """生成筛选选项HTML"""
+    def generate_filter_options(self, options, selected_value, default_text, is_problem=False):
+        """生成筛选下拉的 HTML 片段
+
+        参数:
+          options: 可迭代的选项（数字或字符串）
+          selected_value: 当前选中值
+          default_text: 默认选项文本
+          is_problem: 如果为 True，数字选项会显示为 '题目X'
+        """
         html = f'<option value="">{default_text}</option>'
-        for option in options:
-            # 使用字符串比较，避免类型不一致导致选中状态失效
-            opt_val = str(option)
-            sel_val = '' if selected_value is None else str(selected_value)
-            selected = 'selected' if opt_val == sel_val else ''
-            display = f'题目{opt_val}' if isinstance(option, int) or (isinstance(option, str) and option.isdigit()) else str(option)
-            html += f'<option value="{opt_val}" {selected}>{display}</option>'
+        for opt in options:
+            val = opt
+            try:
+                is_int = isinstance(opt, int) or (isinstance(opt, str) and str(opt).isdigit())
+            except Exception:
+                is_int = False
+
+            if is_problem and is_int:
+                try:
+                    label = f'题目{int(opt)}'
+                except Exception:
+                    label = str(opt)
+            else:
+                label = str(opt)
+
+            selected = ' selected' if str(opt) == str(selected_value) else ''
+            html += f'<option value="{val}"{selected}>{label}</option>'
         return html
 
 if __name__ == '__main__':

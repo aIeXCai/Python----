@@ -346,18 +346,20 @@
                 totalProblems = 0;
             } else {
                 // 排除第一列（学生列），读取题目列的文本并去重，防止重复的 <th> 导致计数偏大
-                const problemHeaders = Array.from(headers).slice(2).map(h => h.textContent.trim()).filter(Boolean);
+                const problemHeaders = Array.from(headers).slice(4).map(h => h.textContent.trim()).filter(Boolean);
                 totalProblems = [...new Set(problemHeaders)].length;
             }
             
             rows.forEach(row => {
+                // 跳过表头行（可能被渲染在 tbody 中）
+                if (row.querySelectorAll('th').length > 0) return;
                 const cells = row.querySelectorAll('td');
                 if (cells.length === 1 && cells[0].classList.contains('no-data')) return;
                 
                 totalStudents++;
                 
-                // 从第二列开始是成绩（第一列是学生信息）
-                for (let i = 1; i < cells.length; i++) {
+                // 从第五列开始是成绩（前四列是学生信息）
+                for (let i = 4; i < cells.length; i++) {
                     const cell = cells[i];
                     const scoreText = cell.textContent.trim();
                     
