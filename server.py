@@ -1042,6 +1042,49 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 return
             except FileNotFoundError:
                 self.send_error(404, "Problem management template not found")
+        elif urllib.parse.urlparse(self.path).path.startswith('/admin/delete-student/'):
+            # 处理通过 GET 点击删除学生的请求（链接使用 GET）
+            cookies = parse_cookies(self.headers.get('Cookie', ''))
+            session_id = cookies.get('session_id')
+            user_data = get_user_from_session(session_id)
+
+            if not user_data or user_data.get('role') != 'teacher':
+                # 未登录或不是老师，重定向到老师登录页面
+                self.send_response(302)
+                self.send_header('Location', '/teacher')
+                self.end_headers()
+                return
+
+            # 提取学生ID并校验
+            parsed_path = urllib.parse.urlparse(self.path).path
+            student_id = parsed_path.split('/admin/delete-student/', 1)[1]
+            if not student_id or not student_id.isdigit():
+                self.send_response(302)
+                self.send_header('Location', '/admin/students?error=无效的学生ID')
+                self.end_headers()
+                return
+
+            try:
+                success, message = delete_student(int(student_id))
+                if success:
+                    # 删除成功：把后端返回的消息 URL 编码放到 success 参数，前端会显示该消息
+                    success_msg = urllib.parse.quote(message, safe='', encoding='utf-8')
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/students?success={success_msg}')
+                    self.end_headers()
+                    return
+                else:
+                    error_msg = urllib.parse.quote(message, safe='', encoding='utf-8')
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/students?error={error_msg}')
+                    self.end_headers()
+                    return
+            except Exception as e:
+                error_msg = urllib.parse.quote(str(e), safe='', encoding='utf-8')
+                self.send_response(302)
+                self.send_header('Location', f'/admin/students?error={error_msg}')
+                self.end_headers()
+                return
         elif urllib.parse.urlparse(self.path).path.startswith('/admin/view-problem/'):
             # 查看题目详情页面
             cookies = parse_cookies(self.headers.get('Cookie', ''))
