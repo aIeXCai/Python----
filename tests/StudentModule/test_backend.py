@@ -58,16 +58,16 @@ class TestStudentManagement(unittest.TestCase):
         
         # 添加测试学生
         test_students = [
-            (1, '七年级', '1班', '张三', 'password123'),
-            (2, '七年级', '1班', '李四', 'password456'),
-            (3, '七年级', '2班', '王五', 'password789'),
-            (4, '八年级', '1班', '赵六', 'password000'),
-            (5, '八年级', '2班', '钱七', 'password111'),
+            (1, '七年级', '1班', '0001', '张三', 'password123'),
+            (2, '七年级', '1班', '0002', '李四', 'password456'),
+            (3, '七年级', '2班', '0003', '王五', 'password789'),
+            (4, '八年级', '1班', '0004', '赵六', 'password000'),
+            (5, '八年级', '2班', '0005', '钱七', 'password111'),
         ]
-        
+
         for student in test_students:
             cursor.execute(
-                "INSERT INTO users (id, grade, class_num, username, password) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO users (id, grade, class_num, student_number, username, password) VALUES (?, ?, ?, ?, ?, ?)",
                 student
             )
         
@@ -81,13 +81,13 @@ class TestStudentManagement(unittest.TestCase):
         # 检查返回的学生数量
         self.assertEqual(len(students), 5)
         
-        # 检查第一个学生的信息
+        # 检查第一个学生的信息（返回元组格式为 id, grade, class_num, student_number, username, password）
         first_student = students[0]
         self.assertEqual(first_student[0], 1)  # ID
         self.assertEqual(first_student[1], '七年级')  # 年级
         self.assertEqual(first_student[2], '1班')  # 班级
-        self.assertEqual(first_student[3], '张三')  # 用户名
-        self.assertEqual(first_student[4], 'password123')  # 密码
+        self.assertEqual(first_student[4], '张三')  # 用户名
+        self.assertEqual(first_student[5], 'password123')  # 密码
         
         print("获取学生列表测试通过")
     
@@ -96,7 +96,7 @@ class TestStudentManagement(unittest.TestCase):
         # 测试存在的学生
         student = server.get_student_by_id(1)
         self.assertIsNotNone(student)
-        self.assertEqual(student[3], '张三')  # 用户名
+        self.assertEqual(student[4], '张三')  # 用户名
         
         # 测试不存在的学生
         student = server.get_student_by_id(999)
@@ -132,8 +132,8 @@ class TestStudentManagement(unittest.TestCase):
         # 验证更新结果
         student = server.get_student_by_id(1)
         self.assertEqual(student[2], '3班')  # 班级已更新
-        self.assertEqual(student[3], '张三改名')  # 用户名已更新
-        self.assertEqual(student[4], 'password123')  # 密码未更改
+        self.assertEqual(student[4], '张三改名')  # 用户名已更新
+        self.assertEqual(student[5], 'password123')  # 密码未更改
         
         # 测试更新学生信息（包含密码）
         success, message = server.update_student(1, '七年级', '3班', '张三改名', 'newpassword')
@@ -141,7 +141,7 @@ class TestStudentManagement(unittest.TestCase):
         
         # 验证密码已更新
         student = server.get_student_by_id(1)
-        self.assertEqual(student[4], 'newpassword')
+        self.assertEqual(student[5], 'newpassword')
         
         # 测试更新为重复用户名
         success, message = server.update_student(1, '七年级', '1班', '李四')
@@ -205,7 +205,7 @@ class TestStudentManagement(unittest.TestCase):
         self.assertEqual(len(seven_class1_students), 2)
         
         # 模拟按用户名搜索
-        zhang_students = [s for s in students if '张' in s[3]]
+        zhang_students = [s for s in students if '张' in (s[4] or '')]
         self.assertEqual(len(zhang_students), 1)
         
         print("筛选功能模拟测试通过")
@@ -291,12 +291,13 @@ def run_performance_test():
         for i in range(1000):
             grade = f"{(i % 3) + 7}年级"  # 7、8、9年级
             class_num = f"{(i % 5) + 1}班"  # 1-5班
+            student_number = f"{i:04d}"
             username = f"student_{i:04d}"
             password = f"password_{i:04d}"
-            
+
             cursor.execute(
-                "INSERT INTO users (grade, class_num, username, password) VALUES (?, ?, ?, ?)",
-                (grade, class_num, username, password)
+                "INSERT INTO users (grade, class_num, student_number, username, password) VALUES (?, ?, ?, ?, ?)",
+                (grade, class_num, student_number, username, password)
             )
         
         conn.commit()
@@ -339,59 +340,61 @@ def run_integration_test():
     
     try:
         server.setup_database()
-        
+
         # 1. 注册新学生
         print("1. 测试注册新学生...")
         success, message = server.register_user('七年级', '1班', '测试学生', 'testpass123')
         assert success, f"注册失败: {message}"
         print("学生注册成功")
-        
+
         # 2. 验证学生可以登录
         print("2. 测试学生登录...")
         is_authenticated = server.authenticate_user('七年级', '1班', '测试学生', 'testpass123')
         assert is_authenticated, "学生登录失败"
         print("学生登录成功")
-        
+
         # 3. 获取学生信息
         print("3. 测试获取学生信息...")
         students = server.get_all_students()
         assert len(students) == 1, "学生数量不正确"
         student = students[0]
-        assert student[3] == '测试学生', "学生用户名不正确"
+        # username is at index 4 in the returned tuple
+        assert student[4] == '测试学生', "学生用户名不正确"
         print("学生信息获取成功")
-        
+
         # 4. 更新学生信息
         print("4. 测试更新学生信息...")
         student_id = student[0]
         success, message = server.update_student(student_id, '八年级', '2班', '更新学生', 'newpass456')
         assert success, f"更新失败: {message}"
-        
+
         # 验证更新结果
         updated_student = server.get_student_by_id(student_id)
         assert updated_student[1] == '八年级', "年级更新失败"
         assert updated_student[2] == '2班', "班级更新失败"
-        assert updated_student[3] == '更新学生', "用户名更新失败"
+        # username is at index 4
+        assert updated_student[4] == '更新学生', "用户名更新失败"
         print("学生信息更新成功")
-        
+
         # 5. 验证新密码有效
         print("5. 测试新密码登录...")
         is_authenticated = server.authenticate_user('八年级', '2班', '更新学生', 'newpass456')
         assert is_authenticated, "新密码登录失败"
         print("新密码登录成功")
-        
+
         # 6. 删除学生
         print("6. 测试删除学生...")
         success, message = server.delete_student(student_id)
         assert success, f"删除失败: {message}"
-        
+
         # 验证删除结果
         deleted_student = server.get_student_by_id(student_id)
         assert deleted_student is None, "学生删除失败"
-        
+
         students = server.get_all_students()
         assert len(students) == 0, "学生数量应为0"
         print("学生删除成功")
-        
+
         print("集成测试全部通过！")
         
     finally:

@@ -1,5 +1,5 @@
 import http.server, socketserver, urllib.parse, os
-import sqlite3, cgi, subprocess, glob, datetime
+import sqlite3, subprocess, glob, datetime
 import uuid, time
 
 PORT = 8000
@@ -1770,6 +1770,20 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 return
             
             # 注意：這裡不能先讀取 rfile，cgi.FieldStorage 需要直接從 rfile 解析 multipart/form-data
+            try:
+                import cgi
+            except Exception:
+                # 在 Python 3.13+ 中 cgi 模組被移除，给出友好提示
+                import json
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "success": False,
+                    "message": "服务器当前 Python 环境不支持 multipart/form-data 解析 (缺少 cgi 模块)。请使用 Python 3.11/3.12 或在服务器端安装兼容解析库。"
+                }, ensure_ascii=False).encode('utf-8'))
+                return
+
             form = cgi.FieldStorage(
                 fp=self.rfile, 
                 headers=self.headers,
@@ -1879,7 +1893,16 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 return
             
             try:
-                # 解析 multipart/form-data
+                # 解析 multipart/form-data，延迟导入 cgi 并在缺失时返回友好错误
+                try:
+                    import cgi
+                except Exception:
+                    error_msg = urllib.parse.quote('服务器当前 Python 环境不支持 multipart/form-data 解析 (缺少 cgi 模块)', safe='', encoding='utf-8')
+                    self.send_response(302)
+                    self.send_header('Location', f'/admin/problems?error={error_msg}')
+                    self.end_headers()
+                    return
+
                 form = cgi.FieldStorage(
                     fp=self.rfile,
                     headers=self.headers,

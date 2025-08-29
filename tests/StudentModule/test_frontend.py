@@ -46,6 +46,17 @@ class TestStudentManagementFrontend(unittest.TestCase):
         # 设置测试数据库
         server.setup_database()
         cls.add_test_data()
+        # 将临时测试 DB 复制到项目根的 users.db，以便子进程 server.py 能读取相同的数据
+        cls.project_db_path = os.path.join(project_root, 'users.db')
+        cls._users_db_backup = None
+        try:
+            import shutil
+            if os.path.exists(cls.project_db_path):
+                cls._users_db_backup = cls.project_db_path + '.bak_for_tests'
+                shutil.copyfile(cls.project_db_path, cls._users_db_backup)
+            shutil.copyfile(cls.temp_db.name, cls.project_db_path)
+        except Exception as e:
+            print(f"[警告] 无法准备项目 users.db: {e}")
         
         # 启动测试服务器
         cls.start_test_server()
@@ -71,7 +82,22 @@ class TestStudentManagementFrontend(unittest.TestCase):
         
         # 恢复数据库设置
         server.DB_FILE = cls.original_db_file
-        os.unlink(cls.temp_db.name)
+        # 恢复或删除项目级 users.db
+        try:
+            import shutil
+            if getattr(cls, '_users_db_backup', None) and os.path.exists(cls._users_db_backup):
+                shutil.copyfile(cls._users_db_backup, cls.project_db_path)
+                os.unlink(cls._users_db_backup)
+            else:
+                if os.path.exists(cls.project_db_path):
+                    os.unlink(cls.project_db_path)
+        except Exception as e:
+            print(f"[警告] 无法恢复项目 users.db: {e}")
+
+        try:
+            os.unlink(cls.temp_db.name)
+        except Exception:
+            pass
         
         print("[完成] 前端测试环境清理完成")
     
@@ -247,11 +273,10 @@ class TestStudentManagementFrontend(unittest.TestCase):
         self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".students-table tbody tr")))
 
         # 测试年级筛选（模板中 select id 为 filter-grade）
-        # 等待 select 被填充（至少有一个非空 option）
-        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "select#filter-grade option:not([value=''])")))
+        # 等待 select 被填充（至少有一个非空 option），使用 execute_script 更稳健
+        self.wait.until(lambda d: d.execute_script("return Array.from(document.querySelectorAll('select#filter-grade option')).some(function(o){return o.value && o.value.trim() !== ''})"))
 
         grade_select = Select(self.driver.find_element(By.ID, "filter-grade"))
-        # 选择第一个非空选项，兼容简繁体或数据差异
         options = [opt.get_attribute('value') for opt in self.driver.find_elements(By.CSS_SELECTOR, "select#filter-grade option") if opt.get_attribute('value')]
         if not options:
             self.fail("筛选控件未提供可选的年级")
@@ -260,7 +285,7 @@ class TestStudentManagementFrontend(unittest.TestCase):
 
         # 等待筛选生效：至少有一个可见行的年级列等于所选值
         self.wait.until(lambda d: any(
-            r.is_displayed() and r.find_element(By.CSS_SELECTOR, "td:nth-child(2)").text.strip() == selected_grade
+            r.is_displayed() and r.find_element(By.CSS_SELECTOR, "td:nth-child(3)").text.strip() == selected_grade
             for r in d.find_elements(By.CSS_SELECTOR, ".students-table tbody tr")
         ))
 
@@ -271,7 +296,7 @@ class TestStudentManagementFrontend(unittest.TestCase):
         
         # 检查显示的学生是否都和所选年级一致
         for row in visible_rows:
-            grade_cell = row.find_element(By.CSS_SELECTOR, "td:nth-child(2)")
+            grade_cell = row.find_element(By.CSS_SELECTOR, "td:nth-child(3)")
             self.assertEqual(grade_cell.text.strip(), selected_grade)
         
         # 重置筛选：选择空值以恢复全部学生
@@ -307,9 +332,9 @@ class TestStudentManagementFrontend(unittest.TestCase):
                 tds = r.find_elements(By.TAG_NAME, 'td')
                 if len(tds) == 1 and 'no-students' in tds[0].get_attribute('class'):
                     return True
-                # 检查是否有第四列并包含关键词
-                if len(tds) >= 4:
-                    if '张' in tds[3].text:
+                # 检查是否有第五列并包含关键词（模板中用户名为第5列）
+                if len(tds) >= 5:
+                    if '张' in tds[4].text:
                         return True
             return False
 
@@ -320,9 +345,10 @@ class TestStudentManagementFrontend(unittest.TestCase):
         found = False
         for row in visible_rows:
             tds = row.find_elements(By.TAG_NAME, 'td')
-            if len(tds) < 4:
+            if len(tds) < 5:
                 continue
-            username_text = tds[3].text
+            # 用户名位于第5列
+            username_text = tds[4].text
             if "张" in username_text:
                 found = True
                 break

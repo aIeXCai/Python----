@@ -20,21 +20,50 @@ def run_backend_tests():
     print("-" * 50)
     
     try:
-        # 运行后端测试
-        result = subprocess.run([
-            sys.executable, 'test_backend.py'
-        ], 
-        cwd=os.path.dirname(os.path.abspath(__file__)),
-        capture_output=True, 
-        text=True, 
-        timeout=60
+        # 1) 先使用 unittest discovery 运行所有以 test_*.py 命名的单元测试（更稳定）
+        discover_cmd = [sys.executable, '-m', 'unittest', 'discover', '-v', '-s', os.path.dirname(os.path.abspath(__file__)), '-p', 'test_*.py']
+        result = subprocess.run(
+            discover_cmd,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            capture_output=True,
+            text=True,
+            timeout=120
         )
-        
+
         print(result.stdout)
         if result.stderr:
             print("错误输出:", result.stderr)
-        
-        return result.returncode == 0
+
+        unit_ok = (result.returncode == 0)
+
+        # 2) 如果存在 test_backend.py，作为独立脚本运行它以执行该文件中定义的性能/集成测试
+        backend_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_backend.py')
+        integration_ok = True
+        if os.path.exists(backend_script):
+            print("\n🔁 运行后端脚本（可能包含性能与集成测试）：test_backend.py")
+            try:
+                result2 = subprocess.run([
+                    sys.executable, 'test_backend.py'
+                ],
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+                capture_output=True,
+                text=True,
+                timeout=300
+                )
+
+                print(result2.stdout)
+                if result2.stderr:
+                    print("错误输出:", result2.stderr)
+
+                integration_ok = (result2.returncode == 0)
+            except subprocess.TimeoutExpired:
+                print("❌ 后端脚本超时")
+                integration_ok = False
+            except Exception as e:
+                print(f"❌ 运行后端脚本失败: {e}")
+                integration_ok = False
+
+        return unit_ok and integration_ok
         
     except subprocess.TimeoutExpired:
         print("❌ 后端测试超时")
