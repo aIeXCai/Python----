@@ -1,129 +1,79 @@
-# 学生管理模块测试
+## 学生管理模块 — 测试说明 (tests/StudentModule)
 
-这个文件夹包含了学生管理模块的完整测试代码。
+本目录包含对学生管理功能的单元测试、集成测试与前端自动化测试（Selenium）。本文档说明每个测试文件的用途、如何在本地运行测试、常见问题排查与两种推荐的测试运行方式。
 
-## 测试文件说明
+## 目录与文件简介
+- `test_backend.py` — 后端完整功能测试（用户注册/查询/修改/删除、认证、session、性能与集成流程）。
+- `test_frontend.py` — 前端/UI 自动化测试（依赖 Chrome + ChromeDriver + selenium）。
+- `test_data_manager.py` — 辅助脚本：用于创建/查看/清理测试数据（交互式）。
+- `test_student_number.py` — 学号字段（student_number）相关的单元测试。
+- `run_tests.py` — 统一测试运行器：先用 `unittest discovery` 运行后端测试，再运行可选的 `test_backend.py` 脚本，最后尝试运行前端测试（当环境可用时）。
 
-### test_backend.py
-**后端功能完整测试**
-- 学生注册功能测试
-- 学生信息查询测试
-- 学生信息修改测试
-- 学生删除功能测试
-- 用户认证测试
-- Session管理测试
-- 筛选功能模拟测试
-- 性能测试（1000个学生数据）
-- 集成测试（完整流程测试）
+## 快速开始（推荐）
 
-### test_frontend.py
-**前端/UI功能测试**
-- 管理员登录测试
-- 学生列表显示测试
-- 筛选功能测试
-- 搜索功能测试
-- 密码显示/隐藏功能测试
-- 编辑学生功能测试
-- 响应式设计测试
+1) 在项目根目录下创建并激活 Python 虚拟环境，安装依赖：
 
-*注意: 前端测试需要Chrome浏览器和ChromeDriver*
-
-### test_data_manager.py
-**测试数据管理工具**
-- 创建测试数据
-- 查看测试数据
-- 清理测试数据
-- 交互式菜单操作
-
-### run_tests.py
-**测试运行器**
-- 统一运行所有测试
-- 生成测试报告
-- 处理测试环境检查
-
-## 使用方法
-
-### 运行所有测试
 ```bash
-cd tests
-python run_tests.py
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt  # 如果仓库有 requirements.txt
+pip install selenium            # 仅当前端测试需要
 ```
 
-### 运行单独的测试
-```bash
-# 只运行后端测试
-python test_backend.py
+2) 运行所有测试（包含后端与前端，前端会在缺少环境时跳过）：
 
-# 只运行前端测试（需要Chrome环境）
-python test_frontend.py
+```bash
+python tests/StudentModule/run_tests.py
 ```
 
-### 管理测试数据
+3) 仅运行后端单元测试（更快）：
+
 ```bash
-python test_data_manager.py
+python -m unittest discover -v -s tests/StudentModule -p 'test_*.py'
 ```
 
-## 环境要求
+4) 仅运行前端某个用例（需要 Chrome + ChromeDriver）：
 
-### 基础环境
-- Python 3.x
-- SQLite3
+```bash
+python -m unittest tests.StudentModule.test_frontend.TestStudentManagementFrontend.test_04_search_functionality -v
+```
 
-### 前端测试环境（可选）
-- Chrome浏览器
-- ChromeDriver
-- Selenium: `pip install selenium`
+## 关于前端测试与数据库一致性（重要）
 
-## 测试覆盖范围
+前端测试以子进程方式启动 `server.py`，子进程默认读取项目根的 `users.db`。测试框架中会为每次前端测试创建临时数据库并注入测试数据，然后需要确保子进程能够读取到相同的 DB。当前仓库提供两种常见做法：
 
-### 功能测试
-- ✅ 学生注册
-- ✅ 学生查询
-- ✅ 学生修改
-- ✅ 学生删除
-- ✅ 用户认证
-- ✅ Session管理
-- ✅ 筛选功能
-- ✅ 搜索功能
-- ✅ 密码管理
+- 方案 A（当前测试脚本采用）：在测试启动子进程前把临时 DB 覆盖到项目根的 `users.db`，测试结束后还原或删除该文件。优点：实现简单、兼容现有 `server.py`；缺点：会短暂修改项目文件。
+- 方案 B（推荐长期方案）：修改 `server.py` 支持通过环境变量或命令行参数指定 DB 路径（例如 `DB_FILE=/path/to/tmp.db python server.py`），测试以该环境变量启动子进程。优点：不修改项目文件、更加明确和安全；缺点：需要在 `server.py` 中做小修改。
 
-### 性能测试
-- ✅ 大量数据处理（1000个学生）
-- ✅ 查询性能测试
-- ✅ 筛选性能测试
+如果你希望我把方案 B 实现为默认行为，我可以把 `server.py` 增加对 `DB_FILE` 环境变量的优雅支持，并更新测试启动子进程的代码以传入该环境变量。
 
-### 集成测试
-- ✅ 完整用户流程
-- ✅ 前后端交互
-- ✅ 数据库操作
+## 常见问题与排查步骤
 
-### UI测试
-- ✅ 页面导航
-- ✅ 表单操作
-- ✅ 交互功能
-- ✅ 响应式设计
+- 问：启动前端测试时报 Timeout 或找不到元素？
+	- 排查：先看 server 日志（测试运行时会在控制台打印），确认 `/admin/students` 页面返回 200 并包含学生行。若 `total_students` 为 0，说明子进程未读取到测试数据（见上面的 DB 一致性部分）。
 
-## 注意事项
+- 问：Chrome/ChromeDriver 报错？
+	- 排查：确保 Chrome 已安装且 ChromeDriver 与 Chrome 版本匹配；确保 `selenium` 已安装且可从当前 Python 环境导入。
 
-1. **数据库安全**: 测试使用临时数据库，不会影响生产数据
-2. **环境隔离**: 每个测试用例都有独立的数据环境
-3. **自动清理**: 测试完成后自动清理临时数据
-4. **超时处理**: 设置了合理的超时时间防止测试卡死
+- 问：端口占用导致服务器无法启动？
+	- 排查：检查 8000 端口是否被占用：
 
-## 故障排除
+```bash
+lsof -i :8000
+```
 
-### Chrome环境问题
-如果前端测试失败，请检查：
-1. Chrome浏览器是否已安装
-2. ChromeDriver是否在PATH中
-3. 版本是否匹配
+	- 若被占用，可 kill 对应 PID，或临时修改测试里的端口（`server.py` 中 PORT 变量）。
 
-### 权限问题
-如果出现数据库权限错误：
-1. 检查临时目录写权限
-2. 确保SQLite可以创建临时文件
+## CI 与自动化建议
 
-### 端口占用
-如果服务器启动失败：
-1. 检查8000端口是否被占用
-2. 可以修改server.py中的端口配置
+- 在 CI 中运行前端测试之前，请保证运行环境包含 headless Chrome 或使用 `selenium` + `chromedriver` 服务（例如 GitHub Actions 的 windows-latest/ubuntu-latest 可配合 actions/setup-chromedriver）。
+- 优先在 CI 中采用方案 B（通过 env 指定 DB 路径），避免修改仓库文件。
+
+## 贡献与扩展
+
+- 若需要新增用例，请遵循现有 `unittest` 风格并把文件命名为 `test_*.py`，放在 `tests/StudentModule` 下，这样 `run_tests.py` 会自动发现并执行。
+- 如果想把前端测试改成更轻量的端到端（如 Playwright），我可以提供迁移建议和示例。
+
+## 联系/作者备注
+
+此测试套件由仓库维护者与自动化脚本共同维护。如遇无法解析的问题，可把完整运行输出贴到 issue 或直接联系维护者。欢迎改进测试覆盖与稳定性。
