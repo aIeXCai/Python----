@@ -2,7 +2,7 @@
 
 **作者**: Alex 老师 & Hermes Agent
 **日期**: 2026-04-21
-**状态**: 进行中（第一阶段 ✅ | 第二阶段 🔄 进行中）
+**状态**: 进行中（第一阶段 ✅ | 第三阶段 🔄 AI课迁移（优先）| 第二阶段 🔄 进行中）
 
 ---
 
@@ -419,19 +419,21 @@ MEDIA_ROOT = BASE_DIR / 'media'
 4. 实现 Token 认证 API（/api/auth/login/）
 5. admin 后台配置好
 
-**第二阶段：信息科技课 API** 🔄 进行中
+**第二阶段：AI课 API 迁移（优先）** 🔄 进行中
+> 将现有 server.py 中的 AI课逻辑迁移到 Django ai_courses/ app
+1. Problem / TestCase / Submission models
+2. 题目列表/详情/提交/评分 API
+3. 成绩 API
+4. 完成后：旧 server.py 正式退役
+
+**第三阶段：信息科技课 API** 📋 待开始
 1. Quiz / Material / QuizResult models
 2. Quiz API（列表/详情/提交/评分）
 3. Material API（课件列表）
 4. 老师上传小测 JSON（文件上传视图）
 5. 权限配置
 
-**第三阶段：AI课 API（迁移）**
-1. Problem / TestCase / Submission models
-2. 题目列表/详情/提交/评分 API
-3. 成绩 API
-
-**第四阶段：前端开发**
+**第四阶段：前端开发** 📋 待开始
 1. 项目初始化（Vite + TypeScript）
 2. 登录页 + Token 管理（api/client.ts）
 3. 选课页
@@ -439,7 +441,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 5. AI课学生端
 6. 老师管理后台
 
-**第五阶段：收尾**
+**第五阶段：收尾** 📋 待开始
 1. 课件上传功能（ZIP 解压）
 2. 合并老师后台（两门课在一个界面）
 3. 部署到服务器
