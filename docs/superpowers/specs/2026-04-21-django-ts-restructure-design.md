@@ -2,7 +2,7 @@
 
 **作者**: Alex 老师 & Hermes Agent
 **日期**: 2026-04-21
-**状态**: 待用户审核
+**状态**: 进行中（第一阶段 ✅ | 第二阶段 🔄 进行中）
 
 ---
 
@@ -412,14 +412,14 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 ## 9. 实施路线图
 
-**第一阶段：Django 项目搭建**
+**第一阶段：Django 项目搭建** ✅ 已完成（2026-04-21）
 1. 创建 Django 项目 + 三个 app
 2. 配置 AUTH_USER_MODEL、DRF、CORS
 3. 写 CustomUser model + migration
 4. 实现 Token 认证 API（/api/auth/login/）
 5. admin 后台配置好
 
-**第二阶段：信息科技课 API**
+**第二阶段：信息科技课 API** 🔄 进行中
 1. Quiz / Material / QuizResult models
 2. Quiz API（列表/详情/提交/评分）
 3. Material API（课件列表）
