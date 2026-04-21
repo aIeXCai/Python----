@@ -109,4 +109,10 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# AI课题目目录（与 server.py 共用，在 backend/ 的上一层）
+PROBLEMS_DIR = BASE_DIR.parent / 'problems'
+
+# Submissions 目录
+SUBMISSIONS_DIR = BASE_DIR / 'submissions'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

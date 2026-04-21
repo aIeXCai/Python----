@@ -9,6 +9,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('users.urls')),
+    path('api/ai/', include('ai_courses.urls')),
 ]
 
 # 开发环境：提供 media 文件访问
