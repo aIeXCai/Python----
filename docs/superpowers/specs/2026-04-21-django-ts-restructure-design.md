@@ -854,9 +854,9 @@ frontend/src/
 | 成绩统计 API | ✅ 已完成（2026-04-22） |
 | **前端** | |
 | api/info.js（学生端+教师端 API） | ✅ 已完成（2026-04-22） |
-| StudentDashboard（course=info 小测卡片） | 📋 待开发 |
-| QuizPage（答题页） | 📋 待开发 |
-| QuizResult（成绩+错题解析） | 📋 待开发 |
+| StudentDashboard（course=info 小测卡片） | ✅ 已完成（2026-04-22） |
+| QuizPage（答题页） | ✅ 已完成（2026-04-22） |
+| QuizResult（成绩+错题解析） | ✅ 已完成（2026-04-22） |
 | ProblemManagement（去除 selectCourse，纯 AI） | 📋 待开发 |
 | InfoAdmin（Tab1题库 + Tab2小测 + Tab3成绩统计） | 📋 待开发 |
 | HTML 题目转 JSON 导入脚本 | 📋 待开发 |
