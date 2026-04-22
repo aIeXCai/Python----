@@ -261,9 +261,10 @@ class QuizResultView(APIView):
 
         return Response({
             'submission_id': sub.id,
+            'quiz_title': session.title,
             'score': sub.score,
             'correct_count': sub.correct_count,
             'total_count': sub.total_count,
             'submitted_at': sub.submitted_at,
-            'details': details,
+            'question_results': details,
         })

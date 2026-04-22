@@ -4,6 +4,8 @@ import Login from './pages/auth/Login.jsx'
 import TeacherLogin from './pages/auth/TeacherLogin.jsx'
 import CourseSelect from './pages/student/CourseSelect.jsx'
 import StudentDashboard from './pages/student/StudentDashboard.jsx'
+import QuizPage from './pages/student/QuizPage.jsx'
+import QuizResult from './pages/student/QuizResult.jsx'
 import TeacherDashboard from './pages/teacher/TeacherDashboard.jsx'
 import StudentManagement from './pages/teacher/StudentManagement.jsx'
 import ScoreManagement from './pages/teacher/ScoreManagement.jsx'
@@ -50,6 +52,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <StudentDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/quiz/:sessionId"
+            element={
+              <ProtectedRoute>
+                <QuizPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/quiz-result/:sessionId"
+            element={
+              <ProtectedRoute>
+                <QuizResult />
               </ProtectedRoute>
             }
           />
