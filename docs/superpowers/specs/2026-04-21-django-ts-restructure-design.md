@@ -853,7 +853,7 @@ frontend/src/
 | 学生提交+评分 API | ✅ 已完成（2026-04-22） |
 | 成绩统计 API | ✅ 已完成（2026-04-22） |
 | **前端** | |
-| api/info.js（学生端+教师端 API） | 📋 待开发 |
+| api/info.js（学生端+教师端 API） | ✅ 已完成（2026-04-22） |
 | StudentDashboard（course=info 小测卡片） | 📋 待开发 |
 | QuizPage（答题页） | 📋 待开发 |
 | QuizResult（成绩+错题解析） | 📋 待开发 |
