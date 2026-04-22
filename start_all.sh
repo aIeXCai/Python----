@@ -1,11 +1,8 @@
 #!/bin/bash
 # ============================================================
-# Python 学习平台 — 一键启动所有服务
-# ============================================================
 # 服务端口：
 #   8080 — Django 后端（主 API）
 #   5173 — Vite 前端开发服务器
-#   5000 — server.py（遗留兼容，可选）
 # ============================================================
 
 set -e
@@ -29,7 +26,7 @@ fail()  { echo -e "${RED}[FAIL]${NC}  $1"; }
 # ---------- 清理旧进程 ----------
 cleanup() {
     info "正在停止已有服务..."
-    for port in 8080 5173 5000; do
+    for port in 8080 5173; do
         pid=$(lsof -ti:$port 2>/dev/null || true)
         if [ -n "$pid" ]; then
             kill $pid 2>/dev/null && ok "已停止端口 $port (PID $pid)" || true
@@ -111,21 +108,11 @@ nohup npm run dev > "$LOG_DIR/vite.log" 2>&1 &
 VITE_PID=$!
 ok "Vite 已启动 (PID $VITE_PID)"
 
-# ---- 3. 启动 server.py (可选) ----
-if [ -f "$SCRIPT_DIR/server.py" ]; then
-    info "启动 server.py (端口 5000，可选)..."
-    cd "$SCRIPT_DIR"
-    nohup "$PYTHON" server.py > "$LOG_DIR/server.log" 2>&1 &
-    SERVER_PID=$!
-    ok "server.py 已启动 (PID $SERVER_PID)"
-fi
-
 # ---- 等待服务就绪 ----
 echo ""
 info "等待服务启动..."
 wait_for "http://localhost:8080/api/ai/admin/dashboard/" "Django API"
 wait_for "http://localhost:5173/" "Vite 前端"
-[ -n "$SERVER_PID" ] && wait_for "http://localhost:5000/" "server.py"
 
 # ---- 完成 ----
 echo ""
@@ -144,10 +131,9 @@ echo ""
 echo "  日志文件："
 echo "    $LOG_DIR/django.log"
 echo "    $LOG_DIR/vite.log"
-[ -n "$SERVER_PID" ] && echo "    $LOG_DIR/server.log"
 echo ""
 echo "  停止全部服务：bash start_all.sh --stop"
 echo "========================================"
 
 # 保存 PID 供停止使用
-echo "$DJANGO_PID $VITE_PID ${SERVER_PID:-}" > "$SCRIPT_DIR/.server_pids"
+echo "$DJANGO_PID $VITE_PID" > "$SCRIPT_DIR/.server_pids"

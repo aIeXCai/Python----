@@ -7,11 +7,17 @@ import { getProblemDetail, submitCode, getSubmissionHistory } from '../api/index
 export default function ProblemDetail() {
   const { problemId } = useParams()
   const [searchParams] = useSearchParams()
-  const courseParam = searchParams.get('course') || localStorage.getItem('selected_course') || 'ai'
+  const courseParam = searchParams.get('course')
 
-  // 同步 course 到 localStorage，防止返回 Dashboard 时丢失
+  // 同步 course 到 localStorage，防止返回 Dashboard 时 URL 参数丢失兜底
   useEffect(() => {
-    if (courseParam) localStorage.setItem('selected_course', courseParam)
+    if (courseParam) {
+      localStorage.setItem('selected_course', courseParam)
+    } else {
+      // URL 没有 course 参数时，尝试从 localStorage 恢复
+      const stored = localStorage.getItem('selected_course')
+      if (stored) localStorage.setItem('selected_course', stored)
+    }
   }, [courseParam])
   const navigate = useNavigate()
 
@@ -42,12 +48,14 @@ export default function ProblemDetail() {
   }, [problemId, courseParam])
 
   const loadData = async () => {
+    let cancelled = false
     setLoading(true)
     try {
       const [pd, hist] = await Promise.all([
         getProblemDetail(problemId, courseParam),
         getSubmissionHistory(),
       ])
+      if (cancelled) return
       setProblem(pd)
       setHistory(hist.filter((h) => h.problem_id === problemId))
       // Pre-fill with last submission if exists
@@ -60,9 +68,10 @@ export default function ProblemDetail() {
         setExpandedTests(init)
       }
     } catch (err) {
+      if (cancelled) return
       console.error(err)
     } finally {
-      setLoading(false)
+      if (!cancelled) setLoading(false)
     }
   }
 

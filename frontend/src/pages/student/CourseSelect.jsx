@@ -1,13 +1,16 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Brain, Monitor } from 'lucide-react'
 import Navbar from '../../components/Navbar.jsx'
 import { useEffect, useState } from 'react'
 
 export default function CourseSelect() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [username, setUsername] = useState('')
   const [grade, setGrade] = useState('')
   const [classNum, setClassNum] = useState('')
+  // 记住当前课程，切换时带着走，防止偶发的 localStorage 竞态
+  const currentCourse = searchParams.get('course') || localStorage.getItem('selected_course') || 'ai'
 
   useEffect(() => {
     const raw = localStorage.getItem('user')
@@ -21,7 +24,9 @@ export default function CourseSelect() {
   }, [])
 
   const selectCourse = (course) => {
+    // 同步写入 localStorage，确保 StudentDashboard 能读到
     localStorage.setItem('selected_course', course)
+    // 带着当前课程参数导航，下次进来就知道在哪个课
     navigate(`/student/dashboard?course=${course}`)
   }
 

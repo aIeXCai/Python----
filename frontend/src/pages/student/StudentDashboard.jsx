@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Trophy, CheckCircle, BarChart2, BookOpen, RefreshCw, Loader } from 'lucide-react'
 import Navbar from '../../components/Navbar.jsx'
@@ -14,8 +14,9 @@ export default function StudentDashboard() {
   const [classNum, setClassNum] = useState('')
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const mountedRef = useRef(true)
 
-  // 优先读 URL 参数（导航带过来的），其次读 localStorage
+  // 优先读 URL 参数（导航带过来的），其次读 localStorage，最后默认 ai
   const getCourse = () => searchParams.get('course') || localStorage.getItem('selected_course') || 'ai'
 
   useEffect(() => {
@@ -31,7 +32,9 @@ export default function StudentDashboard() {
     fetchData()
   }, [])
 
+  // StrictMode 下 useEffect 会 double-invoke，mountedRef 跨调用共享，防止旧请求状态覆盖新渲染
   const fetchData = async () => {
+    const saved = mountedRef.current
     setLoading(true)
     try {
       const course = getCourse()
@@ -40,13 +43,15 @@ export default function StudentDashboard() {
         getScores(course),
         getStudentStats(course),
       ])
+      if (!mountedRef.current || !saved) { return }
       setProblems(p)
       setScores(s)
       setStats(st)
     } catch (err) {
-      console.error(err)
+      if (!mountedRef.current) return
+      console.error('[Dashboard] fetchData 错误:', err)
     } finally {
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
   }
 

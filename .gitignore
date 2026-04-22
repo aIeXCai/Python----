@@ -12,6 +12,7 @@ build/
 # Django
 media/
 submissions/
+problems/              # AI课题目文件已迁移到 Django，保留目录仅作本地备份
 staticfiles/
 
 # Node / Vite

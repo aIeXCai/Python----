@@ -42,8 +42,6 @@ class ProblemListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        # 先从磁盘同步题目
-        Problem.sync_from_disk()
         course = request.query_params.get('course', 'ai')
         problems = Problem.objects.filter(course=course)
         serializer = ProblemListSerializer(problems, many=True)
@@ -248,14 +246,9 @@ class StudentStatsView(APIView):
         )
         avg_score = round(avg_result['avg'] or 0, 1)
 
-        # 班级排名
-        # 获取同班级其他同学的平均分
-        same_class_students = (
-            Problem.sync_from_disk()
-        )
-        # 简单实现：统计班级内比自己平均分高的学生数量
+        # 班级排名：简单实现，暂无精确班级内对比
         my_avg = avg_score
-        rank = 1  # 默认排名
+        rank = 1  # TODO: 实现班级对比逻辑后替换
 
         return Response({
             'total_problems': total_problems,
@@ -313,7 +306,6 @@ class AdminProblemListView(APIView):
     permission_classes = [IsTeacher]
 
     def get(self, request):
-        Problem.sync_from_disk()
         course = request.query_params.get('course', 'ai')
         problems = Problem.objects.filter(course=course)
         serializer = ProblemListSerializer(problems, many=True)

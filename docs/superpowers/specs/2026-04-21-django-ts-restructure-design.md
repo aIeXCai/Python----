@@ -419,12 +419,13 @@ MEDIA_ROOT = BASE_DIR / 'media'
 4. 实现 Token 认证 API（/api/auth/login/）
 5. admin 后台配置好
 
-**第二阶段：AI课 API 迁移（优先）** 🔄 进行中
-> 将现有 server.py 中的 AI课逻辑迁移到 Django ai_courses/ app
-1. Problem / TestCase / Submission models
-2. 题目列表/详情/提交/评分 API
-3. 成绩 API
-4. 完成后：旧 server.py 正式退役
+**第二阶段：AI课 API 迁移** ✅ 已完成（2026-04-22）
+> 现有 server.py 中的 AI课逻辑已迁移到 Django ai_courses/ app
+1. Problem / TestCase / Submission models ✅
+2. 题目列表/详情/提交/评分 API ✅
+3. 成绩 API（/api/ai/scores/ + /api/ai/student_stats/）✅
+4. 完成后：旧 server.py 正式退役 ✅
+5. 遗留：Problem.sync_from_disk() 写操作从 GET 请求移至 POST 同步端点 ✅
 
 **第三阶段：信息科技课 API** 📋 待开始
 1. Quiz / Material / QuizResult models
@@ -433,13 +434,14 @@ MEDIA_ROOT = BASE_DIR / 'media'
 4. 老师上传小测 JSON（文件上传视图）
 5. 权限配置
 
-**第四阶段：前端开发** 📋 待开始
-1. 项目初始化（Vite + TypeScript）
-2. 登录页 + Token 管理（api/client.ts）
-3. 选课页
-4. 信息科技课学生端（做小测为核心）
-5. AI课学生端
-6. 老师管理后台
+**第四阶段：前端开发** 🔄 进行中（Vite + JS）
+> 学生端基础已完成，老师端待开发
+1. 项目初始化（Vite + JS，当前用 JS，暂缓 TS）🔄
+2. 登录页 + Token 管理（api/client.ts）✅
+3. 选课页（/student）✅
+4. AI课学生端（题目列表/提交/成绩查看）✅
+5. 信息科技课学生端（做小测为核心）📋
+6. 老师管理后台（评分 + 双课统一视图）📋
 
 **第五阶段：收尾** 📋 待开始
 1. 课件上传功能（ZIP 解压）
@@ -458,3 +460,403 @@ MEDIA_ROOT = BASE_DIR / 'media'
 | 评分方式 | 后端评分，返回结果 | 防止学生篡改答案 |
 | 课件存储 | 文件系统（media/） | 比数据库存文件更高效 |
 | 现有 users.db | 不迁移 | 现有 AI课系统独立运行 |
+
+---
+
+## 11. 信息科技课 — 完整设计（2026-04-22）
+
+> **需求摘要（Alex 确认版）**
+> - 教师后台：管理每个单元题库，增删改查小测（指定题目数量/范围/可见性/年级）
+> - 学生端：随机抽题 + 随机打乱选项答题，支持重新作答（重新抽题），成绩最新覆盖
+
+---
+
+### 11.1 数据模型
+
+```python
+# =====================
+# info_tech/models.py
+# =====================
+
+class Unit(models.Model):
+    """单元目录"""
+    name        = models.CharField('单元名称', max_length=100, unique=True)  # 如 "第一单元"
+    display_name= models.CharField('显示名称', max_length=200)                  # 如 "第一单元：互联网博物馆策展"
+    order       = models.IntegerField('排序', default=0)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return self.name
+
+
+class Question(models.Model):
+    """题库题目（单选）"""
+    DIFFICULTY_CHOICES = [
+        ('easy',   '容易'),
+        ('medium', '中等'),
+        ('hard',   '困难'),
+    ]
+
+    unit         = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='questions')
+    difficulty    = models.CharField('难度', max_length=10, choices=DIFFICULTY_CHOICES, default='easy')
+    category     = models.CharField('知识点分类', max_length=100, blank=True)   # 如 "网络层级结构"
+    text         = models.TextField('题目正文')                                    # 含题目的完整文字
+    answer       = models.CharField('正确答案', max_length=1)                       # 'A'/'B'/'C'/'D'
+    explanation  = models.TextField('答案解析', blank=True)
+    # 选项固定 A/B/C/D 四个，题目本身不存选项顺序（打乱在视图层做）
+    option_a     = models.CharField('选项A', max_length=500)
+    option_b     = models.CharField('选项B', max_length=500)
+    option_c     = models.CharField('选项C', max_length=500)
+    option_d     = models.CharField('选项D', max_length=500)
+    created_at   = models.DateTimeField(auto_now_add=True)
+    updated_at   = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = '题目'
+        verbose_name_plural = '题库'
+
+    def __str__(self):
+        return f"{self.unit.name} - {self.text[:30]}..."
+
+
+class QuizSession(models.Model):
+    """老师发起的一场小测（配置型，不是预抽题）"""
+    title          = models.CharField('小测标题', max_length=200)        # 如 "第四单元小测"
+    created_by     = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+
+    # 组题配置
+    units          = models.ManyToManyField(Unit, related_name='quiz_sessions')  # 出题范围
+    num_questions  = models.IntegerField('题目数量')                              # 如 20
+    difficulty_ratio = models.JSONField('难度比例', default=dict)                  # {"easy":7,"medium":2,"hard":1}
+    time_limit     = models.IntegerField('时间限制(分钟)', null=True, blank=True)
+
+    # 可见性
+    is_visible     = models.BooleanField('对学生可见', default=False)
+    visible_grades = models.JSONField('可见年级', default=list)                     # [] 表示全部年级可见
+
+    # 防作弊：学生每次进入随机抽题，不需要存题
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title
+
+
+class QuizSubmission(models.Model):
+    """学生提交记录（每次作答都存，最新覆盖）"""
+    user           = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    session        = models.ForeignKey(QuizSession, on_delete=models.CASCADE)
+    score          = models.FloatField('得分')                       # 百分比，如 85.0
+    correct_count  = models.IntegerField('正确题数')
+    total_count    = models.IntegerField('总题数')
+    answers_json   = models.TextField('学生答案')                    # {"q_id_1":"A", "q_id_2":"C", ...}
+    submitted_at   = models.DateTimeField(auto_now_add=True)
+
+    # 注意：没有 unique_together，成绩每次都保存，视图层返回最新一条
+    # 如需取最高分，查 max(score) 即可
+
+    class Meta:
+        ordering = ['-submitted_at']
+        verbose_name = '小测提交'
+        verbose_name_plural = '小测提交记录'
+
+    def __str__(self):
+        return f"{self.user.display_name} - {self.session.title}: {self.score}分"
+```
+
+**关键设计决策说明：**
+
+1. **题目不预抽**：每次学生进入答题页时才随机抽题（`random.sample` 从 `session.units.all()` 的 Question 里选），这样每次作答都是全新的随机题目。
+
+2. **选项不打存在数据库**：选项 A/B/C/D 固定字段，视图层返回时用 `random.shuffle` 打乱选项顺序，返回带 `shuffled_options` 的结构给学生。
+
+3. **成绩最新覆盖**：提交记录全部保留（方便老师查看历史），学生端取 `submitted_at` 最新的一条作为"当前成绩"，最高分逻辑在查询层做 `Max('score')`。
+
+4. **难度比例**：创建小测时指定 `{"easy":7,"medium":2,"hard":1}`，随机抽题时按比例分配名额。
+
+---
+
+### 11.2 JSON 导入格式（题库批量导入）
+
+**题目库导入**（`POST /api/admin/info/questions/import/`）：
+
+```json
+{
+  "unit": "第四单元",
+  "unit_display_name": "第四单元：搭建校园网络系统——互联网的基本原理",
+  "questions": [
+    {
+      "difficulty": "easy",
+      "category": "网络层级结构",
+      "text": "按照覆盖范围从小到大排列，网络的正确顺序是（）",
+      "options": [
+        {"key": "A", "text": "局域网 → 城域网 → 广域网"},
+        {"key": "B", "text": "广域网 → 城域网 → 局域网"},
+        {"key": "C", "text": "城域网 → 局域网 → 广域网"},
+        {"key": "D", "text": "局域网 → 广域网 → 城域网"}
+      ],
+      "answer": "A",
+      "explanation": "根据复习提纲，网络按覆盖范围分为局域网（LAN，覆盖范围最小，如学校内部）、城域网（MAN，覆盖一个城市）、广域网（WAN，覆盖大范围地理区域）。"
+    }
+  ]
+}
+```
+
+> 和 Alex 现有的 HTML 小测题里的 `QUESTIONS_RAW` 数据结构完全一致，导入脚本只需要把 JS 对象语法转成 JSON 即可直接导入。
+
+**单个题目编辑**（`POST /api/admin/info/questions/`）：
+```json
+{
+  "unit": "第四单元",
+  "difficulty": "easy",
+  "category": "网络层级结构",
+  "text": "按照覆盖范围从小到大排列，网络的正确顺序是（）",
+  "option_a": "局域网 → 城域网 → 广域网",
+  "option_b": "广域网 → 城域网 → 局域网",
+  "option_c": "城域网 → 局域网 → 广域网",
+  "option_d": "局域网 → 广域网 → 城域网",
+  "answer": "A",
+  "explanation": "根据复习提纲..."
+}
+```
+
+---
+
+### 11.3 API 设计
+
+#### 11.3.1 学生端 — `/api/info/`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/info/units/` | 单元列表（含题目数量） |
+| GET | `/api/info/sessions/` | 可见的小测列表（只返回 `is_visible=True` 且年级匹配的） |
+| GET | `/api/info/sessions/{id}/` | **进入答题页**，后端随机抽题 + 打乱选项，返回给前端 |
+| POST | `/api/info/sessions/{id}/submit/` | 提交答案，后端评分，返回结果（含错题解析） |
+| GET | `/api/info/submissions/?session={id}` | 我的某次小测提交记录（最新一条是当前成绩） |
+| GET | `/api/info/submissions/{id}/result/` | 某次提交的成绩详情（含每题对错） |
+
+**GET `/api/info/sessions/{id}/` 返回（学生看到的题目）：**
+
+```json
+{
+  "session_id": 1,
+  "title": "第四单元小测",
+  "time_limit": 40,
+  "total_count": 20,
+  "questions": [
+    {
+      "q_id": 12,
+      "text": "按照覆盖范围从小到大排列...",
+      "shuffled_options": [
+        {"key": "C", "text": "城域网 → 局域网 → 广域网"},
+        {"key": "A", "text": "局域网 → 城域网 → 广域网"},
+        {"key": "D", "text": "局域网 → 广域网 → 城域网"},
+        {"key": "B", "text": "广域网 → 城域网 → 局域网"}
+      ]
+    }
+    // ... 共 20 题
+  ]
+}
+```
+
+> **注意**：返回的题目里没有 `answer` 字段，评分在后端做。
+
+**POST `/api/info/sessions/{id}/submit/` 请求体：
+
+```json
+{
+  "answers": {"12": "A", "15": "C", "8": "B"}
+}
+```
+
+> `answers` 的 key 是后端返回的 `q_id`，value 是学生选择的选项 key（'A'/'B'/'C'/'D'）。
+
+**返回（提交后成绩）：**
+
+```json
+{
+  "submission_id": 5,
+  "score": 85.0,
+  "correct_count": 17,
+  "total_count": 20,
+  "review": [
+    {
+      "q_id": 12,
+      "text": "按照覆盖范围从小到大排列...",
+      "your_answer": "A",
+      "correct_answer": "A",
+      "is_correct": true,
+      "explanation": "...",
+      "shuffled_options": [...]
+    },
+    {
+      "q_id": 15,
+      "text": "...",
+      "your_answer": "C",
+      "correct_answer": "B",
+      "is_correct": false,
+      "explanation": "...",
+      "shuffled_options": [...]
+    }
+  ]
+}
+```
+
+#### 11.3.2 教师管理端 — `/api/admin/info/`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/admin/info/units/` | 单元列表 |
+| POST | `/api/admin/info/units/` | 新增单元 |
+| GET | `/api/admin/info/questions/` | 题库列表（支持 `?unit=&difficulty=&q=` 过滤） |
+| POST | `/api/admin/info/questions/` | 新增单题 |
+| PUT | `/api/admin/info/questions/{id}/` | 修改题目 |
+| DELETE | `/api/admin/info/questions/{id}/` | 删除题目 |
+| POST | `/api/admin/info/questions/import/` | **批量导入 JSON**（一次性导入整个单元） |
+| GET | `/api/admin/info/sessions/` | 小测列表 |
+| POST | `/api/admin/info/sessions/` | **创建小测**（选单元+定题量+难度比例+可见性） |
+| PUT | `/api/admin/info/sessions/{id}/` | 修改小测（增删改范围/题量/可见性） |
+| DELETE | `/api/admin/info/sessions/{id}/` | 删除小测 |
+| GET | `/api/admin/info/submissions/?session={id}` | 某次小测的全班成绩 |
+| GET | `/api/admin/info/stats/` | 全班统计（正确率分布、错题TOP10等） |
+
+**POST `/api/admin/info/sessions/` 请求体：
+
+```json
+{
+  "title": "第四单元小测",
+  "units": [3, 4],
+  "num_questions": 20,
+  "difficulty_ratio": {"easy": 14, "medium": 4, "hard": 2},
+  "time_limit": 40,
+  "is_visible": false,
+  "visible_grades": []
+}
+```
+
+**`visible_grades` 说明**：
+- `[]` = 全部年级可见
+- `["初二"]` = 只有初二可见
+- `["初二","初三"]` = 初二初三可见
+
+---
+
+### 11.4 随机抽题算法（后端 Python）
+
+```python
+import random
+
+def draw_questions(session: QuizSession) -> list[Question]:
+    """根据小测配置，从题库随机抽取题目"""
+    ratio = session.difficulty_ratio  # {"easy":7,"medium":2,"hard":1}
+    total = session.num_questions
+    units = session.units.all()
+
+    # 按难度分组
+    questions = Question.objects.filter(unit__in=units)
+    by_difficulty = {
+        'easy':   list(questions.filter(difficulty='easy')),
+        'medium': list(questions.filter(difficulty='medium')),
+        'hard':   list(questions.filter(difficulty='hard')),
+    }
+
+    result = []
+    for diff, count in ratio.items():
+        count = min(count, len(by_difficulty[diff]))  # 题不够就全抽
+        result.extend(random.sample(by_difficulty[diff], count))
+
+    random.shuffle(result)  # 最终打乱题目顺序
+    return result[:total]
+
+
+def shuffle_options(question: Question) -> list:
+    """打乱单个题目的选项顺序"""
+    options = [
+        {'key': 'A', 'text': question.option_a},
+        {'key': 'B', 'text': question.option_b},
+        {'key': 'C', 'text': question.option_c},
+        {'key': 'D', 'text': question.option_d},
+    ]
+    random.shuffle(options)
+    return options
+```
+
+---
+
+### 11.5 前端页面结构
+
+> **设计原则**：最小改动，复用现有页面和路由，新增页面尽量少。**
+>
+> - 学生端：复用 `StudentDashboard?course=info`，答题新建 `QuizPage`；AI课保持原样
+> - 教师端：复用 `ProblemManagement` 和 `ScoreManagement` 的 `selectedCourse` 下拉框架构，扩展 info 接口；题库/小测管理新建页面
+
+#### 11.5.1 文件结构
+
+```
+frontend/src/
+  api/
+    index.js          ← 已有，新增 info 相关 API 导出
+    info.js           ← 新增：信息课 API（学生端+教师端）
+```
+  pages/
+    student/
+      StudentDashboard.jsx  ← 改动：course=info 时渲染小测卡片列表
+      info/
+        QuizPage.jsx        ← 新增：答题页（随机抽题展示+提交+重做）
+        QuizResult.jsx      ← 新增：成绩+错题解析页
+
+    teacher/
+      ProblemManagement.jsx ← 改动：去除 selectedCourse 下拉框，纯 AI课题库
+      info/
+        InfoAdmin.jsx       ← 新增：信息课管理（Tab1题库 + Tab2小测 + Tab3成绩统计）
+```
+
+#### 11.5.2 路由（App.jsx）
+
+| 路由 | 页面 | 说明 |
+|------|------|------|
+| `/student/dashboard?course=info` | StudentDashboard | 复用，小测卡片列表 |
+| `/student/quiz/:sessionId` | QuizPage | **新增路由** |
+| `/student/quiz-result/:submissionId` | QuizResult | **新增路由** |
+| `/teacher/problems` | ProblemManagement | 改动：纯 AI课题库，去除 selectCourse |
+| `/teacher/scores` | ScoreManagement | 纯 AI课成绩，不动 |
+| `/teacher/info` | InfoAdmin | **新增**（Tab1题库 + Tab2小测管理 + Tab3成绩统计） |
+
+#### 11.5.3 StudentDashboard 改动说明
+
+**现有逻辑（course=ai）**：API 返回 Problem 列表 → 渲染编程题卡片 → 点进去是 ProblemDetail
+
+**改动后（course=info）**：
+- 调用 `getInfoSessions()` → 返回可见小测列表
+- 渲染小测卡片（标题 + 题目数量 + 状态：未做/已做/查看成绩）
+- 点卡片 → 跳转 `/student/quiz/:sessionId`（QuizPage）
+- 点"查看成绩" → 跳转 `/student/quiz-result/:submissionId`（QuizResult）
+
+现有 AI课逻辑**完全不动**，同一个组件用 `getCourse()` 判断走哪套渲染逻辑。
+
+---
+
+### 11.6 进度追踪
+
+| 功能 | 状态 |
+|------|------|
+| **后端** | |
+| 数据模型（Unit/Question/QuizSession/QuizSubmission） | 📋 待开发 |
+| 题库管理 API（增删改查+JSON导入） | 📋 待开发 |
+| 小测管理 API（创建+发布+修改） | 📋 待开发 |
+| 学生随机抽题 API | 📋 待开发 |
+| 学生提交+评分 API | 📋 待开发 |
+| 成绩统计 API | 📋 待开发 |
+| **前端** | |
+| api/info.js（学生端+教师端 API） | 📋 待开发 |
+| StudentDashboard（course=info 小测卡片） | 📋 待开发 |
+| QuizPage（答题页） | 📋 待开发 |
+| QuizResult（成绩+错题解析） | 📋 待开发 |
+| ProblemManagement（去除 selectCourse，纯 AI） | 📋 待开发 |
+| InfoAdmin（Tab1题库 + Tab2小测 + Tab3成绩统计） | 📋 待开发 |
+| HTML 题目转 JSON 导入脚本 | 📋 待开发 |

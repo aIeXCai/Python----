@@ -1,9 +1,0 @@
-用print()函数打印以下三行文本：
-提示：注意大小写，注意使用英文标点符号
-
-
-Hello
-How are you?
-I am fine, thank you, and you?
-
-将文件命名为“班级+姓名.py”上传到学习平台
