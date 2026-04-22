@@ -207,15 +207,15 @@ export default function QuizResult() {
                   })}
                 </div>
 
-                {/* 解析 */}
-                {qr.explanation && (
+                {/* 解析 — 只在错题时显示 */}
+                {!qr.is_correct && qr.explanation && (
                   <div style={{
                     marginTop: 10,
                     padding: '10px 12px',
-                    background: '#f8f8f8',
+                    background: '#fff5f5',
                     borderRadius: 6,
                     fontSize: '0.82rem',
-                    color: '#555',
+                    color: '#c53030',
                     lineHeight: 1.6,
                     marginLeft: 26,
                   }}>
