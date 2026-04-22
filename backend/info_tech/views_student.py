@@ -276,10 +276,11 @@ class QuizResultView(APIView):
                 # order = ['C','A','D','B']：display A=text_C, display B=text_A, ...
                 opt_map = {'A': q.option_a, 'B': q.option_b, 'C': q.option_c, 'D': q.option_d}
                 user_shuffled = shuffled_map.get(str(qid)) or ''
-                # 正确答案在打乱后显示哪个字母
-                correct_display = order[ord(q.answer.upper()) - 65] if q.answer.upper() in 'ABCD' else q.answer
-                # 用户答案在打乱后显示哪个字母
-                user_display = order[ord(user_shuffled.upper()) - 65] if user_shuffled.upper() in 'ABCD' else user_ans.upper()
+                # order = ['B','C','D','A']：order[i] = 显示字母 chr(65+i) 的原始字母
+                # 找原始答案字母在打乱后出现在哪个显示位置
+                correct_display = chr(65 + order.index(q.answer.upper())) if q.answer.upper() in 'ABCD' else q.answer
+                # 答错了：只标正确答案，不标用户选的（避免打乱后重叠）
+                user_display = None
                 options = {}
                 for i, letter in enumerate(order):
                     display_letter = chr(65 + i)  # 0→A, 1→B, 2→C, 3→D

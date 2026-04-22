@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import Navbar from '../../components/Navbar.jsx'
 import { getInfoQuizResult } from '../../api/info.js'
-import { Loader, CheckCircle, XCircle, ArrowLeft, Award, RotateCcw } from 'lucide-react'
+import { Loader, ArrowLeft, Award, RotateCcw } from 'lucide-react'
 
 export default function QuizResult() {
   const { sessionId } = useParams()
@@ -122,12 +122,10 @@ export default function QuizResult() {
             {/* 统计数字 */}
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10, textAlign: 'left' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <CheckCircle size={20} color="#38ef7d" />
-                <span style={{ fontSize: '1rem' }}>正确 {correct_count} 题</span>
+                <span style={{ fontSize: '1rem', color: '#38ef7d' }}>✓ 正确 {correct_count} 题</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <XCircle size={20} color="#e53e3e" />
-                <span style={{ fontSize: '1rem' }}>错误 {total_count - correct_count} 题</span>
+                <span style={{ fontSize: '1rem', color: '#e53e3e' }}>✗ 错误 {total_count - correct_count} 题</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Award size={20} color="#f6c90e" />
@@ -145,87 +143,73 @@ export default function QuizResult() {
           </div>
         </div>
 
-        {/* 题目详情 */}
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ marginBottom: 16, fontSize: '1rem', color: '#333' }}>答题详情</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {question_results.map((qr, i) => (
-              <div key={qr.question_id} style={{
-                background: '#fff',
-                borderRadius: 10,
-                padding: '16px',
-                borderLeft: `4px solid ${qr.is_correct ? '#38ef7d' : '#e53e3e'}`,
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                    {qr.is_correct
-                      ? <CheckCircle size={18} color="#38ef7d" style={{ flexShrink: 0, marginTop: 2 }} />
-                      : <XCircle size={18} color="#e53e3e" style={{ flexShrink: 0, marginTop: 2 }} />}
-                    <div>
-                      <span style={{ fontWeight: 700, color: '#11998e', marginRight: 8 }}>Q{i + 1}</span>
-                      <span style={{ fontSize: '0.9rem', color: '#333', lineHeight: 1.5 }}>
-                        {qr.text}
-                      </span>
+        {/* 错题解析 — 只显示做错的题 */}
+        {(() => {
+          const wrong = (question_results || []).filter(qr => !qr.is_correct)
+          if (wrong.length === 0) return null
+          return (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ marginBottom: 16, fontSize: '1rem', color: '#333' }}>错题解析</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {wrong.map((qr, i) => (
+                  <div key={qr.question_id} style={{
+                    background: '#fff',
+                    borderRadius: 10,
+                    padding: '16px',
+                    borderLeft: '4px solid #e53e3e',
+                  }}>
+                    <div style={{ fontSize: '0.9rem', color: '#333', lineHeight: 1.6, marginBottom: 12 }}>
+                      <span style={{ fontWeight: 700, color: '#e53e3e', marginRight: 8 }}>✗</span>
+                      {qr.text}
                     </div>
-                  </div>
-                  <span style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: qr.is_correct ? '#38ef7d' : '#e53e3e',
-                    flexShrink: 0,
-                  }}>
-                    {qr.is_correct ? '正确' : '错误'}
-                  </span>
-                </div>
 
-                {/* 选项 — 新格式：qr.options = { A: {text, is_user_answer, is_correct_answer}, ... } */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 26 }}>
-                  {['A', 'B', 'C', 'D'].map(opt => {
-                    const optData = qr.options ? qr.options[opt] : null
-                    if (!optData || !optData.text) return null
-                    const isUserAnswer = !!optData.is_user_answer
-                    const isCorrectAnswer = !!optData.is_correct_answer
-                    let bg = 'transparent'
-                    let color = '#666'
-                    if (isCorrectAnswer) { bg = '#e8f8f5'; color = '#11998e' }
-                    else if (isUserAnswer) { bg = '#fff5f5'; color = '#e53e3e' }
-                    return (
-                      <div key={opt} style={{
-                        padding: '6px 10px',
+                    {/* 选项 */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                      {['A', 'B', 'C', 'D'].map(opt => {
+                        const optData = qr.options ? qr.options[opt] : null
+                        if (!optData || !optData.text) return null
+                        const isUserAnswer = !!optData.is_user_answer
+                        const isCorrectAnswer = !!optData.is_correct_answer
+                        let bg = 'transparent'
+                        let color = '#555'
+                        let label = ''
+                        if (isCorrectAnswer) { bg = '#e8f8f5'; color = '#11998e'; label = ' ✓ 正确答案' }
+                        else if (isUserAnswer) { bg = '#fff5f5'; color = '#e53e3e'; label = ' (你的选择)' }
+                        return (
+                          <div key={opt} style={{
+                            padding: '6px 10px',
+                            borderRadius: 6,
+                            background: bg,
+                            fontSize: '0.85rem',
+                            color,
+                            fontWeight: isUserAnswer || isCorrectAnswer ? 700 : 400,
+                          }}>
+                            <span style={{ fontWeight: 800, marginRight: 6 }}>{opt}.</span>
+                            {optData.text}{label}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* 解析 */}
+                    {qr.explanation && (
+                      <div style={{
+                        padding: '10px 12px',
+                        background: '#fff5f5',
                         borderRadius: 6,
-                        background: bg,
-                        fontSize: '0.85rem',
-                        color,
-                        fontWeight: isUserAnswer || isCorrectAnswer ? 700 : 400,
+                        fontSize: '0.82rem',
+                        color: '#c53030',
+                        lineHeight: 1.6,
                       }}>
-                        <span style={{ fontWeight: 800, marginRight: 6 }}>{opt}.</span>
-                        {optData.text}
-                        {isCorrectAnswer && ' ✓'}
-                        {isUserAnswer && !isCorrectAnswer && ' (你的选择)'}
+                        💡 {qr.explanation}
                       </div>
-                    )
-                  })}
-                </div>
-
-                {/* 解析 — 只在错题时显示 */}
-                {!qr.is_correct && qr.explanation && (
-                  <div style={{
-                    marginTop: 10,
-                    padding: '10px 12px',
-                    background: '#fff5f5',
-                    borderRadius: 6,
-                    fontSize: '0.82rem',
-                    color: '#c53030',
-                    lineHeight: 1.6,
-                    marginLeft: 26,
-                  }}>
-                    💡 {qr.explanation}
+                    )}
                   </div>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          )
+        })()}
 
         {/* 返回 + 重新作答 */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 40 }}>

@@ -32,7 +32,7 @@ export default function StudentDashboard() {
     } catch {}
 
     fetchData()
-  }, [])
+  }, [searchParams])
 
   // StrictMode 下 useEffect 会 double-invoke，mountedRef 跨调用共享，防止旧请求状态覆盖新渲染
   const fetchData = async () => {
