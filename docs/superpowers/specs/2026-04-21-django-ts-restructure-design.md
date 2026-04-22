@@ -846,7 +846,7 @@ frontend/src/
 | 功能 | 状态 |
 |------|------|
 | **后端** | |
-| 数据模型（Unit/Question/QuizSession/QuizSubmission） | 📋 待开发 |
+| 数据模型（Unit/Question/QuizSession/QuizSubmission） | ✅ 已完成（2026-04-22） |
 | 题库管理 API（增删改查+JSON导入） | 📋 待开发 |
 | 小测管理 API（创建+发布+修改） | 📋 待开发 |
 | 学生随机抽题 API | 📋 待开发 |
