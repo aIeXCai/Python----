@@ -73,6 +73,7 @@ class QuizSubmission(models.Model):
     """学生提交记录（每次作答都存）"""
     user          = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     session       = models.ForeignKey(QuizSession, on_delete=models.CASCADE)
+    grade         = models.CharField('学生年级', max_length=20, blank=True, default='')  # 提交时快照
     score         = models.FloatField('得分')                        # 百分比，如 85.0
     correct_count = models.IntegerField('正确题数')
     total_count   = models.IntegerField('总题数')

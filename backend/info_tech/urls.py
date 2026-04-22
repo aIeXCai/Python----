@@ -7,6 +7,8 @@ from .views import (
     QuizSessionListView, QuizSessionCreateView,
     QuizSessionUpdateView, QuizSessionDeleteView,
     QuizSessionToggleView,
+    QuizStatsOverviewView, QuizStatsSessionView,
+    QuizStatsSessionDetailView, QuizStatsGradeView,
 )
 
 urlpatterns = [
@@ -29,4 +31,10 @@ urlpatterns = [
     path('admin/info/sessions/<int:pk>/', QuizSessionUpdateView.as_view(), name='info-sessions-update'),
     path('admin/info/sessions/<int:pk>/delete/', QuizSessionDeleteView.as_view(), name='info-sessions-delete'),
     path('admin/info/sessions/<int:pk>/toggle/', QuizSessionToggleView.as_view(), name='info-sessions-toggle'),
+
+    # Stats
+    path('admin/info/stats/overview/', QuizStatsOverviewView.as_view(), name='info-stats-overview'),
+    path('admin/info/stats/sessions/', QuizStatsSessionView.as_view(), name='info-stats-sessions'),
+    path('admin/info/stats/sessions/<int:pk>/', QuizStatsSessionDetailView.as_view(), name='info-stats-session-detail'),
+    path('admin/info/stats/grade/<str:grade>/', QuizStatsGradeView.as_view(), name='info-stats-grade'),
 ]

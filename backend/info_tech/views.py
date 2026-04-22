@@ -2,9 +2,9 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q
+from django.db.models import Q, Count, Avg, Max, Min
 
-from .models import Unit, Question, QuizSession
+from .models import Unit, Question, QuizSession, QuizSubmission
 from .serializers import (
     UnitSerializer, QuestionSerializer,
     QuestionCreateSerializer, QuestionImportSerializer,
@@ -238,3 +238,175 @@ class QuizSessionToggleView(APIView):
             session.save()
             return Response(QuizSessionSerializer(session).data)
         return Response(serializer.errors, status=400)
+
+
+# ─── 成绩统计 API ─────────────────────────────────────────────────────────────
+
+class QuizStatsOverviewView(APIView):
+    """GET /api/admin/info/stats/overview/ 全局概览"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'teacher':
+            return Response({'error': '仅老师可操作'}, status=403)
+
+        total_sessions = QuizSession.objects.count()
+        total_submissions = QuizSubmission.objects.count()
+        avg_score = QuizSubmission.objects.aggregate(avg=Avg('score'))['avg'] or 0
+        scores = list(QuizSubmission.objects.values_list('score', flat=True))
+        p90 = sorted(scores)[int(len(scores) * 0.9)] if len(scores) >= 10 else max(scores, default=0)
+        p50 = sorted(scores)[int(len(scores) * 0.5)] if len(scores) >= 2 else max(scores, default=0)
+
+        # 分数段分布
+        bins = {'0-60': 0, '60-80': 0, '80-100': 0}
+        for s in scores:
+            if s < 60:
+                bins['0-60'] += 1
+            elif s < 80:
+                bins['60-80'] += 1
+            else:
+                bins['80-100'] += 1
+
+        # 按年级统计
+        grade_stats = QuizSubmission.objects.values('grade').annotate(
+            count=Count('id'),
+            avg_score=Avg('score')
+        ).order_by('-count')
+
+        return Response({
+            'total_sessions': total_sessions,
+            'total_submissions': total_submissions,
+            'avg_score': round(avg_score, 1),
+            'p50_score': round(p50, 1),
+            'p90_score': round(p90, 1),
+            'score_distribution': bins,
+            'by_grade': list(grade_stats),
+        })
+
+
+class QuizStatsSessionView(APIView):
+    """GET /api/admin/info/stats/sessions/ 按小测统计"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'teacher':
+            return Response({'error': '仅老师可操作'}, status=403)
+
+        sessions = QuizSession.objects.all().order_by('-created_at')
+        result = []
+        for s in sessions:
+            subs = s.quizsubmission_set.all()
+            total = subs.count()
+            result.append({
+                'session_id': s.id,
+                'title': s.title,
+                'total_submissions': total,
+                'avg_score': round(subs.aggregate(avg=Avg('score'))['avg'], 1) if total > 0 else None,
+                'max_score': subs.aggregate(max=Max('score'))['max'],
+                'min_score': subs.aggregate(min=Min('score'))['min'],
+            })
+
+        return Response(result)
+
+
+class QuizStatsSessionDetailView(APIView):
+    """GET /api/admin/info/stats/sessions/<id>/ 某小测详细统计"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        if request.user.role != 'teacher':
+            return Response({'error': '仅老师可操作'}, status=403)
+
+        try:
+            session = QuizSession.objects.get(pk=pk)
+        except QuizSession.DoesNotExist:
+            return Response({'error': '小测不存在'}, status=404)
+
+        subs = session.quizsubmission_set.all()
+        total = subs.count()
+        if total == 0:
+            return Response({
+                'session_id': session.id, 'title': session.title,
+                'total_submissions': 0,
+                'avg_score': None, 'max_score': None, 'min_score': None,
+                'by_grade': [], 'question_stats': []
+            })
+
+        # 按年级
+        by_grade = subs.values('grade').annotate(
+            count=Count('id'),
+            avg_score=Avg('score')
+        ).order_by('grade')
+
+        # 按题目错误率（只用本次提交的答案里的 question_id）
+        import json
+        q_correct = {}
+        q_total = {}
+        for sub in subs:
+            answers = json.loads(sub.answers_json) if sub.answers_json else {}
+            for qid_str, user_ans in answers.items():
+                qid = int(qid_str)
+                q_total[qid] = q_total.get(qid, 0) + 1
+                try:
+                    q = Question.objects.get(pk=qid)
+                    if user_ans.upper() == q.answer.upper():
+                        q_correct[qid] = q_correct.get(qid, 0) + 1
+                except Question.DoesNotExist:
+                    pass
+
+        all_qids = set(list(q_correct.keys()) + list(q_total.keys()))
+        question_stats = []
+        for qid in all_qids:
+            try:
+                q = Question.objects.get(pk=qid)
+            except Question.DoesNotExist:
+                continue
+            attempted = q_total.get(qid, 0)
+            correct = q_correct.get(qid, 0)
+            question_stats.append({
+                'question_id': qid,
+                'text': q.text[:60],
+                'difficulty': q.difficulty,
+                'category': q.category,
+                'attempted': attempted,
+                'correct': correct,
+                'correct_rate': round(correct / attempted * 100, 1) if attempted > 0 else 0,
+            })
+
+        question_stats.sort(key=lambda x: x['correct_rate'])
+
+        return Response({
+            'session_id': session.id,
+            'title': session.title,
+            'total_submissions': total,
+            'avg_score': round(subs.aggregate(avg=Avg('score'))['avg'], 1),
+            'max_score': subs.aggregate(max=Max('score'))['max'],
+            'min_score': subs.aggregate(min=Min('score'))['min'],
+            'by_grade': list(by_grade),
+            'question_stats': question_stats,
+        })
+
+
+class QuizStatsGradeView(APIView):
+    """GET /api/admin/info/stats/grade/<grade>/ 按年级详细统计"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, grade):
+        if request.user.role != 'teacher':
+            return Response({'error': '仅老师可操作'}, status=403)
+
+        subs = QuizSubmission.objects.filter(grade=grade)
+        if not subs.exists():
+            return Response({'error': '该年级暂无数据'}, status=404)
+
+        by_session = subs.values('session__title').annotate(
+            count=Count('id'),
+            avg_score=Avg('score')
+        )
+
+        return Response({
+            'grade': grade,
+            'total_submissions': subs.count(),
+            'avg_score': round(subs.aggregate(avg=Avg('score'))['avg'], 1),
+            'by_session': list(by_session),
+        })

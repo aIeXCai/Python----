@@ -204,6 +204,7 @@ class QuizSubmitView(APIView):
         submission = QuizSubmission.objects.create(
             user=user,
             session=session,
+            grade=user.managed_grade or user.grade or '',
             score=score,
             correct_count=correct_count,
             total_count=total_count,
