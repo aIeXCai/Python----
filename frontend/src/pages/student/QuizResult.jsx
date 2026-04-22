@@ -178,17 +178,17 @@ export default function QuizResult() {
                   </span>
                 </div>
 
-                {/* 选项 */}
+                {/* 选项 — 新格式：qr.options = { A: {text, is_user_answer, is_correct_answer}, ... } */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 26 }}>
                   {['A', 'B', 'C', 'D'].map(opt => {
-                    const optKey = `option_${opt.toLowerCase()}`
-                    if (!qr[optKey]) return null
-                    const isYourAnswer = qr.your_answer === opt
-                    const isCorrect = qr.correct_answer === opt
+                    const optData = qr.options ? qr.options[opt] : null
+                    if (!optData || !optData.text) return null
+                    const isUserAnswer = !!optData.is_user_answer
+                    const isCorrectAnswer = !!optData.is_correct_answer
                     let bg = 'transparent'
                     let color = '#666'
-                    if (isCorrect) { bg = '#e8f8f5'; color = '#11998e' }
-                    else if (isYourAnswer && !isCorrect) { bg = '#fff5f5'; color = '#e53e3e' }
+                    if (isCorrectAnswer) { bg = '#e8f8f5'; color = '#11998e' }
+                    else if (isUserAnswer) { bg = '#fff5f5'; color = '#e53e3e' }
                     return (
                       <div key={opt} style={{
                         padding: '6px 10px',
@@ -196,12 +196,12 @@ export default function QuizResult() {
                         background: bg,
                         fontSize: '0.85rem',
                         color,
-                        fontWeight: isYourAnswer || isCorrect ? 700 : 400,
+                        fontWeight: isUserAnswer || isCorrectAnswer ? 700 : 400,
                       }}>
                         <span style={{ fontWeight: 800, marginRight: 6 }}>{opt}.</span>
-                        {qr[optKey]}
-                        {isCorrect && ' ✓'}
-                        {isYourAnswer && !isCorrect && ' (你的选择)'}
+                        {optData.text}
+                        {isCorrectAnswer && ' ✓'}
+                        {isUserAnswer && !isCorrectAnswer && ' (你的选择)'}
                       </div>
                     )
                   })}

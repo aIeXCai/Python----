@@ -10,6 +10,7 @@ export default function QuizPage() {
 
   const [quiz, setQuiz] = useState(null)
   const [questions, setQuestions] = useState([])
+  const [shuffledOrders, setShuffledOrders] = useState({})  // { questionId: ['C','A','D','B'], ... }
   const [answers, setAnswers] = useState({})   // { question_id: selected_option }
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -47,6 +48,13 @@ export default function QuizPage() {
       }
       setQuiz(data)
       setQuestions(data.questions || [])
+
+      // 保存每道题的 shuffled_order（原始选项字母→打乱后位置）
+      const orders = {}
+      ;(data.questions || []).forEach(q => {
+        if (q.shuffled_order) orders[q.id] = q.shuffled_order
+      })
+      setShuffledOrders(orders)
 
       // 初始化答案
       const init = {}
@@ -95,12 +103,30 @@ export default function QuizPage() {
     clearInterval(timerRef.current)
     setSubmitting(true)
     try {
-      // 构造提交格式：{ question_id: "A"|"B"|"C"|"D" }
+      // 构造提交格式：{ answers: { questionId: 'A'|'B'|'C'|'D' } }
+      // 注意：'A' 是打乱后的显示位置，shuffled_order[i] = 显示为字母(i+65) 的原始选项
+      // 例：shuffled_order=['C','A','D','B'] → 显示A=原始C，显示B=原始A，显示C=原始D，显示D=原始B
+      // 所以学生选 'A' → shuffled_order[0] = 'C'（原始字母）
       const submitAnswers = {}
+      const shuffledAnswers = {}  // 打乱后的字母（用于结果显示）
       questions.forEach(q => {
-        submitAnswers[q.id] = answers[q.id] || ''
+        const selected = answers[q.id] || ''
+        // shuffledOrders[q.id] 在外层组件 state 中，取显示位置→原始字母
+        if (selected && shuffledOrders[q.id]) {
+          const pos = selected.charCodeAt(0) - 65  // 'A'→0, 'B'→1, 'C'→2, 'D'→3
+          submitAnswers[q.id] = shuffledOrders[q.id][pos] || selected  // 原始字母，用于评分
+          shuffledAnswers[q.id] = selected  // 打乱后字母，用于结果显示
+        } else {
+          submitAnswers[q.id] = selected
+          shuffledAnswers[q.id] = selected
+        }
       })
-      await submitInfoQuiz(sessionId, submitAnswers)
+      // 同时把 shuffled_order 传给后端（从 state 中取）
+      const shuffledOrdersPayload = {}
+      questions.forEach(q => {
+        if (q.shuffled_order) shuffledOrdersPayload[q.id] = q.shuffled_order
+      })
+      await submitInfoQuiz(sessionId, submitAnswers, shuffledAnswers, shuffledOrdersPayload)
       navigate(`/student/quiz-result/${sessionId}`)
     } catch (err) {
       setError('提交失败：' + (err.message || String(err)))

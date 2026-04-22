@@ -29,13 +29,15 @@ export async function getInfoQuizDetail(sessionId) {
  * 提交小测答案
  * POST /api/info/quizzes/:id/submit/
  * @param {number} sessionId
- * @param {Object} answers - { questionId: 'A'|'B'|'C'|'D', ... }
+ * @param {Object} answers - { questionId: 'A'|'B'|'C'|'D', ... } 原始字母答案（已还原）
+ * @param {Object} shuffledAnswers - { questionId: 'A'|'B'|'C'|'D', ... } 打乱后字母（用于结果显示）
+ * @param {Object} shuffledOrders - { questionId: ['C','A','D','B'], ... } 每题打乱顺序
  */
-export async function submitInfoQuiz(sessionId, answers) {
+export async function submitInfoQuiz(sessionId, answers, shuffledAnswers = {}, shuffledOrders = {}) {
   const res = await fetch(`${API_BASE}/info/quizzes/${sessionId}/submit/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeadersObj() },
-    body: JSON.stringify({ answers }),
+    body: JSON.stringify({ answers, shuffled_answers: shuffledAnswers, shuffled_orders: shuffledOrders }),
   })
   handleAuthError(res)
   return res.json()

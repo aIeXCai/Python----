@@ -161,13 +161,16 @@ class QuizSubmitView(APIView):
             return Response({'error': '无权限访问'}, status=403)
 
         data = request.data
-        answers = data.get('answers', {})  # {question_id: 'A'/'B'/'C'/'D'}
+        answers = data.get('answers', {})  # {question_id: 'A'/'B'/'C'/'D'}（原始字母）
+        shuffled_answers = data.get('shuffled_answers', {})  # {question_id: 'A'/'B'/'C'/'D'}（打乱后字母）
+        shuffled_orders = data.get('shuffled_orders', {})  # {question_id: ['C','A','D','B']}（打乱顺序）
 
         # 验证题目都来自本 session
         session_question_ids = set(
             Question.objects.filter(unit__in=session.units.all()).values_list('id', flat=True)
         )
 
+        # 评分（此时 answers 已经是原始字母）
         correct_count = 0
         total_count = len(answers)
         details = []
@@ -200,6 +203,13 @@ class QuizSubmitView(APIView):
 
         score = round(correct_count / total_count * 100, 1) if total_count > 0 else 0
 
+        # answers_json 存三份：原始答案（评分用）+ 打乱后答案 + 每题打乱顺序（显示用）
+        answers_payload = json.dumps({
+            'answers': answers,
+            'shuffled': shuffled_answers,
+            'shuffled_orders': shuffled_orders,
+        })
+
         # 保存提交记录（最新覆盖，用 submitted_at 排序取最新）
         submission = QuizSubmission.objects.create(
             user=user,
@@ -208,7 +218,7 @@ class QuizSubmitView(APIView):
             score=score,
             correct_count=correct_count,
             total_count=total_count,
-            answers_json=json.dumps(answers),
+            answers_json=answers_payload,
         )
 
         return Response({
@@ -238,25 +248,63 @@ class QuizResultView(APIView):
         if not sub:
             return Response({'error': '暂无成绩'}, status=404)
 
-        answers = json.loads(sub.answers_json)
+        # answers_json 新格式：{answers: {qid: 原始字母}, shuffled: {qid: 打乱后字母}, shuffled_orders: {qid: ['C','A','D','B']}}
+        raw = json.loads(sub.answers_json)
+        if isinstance(raw, dict) and 'answers' in raw:
+            answers_map = raw.get('answers', {})
+            shuffled_map = raw.get('shuffled', {})
+            shuffled_orders_map = raw.get('shuffled_orders', {})
+        else:
+            # 兼容旧格式
+            answers_map = raw
+            shuffled_map = {}
+            shuffled_orders_map = {}
+
         details = []
-        for qid_str, user_ans in answers.items():
+        for qid_str, user_ans in answers_map.items():
             qid = int(qid_str)
             try:
                 q = Question.objects.get(pk=qid)
             except Question.DoesNotExist:
                 continue
+
+            is_correct = (user_ans.upper() == q.answer.upper())
+
+            # 构造打乱后的选项（如果有 shuffled_order）
+            order = shuffled_orders_map.get(str(qid)) or shuffled_orders_map.get(qid)
+            if order:
+                # order = ['C','A','D','B']：display A=text_C, display B=text_A, ...
+                opt_map = {'A': q.option_a, 'B': q.option_b, 'C': q.option_c, 'D': q.option_d}
+                user_shuffled = shuffled_map.get(str(qid)) or ''
+                # 正确答案在打乱后显示哪个字母
+                correct_display = order[ord(q.answer.upper()) - 65] if q.answer.upper() in 'ABCD' else q.answer
+                # 用户答案在打乱后显示哪个字母
+                user_display = order[ord(user_shuffled.upper()) - 65] if user_shuffled.upper() in 'ABCD' else user_ans.upper()
+                options = {}
+                for i, letter in enumerate(order):
+                    display_letter = chr(65 + i)  # 0→A, 1→B, 2→C, 3→D
+                    options[display_letter] = {
+                        'text': opt_map.get(letter, ''),
+                        'is_user_answer': (display_letter == user_display),
+                        'is_correct_answer': (display_letter == correct_display),
+                    }
+            else:
+                # 无打乱顺序，使用原始选项
+                options = {
+                    'A': {'text': q.option_a, 'is_user_answer': (user_ans.upper() == 'A'), 'is_correct_answer': (q.answer == 'A')},
+                    'B': {'text': q.option_b, 'is_user_answer': (user_ans.upper() == 'B'), 'is_correct_answer': (q.answer == 'B')},
+                    'C': {'text': q.option_c, 'is_user_answer': (user_ans.upper() == 'C'), 'is_correct_answer': (q.answer == 'C')},
+                    'D': {'text': q.option_d, 'is_user_answer': (user_ans.upper() == 'D'), 'is_correct_answer': (q.answer == 'D')},
+                }
+
             details.append({
                 'question_id': qid,
                 'text': q.text,
-                'user_answer': user_ans.upper(),
-                'correct_answer': q.answer,
-                'is_correct': user_ans.upper() == q.answer,
+                'user_answer': user_ans.upper(),      # 原始字母（用于判断）
+                'correct_answer': q.answer,           # 原始字母
+                'is_correct': is_correct,
                 'explanation': q.explanation,
-                'option_a': q.option_a,
-                'option_b': q.option_b,
-                'option_c': q.option_c,
-                'option_d': q.option_d,
+                'options': options,                    # 打乱后的选项（display letter → text + 高亮标记）
             })
 
         return Response({
