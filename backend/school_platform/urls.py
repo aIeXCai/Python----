@@ -10,7 +10,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('users.urls')),
     path('api/ai/', include('ai_courses.urls')),
-    path('api/', include('info_tech.urls')),
+    path('api/', include('info_tech.urls')),           # admin 路由 /api/admin/info/
+    path('api/info/', include('info_tech.urls_student')),  # 学生路由 /api/info/
 ]
 
 # 开发环境：提供 media 文件访问
