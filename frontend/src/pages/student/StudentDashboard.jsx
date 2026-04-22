@@ -179,9 +179,14 @@ export default function StudentDashboard() {
                       </div>
                       <div className="problem-actions">
                         {hasScore ? (
-                          <Link to={`/student/quiz-result/${quiz.id}`} className="btn btn-primary">
-                            查看成绩
-                          </Link>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <Link to={`/student/quiz/${quiz.id}`} className="btn btn-primary">
+                              🔄 重新作答
+                            </Link>
+                            <Link to={`/student/quiz-result/${quiz.id}`} className="btn btn-secondary">
+                              查看成绩
+                            </Link>
+                          </div>
                         ) : (
                           <Link to={`/student/quiz/${quiz.id}`} className="btn btn-primary">
                             开始答题

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import Navbar from '../../components/Navbar.jsx'
 import { getInfoQuizResult } from '../../api/info.js'
-import { Loader, CheckCircle, XCircle, ArrowLeft, Award } from 'lucide-react'
+import { Loader, CheckCircle, XCircle, ArrowLeft, Award, RotateCcw } from 'lucide-react'
 
 export default function QuizResult() {
   const { sessionId } = useParams()
@@ -227,14 +227,21 @@ export default function QuizResult() {
           </div>
         </div>
 
-        {/* 返回按钮 */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+        {/* 返回 + 重新作答 */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 40 }}>
+          <Link
+            to={`/student/quiz/${sessionId}`}
+            className="btn btn-primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px', fontSize: '1rem' }}
+          >
+            <RotateCcw size={18} /> 重新作答
+          </Link>
           <Link
             to="/student/dashboard?course=info"
-            className="btn btn-primary"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 32px', fontSize: '1rem' }}
+            className="btn btn-secondary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px', fontSize: '1rem' }}
           >
-            <ArrowLeft size={18} /> 返回小测列表
+            <ArrowLeft size={18} /> 返回列表
           </Link>
         </div>
       </main>
