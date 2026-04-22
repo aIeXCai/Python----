@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Unit, Question
+from .models import Unit, Question, QuizSession
 
 
 class UnitSerializer(serializers.ModelSerializer):
@@ -111,3 +111,78 @@ class QuestionImportSerializer(serializers.Serializer):
                 errors.append(f"第{i+1}题: {str(e)}")
 
         return {'imported': imported, 'errors': errors}
+
+
+# ─── QuizSession Serializers ──────────────────────────────────────────────────
+
+class QuizSessionSerializer(serializers.ModelSerializer):
+    """小测详情（完整，含关联单元）"""
+    units = serializers.SerializerMethodField()
+    unit_names = serializers.SerializerMethodField()
+    submission_count = serializers.IntegerField(source='quizsubmission_set.count', read_only=True)
+
+    class Meta:
+        model = QuizSession
+        fields = [
+            'id', 'title', 'created_by', 'units', 'unit_names',
+            'num_questions', 'difficulty_ratio', 'time_limit',
+            'is_visible', 'visible_grades', 'submission_count',
+            'created_at', 'updated_at'
+        ]
+
+    def get_units(self, obj):
+        return [u.id for u in obj.units.all()]
+
+    def get_unit_names(self, obj):
+        return [u.display_name for u in obj.units.all()]
+
+
+class QuizSessionCreateSerializer(serializers.Serializer):
+    """创建/编辑小测"""
+    title            = serializers.CharField(max_length=200)
+    units            = serializers.ListField(child=serializers.IntegerField())  # [unit_id, ...]
+    num_questions    = serializers.IntegerField(min_value=1)
+    difficulty_ratio = serializers.JSONField(default=dict)   # {"easy":7,"medium":2,"hard":1}
+    time_limit       = serializers.IntegerField(required=False, min_value=1, allow_null=True)
+    is_visible       = serializers.BooleanField(default=False)
+    visible_grades   = serializers.JSONField(default=list)   # [] = 全部年级
+
+    def validate_units(self, value):
+        if not value:
+            raise serializers.ValidationError("必须选择至少一个单元")
+        units = Unit.objects.filter(id__in=value)
+        if units.count() != len(value):
+            raise serializers.ValidationError("存在无效的单元ID")
+        return value
+
+    def validate_difficulty_ratio(self, value):
+        if not value:
+            return {'easy': 10}  # 默认全容易
+        total = sum(v for v in value.values() if isinstance(v, (int, float)))
+        if total == 0:
+            raise serializers.ValidationError("难度比例总和不能为0")
+        return value
+
+    def create(self, validated_data):
+        unit_ids = validated_data.pop('units')
+        session = QuizSession.objects.create(
+            created_by=self.context['request'].user,
+            **validated_data
+        )
+        session.units.set(unit_ids)
+        return session
+
+    def update(self, instance, validated_data):
+        unit_ids = validated_data.pop('units', None)
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+        instance.save()
+        if unit_ids is not None:
+            instance.units.set(unit_ids)
+        return instance
+
+
+class QuizSessionToggleSerializer(serializers.Serializer):
+    """切换可见性"""
+    is_visible     = serializers.BooleanField()
+    visible_grades  = serializers.JSONField(required=False, default=list)

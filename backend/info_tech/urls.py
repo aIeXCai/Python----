@@ -4,6 +4,9 @@ from .views import (
     QuestionListView, QuestionCreateView,
     QuestionUpdateView, QuestionDeleteView,
     QuestionImportView,
+    QuizSessionListView, QuizSessionCreateView,
+    QuizSessionUpdateView, QuizSessionDeleteView,
+    QuizSessionToggleView,
 )
 
 urlpatterns = [
@@ -19,4 +22,11 @@ urlpatterns = [
 
     # Bulk import
     path('admin/info/questions/import/', QuestionImportView.as_view(), name='info-questions-import'),
+
+    # QuizSession CRUD
+    path('admin/info/sessions/', QuizSessionListView.as_view(), name='info-sessions-list'),
+    path('admin/info/sessions/create/', QuizSessionCreateView.as_view(), name='info-sessions-create'),
+    path('admin/info/sessions/<int:pk>/', QuizSessionUpdateView.as_view(), name='info-sessions-update'),
+    path('admin/info/sessions/<int:pk>/delete/', QuizSessionDeleteView.as_view(), name='info-sessions-delete'),
+    path('admin/info/sessions/<int:pk>/toggle/', QuizSessionToggleView.as_view(), name='info-sessions-toggle'),
 ]

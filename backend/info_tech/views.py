@@ -4,10 +4,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 
-from .models import Unit, Question
+from .models import Unit, Question, QuizSession
 from .serializers import (
     UnitSerializer, QuestionSerializer,
-    QuestionCreateSerializer, QuestionImportSerializer
+    QuestionCreateSerializer, QuestionImportSerializer,
+    QuizSessionSerializer, QuizSessionCreateSerializer,
+    QuizSessionToggleSerializer,
 )
 
 
@@ -149,5 +151,90 @@ class QuestionImportView(APIView):
             'detail': msg,
             'imported': result['imported'],
             'unit_created': unit_created,
-            'errors': result['errors'][:20]  # 最多返回20条错误
+            'errors': result['errors'][:20]
         }, status=201)
+
+
+# ─── QuizSession API ──────────────────────────────────────────────────────────
+
+class QuizSessionListView(APIView):
+    """GET /api/admin/info/sessions/ 小测列表"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        sessions = QuizSession.objects.all().prefetch_related('units').order_by('-created_at')
+        serializer = QuizSessionSerializer(sessions, many=True)
+        return Response(serializer.data)
+
+
+class QuizSessionCreateView(APIView):
+    """POST /api/admin/info/sessions/create/ 创建小测"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != 'teacher':
+            return Response({'error': '仅老师可操作'}, status=403)
+
+        serializer = QuizSessionCreateSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            session = serializer.save()
+            return Response(QuizSessionSerializer(session).data, status=201)
+        return Response(serializer.errors, status=400)
+
+
+class QuizSessionUpdateView(APIView):
+    """PUT /api/admin/info/sessions/{id}/ 修改小测"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        if request.user.role != 'teacher':
+            return Response({'error': '仅老师可操作'}, status=403)
+
+        try:
+            session = QuizSession.objects.prefetch_related('units').get(pk=pk)
+        except QuizSession.DoesNotExist:
+            return Response({'error': '小测不存在'}, status=404)
+
+        serializer = QuizSessionCreateSerializer(session, data=request.data, context={'request': request})
+        if serializer.is_valid():
+            session = serializer.save()
+            return Response(QuizSessionSerializer(session).data)
+        return Response(serializer.errors, status=400)
+
+
+class QuizSessionDeleteView(APIView):
+    """DELETE /api/admin/info/sessions/{id}/delete/ 删除小测"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        if request.user.role != 'teacher':
+            return Response({'error': '仅老师可操作'}, status=403)
+
+        try:
+            session = QuizSession.objects.get(pk=pk)
+            session.delete()
+            return Response({'detail': '删除成功'})
+        except QuizSession.DoesNotExist:
+            return Response({'error': '小测不存在'}, status=404)
+
+
+class QuizSessionToggleView(APIView):
+    """PATCH /api/admin/info/sessions/{id}/toggle/ 切换可见性"""
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        if request.user.role != 'teacher':
+            return Response({'error': '仅老师可操作'}, status=403)
+
+        try:
+            session = QuizSession.objects.get(pk=pk)
+        except QuizSession.DoesNotExist:
+            return Response({'error': '小测不存在'}, status=404)
+
+        serializer = QuizSessionToggleSerializer(data=request.data)
+        if serializer.is_valid():
+            session.is_visible = serializer.validated_data['is_visible']
+            session.visible_grades = serializer.validated_data.get('visible_grades', [])
+            session.save()
+            return Response(QuizSessionSerializer(session).data)
+        return Response(serializer.errors, status=400)
