@@ -1,17 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, RefreshCw, ArrowLeft, Bot, Monitor, Eye, Trash2, Upload, X } from 'lucide-react'
+import { BookOpen, RefreshCw, ArrowLeft, Bot, Eye, Trash2, Upload, X } from 'lucide-react'
 
 const API = 'http://localhost:8080/api'
-const courses = [
-  { value: 'ai', label: 'AI课（人工智能）' },
-  { value: 'info', label: '信息课（综合）' },
-]
 const difficultyColors = { '简单': '#38ef7d', '中等': '#f59e0b', '困难': '#ef4444', '入门': '#38ef7d', '进阶': '#f59e0b', '高级': '#ef4444' }
 
 export default function ProblemManagement() {
   const navigate = useNavigate()
-  const [selectedCourse, setSelectedCourse] = useState('ai')
   const [problems, setProblems] = useState([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -28,12 +23,12 @@ export default function ProblemManagement() {
   const token = localStorage.getItem('token')
   const headers = { 'Authorization': `Token ${token}` }
 
-  useEffect(() => { loadProblems() }, [selectedCourse])
+  useEffect(() => { loadProblems() }, [])
 
   const loadProblems = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/ai/admin/problems/?course=${selectedCourse}`, { headers })
+      const res = await fetch(`${API}/ai/admin/problems/`, { headers })
       if (res.ok) setProblems(await res.json())
     } catch (e) { console.error(e) }
     setLoading(false)
@@ -97,9 +92,6 @@ export default function ProblemManagement() {
     setTimeout(() => setUploadMsg({ type: '', text: '' }), 5000)
   }
 
-  const courseLabel = (c) => c === 'ai' ? 'AI课' : '信息课'
-  const courseColor = (c) => c === 'ai' ? '#667eea' : '#38ef7d'
-
   return (
     <div style={{ minHeight: '100vh', background: '#f5f7fa', fontFamily: '"Microsoft JhengHei", Arial, sans-serif' }}>
       {/* Header */}
@@ -117,30 +109,18 @@ export default function ProblemManagement() {
           </button>
           <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.25)' }} />
           <BookOpen size={20} />
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>题目管理</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700 }}>AI课题目管理</h1>
         </div>
       </header>
 
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
 
-        {/* 课程切换 */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-          {courses.map(c => (
-            <button key={c.value} onClick={() => setSelectedCourse(c.value)} style={{
-              padding: '10px 20px', borderRadius: 10, border: 'none', cursor: 'pointer',
-              background: selectedCourse === c.value ? courseColor(c.value) : '#e0e0e0',
-              color: selectedCourse === c.value ? 'white' : '#666', fontWeight: 700, fontSize: 14,
-              display: 'flex', alignItems: 'center', gap: 8,
-              boxShadow: selectedCourse === c.value ? `0 4px 15px ${courseColor(c.value)}40` : 'none',
-            }}>
-              {c.value === 'ai' ? <Bot size={16} /> : <Monitor size={16} />}
-              {c.label}
-            </button>
-          ))}
+        {/* 操作栏 */}
+        <div style={{ display: 'flex', marginBottom: 24 }}>
           <button onClick={syncFromDisk} disabled={syncing} style={{
             padding: '10px 20px', borderRadius: 10, border: 'none', cursor: syncing ? 'not-allowed' : 'pointer',
             background: syncing ? '#ccc' : '#45b7d1', color: 'white', fontWeight: 700, fontSize: 14,
-            display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto',
+            display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <RefreshCw size={14} className={syncing ? 'spin' : ''} />
             {syncing ? '同步中...' : '从磁盘同步题目'}
@@ -257,7 +237,7 @@ export default function ProblemManagement() {
                   <div>
                     <h2 style={{ fontSize: 18, fontWeight: 700, color: '#333', margin: 0 }}>{detailModal.problem.title}</h2>
                     <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                      编号 {detailModal.problem.problem_id} · {detailModal.problem.difficulty} · {courseLabel(detailModal.problem.course)}
+                      编号 {detailModal.problem.problem_id} · {detailModal.problem.difficulty}
                     </div>
                   </div>
                   <button onClick={() => setDetailModal({ open: false, problem: null })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: 4 }}>
