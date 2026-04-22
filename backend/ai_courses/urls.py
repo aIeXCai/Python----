@@ -12,7 +12,8 @@ urlpatterns = [
 
     # 老师端
     path('admin/dashboard/', views.AdminDashboardView.as_view(), name='admin-dashboard'),
-    path('admin/ai/problems/', views.AdminProblemListView.as_view(), name='admin-problem-list'),
+    path('admin/problems/', views.AdminProblemListView.as_view(), name='admin-problem-list'),
+    path('admin/problems/<str:problem_id>/', views.AdminProblemDetailView.as_view(), name='admin-problem-detail'),
     path('admin/students/', views.AdminStudentListView.as_view(), name='admin-student-list'),
     path('admin/scores/', views.AdminStudentScoresView.as_view(), name='admin-scores'),
 ]

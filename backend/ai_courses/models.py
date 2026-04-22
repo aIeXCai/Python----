@@ -17,6 +17,7 @@ class Problem(models.Model):
     title = models.CharField('标题', max_length=200, blank=True)
     description = models.TextField('题目描述', blank=True)
     difficulty = models.CharField('难度', max_length=20, blank=True)
+    course = models.CharField('所属课程', max_length=10, choices=[('ai', '人工智能课'), ('info', '信息科技课')], default='ai')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -28,7 +29,9 @@ class Problem(models.Model):
         return self.problem_id
 
     def get_problem_dir(self):
-        """获取题目文件目录的绝对路径"""
+        """获取题目文件目录的绝对路径，ai课在problems/ai/下，信息课在problems/下"""
+        if self.course == 'ai':
+            return settings.PROBLEMS_DIR / 'ai' / self.problem_id
         return settings.PROBLEMS_DIR / self.problem_id
 
     def get_test_cases(self):
@@ -102,8 +105,9 @@ class Problem(models.Model):
     @classmethod
     def sync_from_disk(cls):
         """
-        从 problems/ 目录同步题目列表到数据库。
-        由管理命令调用，或在系统启动时调用。
+        从 problems/ai/ 和 problems/ 目录同步题目列表到数据库。
+        problems/ai/  → course='ai'
+        problems/根目录 → course='info'
         """
         problems_dir = settings.PROBLEMS_DIR
         created_ids = []
@@ -112,9 +116,22 @@ class Problem(models.Model):
         if not os.path.exists(problems_dir):
             return created_ids, updated_ids
 
-        for item in os.listdir(problems_dir):
-            item_path = os.path.join(problems_dir, item)
-            if os.path.isdir(item_path) and item.startswith('problem'):
+        # 定义扫描规则：(子目录名或None表示根目录, 课程名)
+        scans = [
+            ('ai', 'ai'),      # problems/ai/ → AI课
+            (None, 'info'),    # problems/根目录 → 信息课
+        ]
+
+        for subdir, course in scans:
+            scan_dir = os.path.join(problems_dir, subdir) if subdir else problems_dir
+            if not os.path.exists(scan_dir):
+                continue
+
+            for item in os.listdir(scan_dir):
+                item_path = os.path.join(scan_dir, item)
+                if not os.path.isdir(item_path) or not item.startswith('problem'):
+                    continue
+
                 description_path = os.path.join(item_path, 'description.txt')
                 description = ''
                 if os.path.exists(description_path):
@@ -128,11 +145,26 @@ class Problem(models.Model):
                         except Exception:
                             pass
 
+                # 读取难度（可选，从单独的 metadata 文件或 description 第一行）
+                difficulty = ''
+                metadata_path = os.path.join(item_path, 'metadata.txt')
+                if os.path.exists(metadata_path):
+                    try:
+                        with open(metadata_path, 'r', encoding='utf-8') as f:
+                            for line in f:
+                                if line.startswith('difficulty:'):
+                                    difficulty = line.split(':', 1)[1].strip()
+                                    break
+                    except Exception:
+                        pass
+
                 obj, created = cls.objects.update_or_create(
                     problem_id=item,
                     defaults={
                         'title': item,
                         'description': description,
+                        'course': course,
+                        'difficulty': difficulty,
                     }
                 )
                 if created:

@@ -1,9 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext.jsx'
-import Login from './pages/Login.jsx'
-import StudentDashboard from './pages/StudentDashboard.jsx'
+import Login from './pages/auth/Login.jsx'
+import TeacherLogin from './pages/auth/TeacherLogin.jsx'
+import CourseSelect from './pages/student/CourseSelect.jsx'
+import StudentDashboard from './pages/student/StudentDashboard.jsx'
+import TeacherDashboard from './pages/teacher/TeacherDashboard.jsx'
+import StudentManagement from './pages/teacher/StudentManagement.jsx'
+import ScoreManagement from './pages/teacher/ScoreManagement.jsx'
+import ProblemManagement from './pages/teacher/ProblemManagement.jsx'
 import ProblemDetail from './pages/ProblemDetail.jsx'
-import Result from './pages/Result.jsx'
 import './index.css'
 
 function ProtectedRoute({ children }) {
@@ -17,15 +22,21 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* 登录入口 */}
           <Route path="/login" element={<Login />} />
+          <Route path="/teacher-login" element={<TeacherLogin />} />
+
+          {/* 选课页 */}
           <Route
-            path="/dashboard"
+            path="/course-select"
             element={
               <ProtectedRoute>
-                <StudentDashboard />
+                <CourseSelect />
               </ProtectedRoute>
             }
           />
+
+          {/* 学生端 */}
           <Route
             path="/problem/:problemId"
             element={
@@ -34,9 +45,52 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/result" element={<Result />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route
+            path="/student/dashboard"
+            element={
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 老师端 */}
+          <Route
+            path="/teacher/dashboard"
+            element={
+              <ProtectedRoute>
+                <TeacherDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/students"
+            element={
+              <ProtectedRoute>
+                <StudentManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/scores"
+            element={
+              <ProtectedRoute>
+                <ScoreManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/problems"
+            element={
+              <ProtectedRoute>
+                <ProblemManagement />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 默认跳转 */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

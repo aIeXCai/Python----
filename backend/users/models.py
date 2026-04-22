@@ -31,6 +31,10 @@ class CustomUser(AbstractUser):
     student_number = models.CharField(
         '班级内学号', max_length=20, blank=True, null=True
     )
+    # 学生真实姓名（登录时不验证，仅用于显示）
+    display_name = models.CharField('显示姓名', max_length=100, blank=True, null=True)
+    # 明文密码（供老师查看）
+    plain_password = models.CharField('明文密码', max_length=128, blank=True, null=True)
     # 老师的管理范围（信息科技课用）
     managed_grade = models.CharField(
         '管理年级', max_length=10, choices=GRADE_CHOICES, blank=True, null=True

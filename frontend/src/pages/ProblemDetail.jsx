@@ -1,41 +1,51 @@
-import { useEffect, useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { BookOpen, Send, ArrowLeft, Loader, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
+import { BookOpen, Send, ArrowLeft, Loader, CheckCircle, XCircle, Clock, Upload } from 'lucide-react'
 import Navbar from '../components/Navbar.jsx'
 import { getProblemDetail, submitCode, getSubmissionHistory } from '../api/index.js'
 
 export default function ProblemDetail() {
   const { problemId } = useParams()
+  const [searchParams] = useSearchParams()
+  const courseParam = searchParams.get('course') || localStorage.getItem('selected_course') || 'ai'
+
+  // 同步 course 到 localStorage，防止返回 Dashboard 时丢失
+  useEffect(() => {
+    if (courseParam) localStorage.setItem('selected_course', courseParam)
+  }, [courseParam])
   const navigate = useNavigate()
 
   const [problem, setProblem] = useState(null)
   const [code, setCode] = useState('')
+  const [fileName, setFileName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedTest, setSelectedTest] = useState(null)
+  // 展开所有测试点，初始全部为 true
+  const [expandedTests, setExpandedTests] = useState({})
   const [username, setUsername] = useState('')
   const [grade, setGrade] = useState('')
   const [classNum, setClassNum] = useState('')
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     const raw = localStorage.getItem('user')
     if (!raw) { navigate('/login'); return }
     try {
       const u = JSON.parse(raw)
-      setUsername(u.username || '')
+      setUsername(u.display_name || u.username || '')
       setGrade(u.grade || '')
       setClassNum(u.class_num || '')
     } catch {}
     loadData()
-  }, [problemId])
+  }, [problemId, courseParam])
 
   const loadData = async () => {
     setLoading(true)
     try {
       const [pd, hist] = await Promise.all([
-        getProblemDetail(problemId),
+        getProblemDetail(problemId, courseParam),
         getSubmissionHistory(),
       ])
       setProblem(pd)
@@ -43,6 +53,12 @@ export default function ProblemDetail() {
       // Pre-fill with last submission if exists
       const last = hist.find((h) => h.problem_id === problemId)
       if (last && last.code) setCode(last.code)
+      // 默认全部展开测试点
+      if (pd.test_cases) {
+        const init = {}
+        pd.test_cases.forEach((_, i) => { init[i] = true })
+        setExpandedTests(init)
+      }
     } catch (err) {
       console.error(err)
     } finally {
@@ -50,26 +66,37 @@ export default function ProblemDetail() {
     }
   }
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      setCode(ev.target.result)
+      setFileName(file.name)
+    }
+    reader.readAsText(file)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!code.trim()) return
+    if (!fileName) return
     setSubmitting(true)
     setResult(null)
     try {
       const res = await submitCode({ problem_id: problemId, code })
       setResult(res)
       sessionStorage.setItem('lastSubmission', JSON.stringify({ ...res, problem_id: problemId }))
-      // Refresh history
       const hist = await getSubmissionHistory()
       setHistory(hist.filter((h) => h.problem_id === problemId))
-      if (res.success && res.score >= 100) {
-        // Good score - navigate to result
-      }
     } catch (err) {
       setResult({ success: false, detail: err.message })
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const toggleTest = (i) => {
+    setExpandedTests(prev => ({ ...prev, [i]: !prev[i] }))
   }
 
   const scoreClass = (score) => {
@@ -98,7 +125,7 @@ export default function ProblemDetail() {
     return (
       <div className="page-bg">
         <Navbar username={username} grade={grade} class_num={classNum} />
-        <div className="loading-state"><p>題目不存在</p><Link to="/dashboard" className="btn btn-primary">返回主頁</Link></div>
+        <div className="loading-state"><p>題目不存在</p><Link to="/student/dashboard" className="btn btn-primary">返回主頁</Link></div>
       </div>
     )
   }
@@ -122,8 +149,8 @@ export default function ProblemDetail() {
             </div>
           </div>
           <div style={{ marginTop: 16 }}>
-            <Link to="/dashboard" className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
-              <ArrowLeft size={16} /> 返回主頁
+            <Link to={`/student/dashboard?course=${courseParam}`} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+              <ArrowLeft size={16} /> 返回主页
             </Link>
           </div>
         </aside>
@@ -144,24 +171,24 @@ export default function ProblemDetail() {
             </div>
           </div>
 
-          {/* 题目描述 */}
+          {/* 题目描述 - 完整显示，不截断 */}
           <div className="content-section">
             <h3><BookOpen size={18} /> 題目描述</h3>
-            <pre className="problem-description">{problem.description}</pre>
+            <div className="problem-description-full">{problem.description}</div>
           </div>
 
-          {/* 测试点 */}
+          {/* 测试点 - 默认全部展开 */}
           {problem.test_cases && problem.test_cases.length > 0 && (
             <div className="content-section">
               <h3>🧪 測試點</h3>
               <div className="test-cases">
                 {problem.test_cases.map((tc, i) => (
                   <div key={i} className="test-case-card">
-                    <div className="test-case-header" onClick={() => setSelectedTest(selectedTest === i ? null : i)}>
+                    <div className="test-case-header" onClick={() => toggleTest(i)}>
                       <span>測試點 {i + 1}</span>
-                      <span className="toggle-hint">{selectedTest === i ? '▲ 隱藏' : '▼ 顯示'}</span>
+                      <span className="toggle-hint">{expandedTests[i] ? '▲ 隱藏' : '▼ 顯示'}</span>
                     </div>
-                    {selectedTest === i && (
+                    {expandedTests[i] && (
                       <div className="test-case-body">
                         <div className="io-item">
                           <div className="io-label">輸入</div>
@@ -192,24 +219,29 @@ export default function ProblemDetail() {
             </div>
           )}
 
-          {/* 提交区域 */}
+          {/* 提交区域 - 仅 .py 文件上传 */}
           <div className="submit-section">
             <div className="submit-header">
-              <h3><Send size={20} /> 提交代碼</h3>
-              <p>編寫 Python 代碼，通過所有測試點挑戰成功！</p>
+              <h3><Upload size={20} /> 上傳代碼檔案</h3>
+              <p>上傳 .py 文件，系統將自動批改所有測試點</p>
             </div>
             <form onSubmit={handleSubmit}>
-              <textarea
-                className="code-editor"
-                placeholder="在此輸入 Python 代碼..."
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                spellCheck={false}
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".py"
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
               />
+              <div className="file-upload-area" onClick={() => fileInputRef.current.click()}>
+                <Upload size={32} />
+                <p>{fileName || '點擊選擇 .py 文件'}</p>
+                <span>仅支持 .py 格式</span>
+              </div>
               <button
                 type="submit"
                 className={`submit-btn ${submitting ? 'loading' : ''}`}
-                disabled={submitting || !code.trim()}
+                disabled={submitting || !fileName}
               >
                 {submitting ? <><Loader size={18} className="spin" /> 批改中...</> : <><Send size={18} /> 提交代碼</>}
               </button>

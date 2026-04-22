@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.sqlite3
+db.sqlite3
+.env
+*.egg-info/
+dist/
+build/
+
+# Django
+media/
+submissions/
+staticfiles/
+
+# Node / Vite
+node_modules/
+frontend/.vite/
+frontend/dist/
+frontend/node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / Pids
+*.log
+logs/
+.server_pids

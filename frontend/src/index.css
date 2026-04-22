@@ -498,18 +498,6 @@ body {
 .status-attempted { background: #fff3cd; color: #856404; }
 .status-completed { background: #d4edda; color: #155724; }
 
-.problem-description {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.5;
-  margin-bottom: 16px;
-  min-height: 52px;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-}
-
 .problem-meta {
   display: flex;
   justify-content: space-between;
@@ -646,8 +634,26 @@ body {
   line-height: 1.7;
   color: var(--text-primary);
   white-space: pre-wrap;
+  word-break: break-word;
   font-family: 'Courier New', monospace, monospace;
   font-size: 0.95rem;
+  max-height: none;
+  overflow: visible;
+}
+
+.problem-description-full {
+  background: #f8f9fa;
+  padding: 18px;
+  border-radius: 10px;
+  border-left: 4px solid var(--primary);
+  line-height: 1.8;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Courier New', monospace, monospace;
+  font-size: 0.95rem;
+  max-height: none;
+  overflow: visible;
 }
 
 /* ─── Test Cases ─────────────────────────────────────────────────────────── */
@@ -707,27 +713,40 @@ body {
 .submit-header h3 svg { color: var(--primary); }
 .submit-header p { color: var(--text-secondary); font-size: 0.88rem; }
 
-.code-editor {
-  width: 100%;
-  min-height: 200px;
-  padding: 16px;
-  border: 2px solid var(--border);
+.file-upload-area {
+  border: 2px dashed rgba(102,126,234,0.35);
   border-radius: var(--radius);
-  font-family: 'Courier New', 'Fira Code', monospace;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  background: #fafafa;
-  color: var(--text-primary);
-  resize: vertical;
-  outline: none;
-  transition: border-color 0.25s, box-shadow 0.25s;
-  tab-size: 4;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  background: rgba(102,126,234,0.04);
+  transition: all 0.25s;
+  color: var(--text-secondary);
 }
-
-.code-editor:focus {
+.file-upload-area:hover {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
-  background: #fff;
+  background: rgba(102,126,234,0.08);
+}
+.file-upload-area svg { color: var(--primary); margin-bottom: 8px; }
+.file-upload-area p { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin: 4px 0; }
+.file-upload-area span { font-size: 0.8rem; color: var(--text-secondary); }
+
+.code-preview {
+  margin-top: 14px;
+  background: #1e1e1e;
+  border-radius: var(--radius);
+  padding: 16px;
+  max-height: 300px;
+  overflow: auto;
+}
+.code-preview pre {
+  font-family: 'Courier New', 'Fira Code', monospace;
+  font-size: 0.85rem;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  line-height: 1.6;
 }
 
 .submit-btn {

@@ -43,7 +43,7 @@ export default function Result() {
             <Link to={`/problem/${result.problem_id}`} className="btn btn-primary">
               再次嘗試
             </Link>
-            <Link to="/dashboard" className="btn btn-secondary">
+            <Link to="/student/dashboard" className="btn btn-secondary">
               返回主頁
             </Link>
           </div>

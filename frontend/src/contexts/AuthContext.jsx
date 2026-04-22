@@ -15,8 +15,8 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }, [])
 
-  const login = async (username, password) => {
-    await apiLogin(username, password)
+  const login = async (username, password, grade, class_num, student_number) => {
+    await apiLogin(username, password, grade, class_num, student_number)
     const u = getCurrentUser()
     setUser({ username: u.username, role: u.role })
   }

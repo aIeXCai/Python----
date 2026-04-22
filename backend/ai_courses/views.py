@@ -36,7 +36,7 @@ class IsTeacher(permissions.BasePermission):
 
 class ProblemListView(APIView):
     """
-    GET /api/ai/problems/
+    GET /api/ai/problems/?course=ai
     获取题目列表（学生用）
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -44,7 +44,8 @@ class ProblemListView(APIView):
     def get(self, request):
         # 先从磁盘同步题目
         Problem.sync_from_disk()
-        problems = Problem.objects.all()
+        course = request.query_params.get('course', 'ai')
+        problems = Problem.objects.filter(course=course)
         serializer = ProblemListSerializer(problems, many=True)
         return Response(serializer.data)
 
@@ -57,8 +58,9 @@ class ProblemDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, problem_id):
+        course = request.query_params.get('course', 'ai')
         try:
-            problem = Problem.objects.get(problem_id=problem_id)
+            problem = Problem.objects.get(problem_id=problem_id, course=course)
         except Problem.DoesNotExist:
             return Response(
                 {'error': '题目不存在'},
@@ -179,11 +181,17 @@ class StudentScoresView(APIView):
 
     def get(self, request):
         user = request.user
+        course = request.query_params.get('course', 'ai')
         problem_id = request.query_params.get('problem_id')
 
-        # 每道题的最好成绩
+        # 过滤指定课程的题目
+        course_problem_ids = list(
+            Problem.objects.filter(course=course).values_list('problem_id', flat=True)
+        )
+
+        # 每道题的最好成绩（只取当前课程）
         scores = (
-            Submission.objects.filter(user=user)
+            Submission.objects.filter(user=user, problem__course=course)
             .values('problem__problem_id')
             .annotate(
                 best_score=Max('score'),
@@ -218,21 +226,22 @@ class StudentStatsView(APIView):
 
     def get(self, request):
         user = request.user
+        course = request.query_params.get('course', 'ai')
 
-        # 总题目数
-        total_problems = Problem.objects.count()
+        # 总题目数（按课程）
+        total_problems = Problem.objects.filter(course=course).count()
 
-        # 已完成题目数（>=80分）
+        # 已完成题目数（>=80分，按课程）
         completed_problems = (
-            Submission.objects.filter(user=user, score__gte=80)
+            Submission.objects.filter(user=user, score__gte=80, problem__course=course)
             .values('problem')
             .distinct()
             .count()
         )
 
-        # 平均分
+        # 平均分（只算当前课程）
         avg_result = (
-            Submission.objects.filter(user=user)
+            Submission.objects.filter(user=user, problem__course=course)
             .values('problem__problem_id')
             .annotate(best=Max('score'))
             .aggregate(avg=Avg('best'))
@@ -305,7 +314,8 @@ class AdminProblemListView(APIView):
 
     def get(self, request):
         Problem.sync_from_disk()
-        problems = Problem.objects.all()
+        course = request.query_params.get('course', 'ai')
+        problems = Problem.objects.filter(course=course)
         serializer = ProblemListSerializer(problems, many=True)
         return Response(serializer.data)
 
@@ -316,6 +326,39 @@ class AdminProblemListView(APIView):
             'created': created,
             'updated': updated,
         })
+
+
+class AdminProblemDetailView(APIView):
+    """
+    GET /api/admin/ai/problems/<problem_id>/
+    老师：查看单道题目详情
+    DELETE /api/admin/ai/problems/<problem_id>/
+    老师：删除题目
+    """
+    permission_classes = [IsTeacher]
+
+    def get(self, request, problem_id):
+        try:
+            problem = Problem.objects.get(problem_id=problem_id)
+        except Problem.DoesNotExist:
+            return Response({'error': '题目不存在'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({
+            'problem_id': problem.problem_id,
+            'title': problem.title,
+            'description': problem.description,
+            'difficulty': problem.difficulty,
+            'course': problem.course,
+            'created_at': problem.created_at,
+        })
+
+    def delete(self, request, problem_id):
+        try:
+            problem = Problem.objects.get(problem_id=problem_id)
+        except Problem.DoesNotExist:
+            return Response({'error': '题目不存在'}, status=status.HTTP_404_NOT_FOUND)
+        title = problem.title
+        problem.delete()
+        return Response({'message': f'题目 {title} 已删除'})
 
 
 class AdminStudentListView(APIView):
@@ -331,6 +374,8 @@ class AdminStudentListView(APIView):
 
         grade = request.query_params.get('grade')
         class_num = request.query_params.get('class_num')
+        sort_by = request.query_params.get('sort_by', 'grade')
+        order = request.query_params.get('order', 'asc')
 
         students = CustomUser.objects.filter(role='student')
         if grade:
@@ -338,19 +383,28 @@ class AdminStudentListView(APIView):
         if class_num:
             students = students.filter(class_num=class_num)
 
-        students = students.order_by('grade', 'class_num', 'username')
+        # 支持按 grade, class_num, username, student_number 排序
+        allowed_fields = ['grade', 'class_num', 'username', 'student_number']
+        if sort_by not in allowed_fields:
+            sort_by = 'grade'
+        if order == 'desc':
+            sort_by = '-' + sort_by
+
+        students = students.order_by(sort_by)
         serializer = UserSerializer(students, many=True)
         return Response(serializer.data)
 
 
 class AdminStudentScoresView(APIView):
     """
-    GET /api/admin/scores/
-    老师：查看所有学生成绩
+    GET /api/admin/scores/?course_type=ai&problem_id=X
+    老师：查看所有学生成绩，支持 course_type 过滤
+    返回格式：{students: [{student_number, username, grade, class_num, best_score, ...}], problems: [...]}
     """
     permission_classes = [IsTeacher]
 
     def get(self, request):
+        course_type = request.query_params.get('course_type', 'ai')  # 'ai' 或 'info'
         grade = request.query_params.get('grade')
         class_num = request.query_params.get('class_num')
         problem_id = request.query_params.get('problem_id')
@@ -364,13 +418,61 @@ class AdminStudentScoresView(APIView):
             submissions = submissions.filter(user__class_num=class_num)
         if problem_id:
             submissions = submissions.filter(problem__problem_id=problem_id)
+        if course_type:
+            submissions = submissions.filter(problem__course=course_type)
 
-        # 每学生每题最新成绩
-        data = (
+        # 构建学生映射：student_number -> {grade, class_num, username, display_name, scores}
+        from users.models import CustomUser
+        all_students = CustomUser.objects.filter(role='student')
+        if grade:
+            all_students = all_students.filter(grade=grade)
+        if class_num:
+            all_students = all_students.filter(class_num=class_num)
+
+        student_map = {}
+        for s in all_students:
+            key = s.student_number or s.username
+            student_map[key] = {
+                'student_number': s.student_number or '',
+                'username': s.username,
+                'display_name': getattr(s, 'display_name', '') or s.username,
+                'grade': s.grade or '',
+                'class_num': s.class_num or '',
+                'scores': [],   # [{problem_id, score}]
+                'best_score': None,
+            }
+
+        # 获取所有题目
+        problems = Problem.objects.filter(course=course_type).order_by('problem_id') if course_type else Problem.objects.all().order_by('problem_id')
+        problem_ids = [p.problem_id for p in problems]
+
+        # 每学生每题取最高分
+        scores = (
             submissions
-            .values('user__username', 'user__grade', 'user__class_num', 'problem__problem_id')
+            .values('user__username', 'user__student_number', 'problem__problem_id')
             .annotate(best_score=Max('score'))
-            .order_by('user__grade', 'user__class_num', 'user__username', 'problem__problem_id')
+            .order_by('user__username', 'problem__problem_id')
         )
 
-        return Response(data)
+        # 填入每道题的分数
+        for s in scores:
+            key = s['user__student_number'] or s['user__username']
+            if key in student_map:
+                pid = s['problem__problem_id']
+                score_val = s['best_score']
+                # 追加到 scores 数组
+                student_map[key]['scores'].append({'problem_id': pid, 'score': score_val})
+                # 同时更新 best_score（全局最高）
+                if student_map[key]['best_score'] is None or score_val > student_map[key]['best_score']:
+                    student_map[key]['best_score'] = score_val
+
+        students = list(student_map.values())
+        # 返回完整题目信息（problem_id + title）
+        problem_list = [
+            {'problem_id': p.problem_id, 'title': p.title or p.problem_id}
+            for p in problems
+        ]
+        return Response({
+            'students': students,
+            'problems': problem_list,
+        })

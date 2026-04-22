@@ -17,19 +17,29 @@ async function request(path, options = {}) {
     throw new Error('Unauthorized')
   }
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error || '请求失败')
+  if (!res.ok) {
+    const err = data.error || '请求失败'
+    if (data.details) throw new Error(`${err}：${JSON.stringify(data.details)}`)
+    throw new Error(err)
+  }
   return data
 }
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
 
-export async function login(username, password) {
+export async function login(username, password, grade, class_num, student_number) {
+  let body
+  // 如果传了年级+班级+学号，说明是学生登录，不发 username 字段
+  if (grade && class_num && student_number) {
+    body = { password, grade, class_num, student_number: String(student_number) }
+  } else {
+    body = { username, password }
+  }
   const data = await request('/auth/login/', {
     method: 'POST',
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify(body),
   })
   localStorage.setItem('token', data.token)
-  // user data comes directly from response (DRF Token auth, not JWT)
   if (data.user) {
     localStorage.setItem('user', JSON.stringify(data.user))
   }
@@ -58,12 +68,12 @@ export function getCurrentUser() {
 
 // ─── Problems ─────────────────────────────────────────────────────────────────
 
-export async function getProblems() {
-  return request('/ai/problems/')
+export async function getProblems(course = 'ai') {
+  return request(`/ai/problems/?course=${course}`)
 }
 
-export async function getProblemDetail(problemId) {
-  return request(`/ai/problems/${problemId}/`)
+export async function getProblemDetail(problemId, course = 'ai') {
+  return request(`/ai/problems/${problemId}/?course=${course}`)
 }
 
 // ─── Submissions ───────────────────────────────────────────────────────────────
@@ -81,12 +91,12 @@ export async function getSubmissionHistory() {
 
 // ─── Scores & Stats ────────────────────────────────────────────────────────────
 
-export async function getScores() {
-  return request('/ai/scores/')
+export async function getScores(course = 'ai') {
+  return request(`/ai/scores/?course=${course}`)
 }
 
-export async function getStudentStats() {
-  return request('/ai/stats/')
+export async function getStudentStats(course = 'ai') {
+  return request(`/ai/stats/?course=${course}`)
 }
 
 // ─── Admin ─────────────────────────────────────────────────────────────────────

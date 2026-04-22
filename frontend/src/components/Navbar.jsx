@@ -14,7 +14,7 @@ export default function Navbar({ username, grade, class_num }) {
   return (
     <nav className="navbar">
       <div className="nav-container">
-        <Link to="/dashboard" className="nav-brand">
+        <Link to="/course-select" className="nav-brand">
           <GraduationCap size={32} />
           <span>AI 學習平台</span>
         </Link>
