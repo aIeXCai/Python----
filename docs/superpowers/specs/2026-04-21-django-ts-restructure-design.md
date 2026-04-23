@@ -2,7 +2,7 @@
 
 **作者**: Alex 老师 & Hermes Agent
 **日期**: 2026-04-21
-**状态**: 进行中（第一阶段 ✅ | 第三阶段 🔄 AI课迁移（优先）| 第二阶段 🔄 进行中）
+**状态**: 进行中（第一阶段 ✅ | 第四阶段 🔄 前端开发（Vite+React）✅老师管理后台合并完成）
 
 ---
 
@@ -479,16 +479,20 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # =====================
 
 class Unit(models.Model):
-    """单元目录"""
-    name        = models.CharField('单元名称', max_length=100, unique=True)  # 如 "第一单元"
-    display_name= models.CharField('显示名称', max_length=200)                  # 如 "第一单元：互联网博物馆策展"
-    order       = models.IntegerField('排序', default=0)
+    """单元目录（年级-大单元-小节 三级结构）"""
+    name         = models.CharField('单元名称', max_length=100)         # 如 "第一单元"（大单元）或 "1.1 信息及其特征"（小节）
+    display_name = models.CharField('显示名称', max_length=200, blank=True) # 如 "第一单元：走进人工智能"
+    grade        = models.CharField('年级', max_length=20, blank=True)   # 如 "七年级"，大单元有值，小节继承
+    order        = models.IntegerField('排序', default=0)
+    parent       = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sections')
+    # parent = null → 大单元（big_unit）；parent = Unit.id → 小节（section）
+    created_at   = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['order']
+        ordering = ['grade', 'order']
 
     def __str__(self):
-        return self.name
+        return f"{self.grade} - {self.name}"
 
 
 class Question(models.Model):
@@ -502,6 +506,7 @@ class Question(models.Model):
     unit         = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='questions')
     difficulty    = models.CharField('难度', max_length=10, choices=DIFFICULTY_CHOICES, default='easy')
     category     = models.CharField('知识点分类', max_length=100, blank=True)   # 如 "网络层级结构"
+    grade        = models.CharField('年级', max_length=20, blank=True)            # 冗余字段，方便按年级筛选题库
     text         = models.TextField('题目正文')                                    # 含题目的完整文字
     answer       = models.CharField('正确答案', max_length=1)                       # 'A'/'B'/'C'/'D'
     explanation  = models.TextField('答案解析', blank=True)
@@ -527,7 +532,7 @@ class QuizSession(models.Model):
     created_by     = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
 
     # 组题配置
-    units          = models.ManyToManyField(Unit, related_name='quiz_sessions')  # 出题范围
+    units          = models.ManyToManyField(Unit, related_name='quiz_sessions')  # 出题范围（大单元，被选中时自动包含其所有小节下的题目）
     num_questions  = models.IntegerField('题目数量')                              # 如 20
     difficulty_ratio = models.JSONField('难度比例', default=dict)                  # {"easy":7,"medium":2,"hard":1}
     time_limit     = models.IntegerField('时间限制(分钟)', null=True, blank=True)
@@ -578,6 +583,10 @@ class QuizSubmission(models.Model):
 3. **成绩最新覆盖**：提交记录全部保留（方便老师查看历史），学生端取 `submitted_at` 最新的一条作为"当前成绩"，最高分逻辑在查询层做 `Max('score')`。
 
 4. **难度比例**：创建小测时指定 `{"easy":7,"medium":2,"hard":1}`，随机抽题时按比例分配名额。
+
+5. **年级-大单元-小节三级结构**：Unit.parent=null 为大单元（属于某个年级），Unit.parent=Unit.id 为小节（属于某大单元）。大单元选中时，题目来源为该大单元下所有小节的 Question。
+
+6. **QuizSubmission.grade 冗余字段**：数据库存学生作答时的 grade（如"七年级"），方便按年级筛选统计，不依赖 User 表。
 
 ---
 
@@ -709,21 +718,24 @@ class QuizSubmission(models.Model):
 
 #### 11.3.2 教师管理端 — `/api/admin/info/`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/admin/info/units/` | 单元列表 |
-| POST | `/api/admin/info/units/` | 新增单元 |
-| GET | `/api/admin/info/questions/` | 题库列表（支持 `?unit=&difficulty=&q=` 过滤） |
-| POST | `/api/admin/info/questions/` | 新增单题 |
-| PUT | `/api/admin/info/questions/{id}/` | 修改题目 |
-| DELETE | `/api/admin/info/questions/{id}/` | 删除题目 |
-| POST | `/api/admin/info/questions/import/` | **批量导入 JSON**（一次性导入整个单元） |
-| GET | `/api/admin/info/sessions/` | 小测列表 |
-| POST | `/api/admin/info/sessions/` | **创建小测**（选单元+定题量+难度比例+可见性） |
-| PUT | `/api/admin/info/sessions/{id}/` | 修改小测（增删改范围/题量/可见性） |
-| DELETE | `/api/admin/info/sessions/{id}/` | 删除小测 |
-| GET | `/api/admin/info/submissions/?session={id}` | 某次小测的全班成绩 |
-| GET | `/api/admin/info/stats/` | 全班统计（正确率分布、错题TOP10等） |
+|| 方法 | 路径 | 说明 |
+||------|------|------|
+|| GET | `/api/admin/info/units/` | 单元列表（支持 `?grade=` 过滤，返回嵌套结构） |
+|| POST | `/api/admin/info/units/` | 新增单元（`grade`/`parent` 字段） |
+|| PUT | `/api/admin/info/units/{id}/` | 修改单元 |
+|| DELETE | `/api/admin/info/units/{id}/delete/` | 删除单元 |
+|| GET | `/api/admin/info/questions/` | 题库列表（支持 `?grade=&unit=&difficulty=&q=` 过滤） |
+|| POST | `/api/admin/info/questions/` | 新增单题 |
+|| PUT | `/api/admin/info/questions/{id}/` | 修改题目 |
+|| DELETE | `/api/admin/info/questions/{id}/delete/` | 删除题目 |
+|| POST | `/api/admin/info/questions/import/` | **批量导入 JSON**（一次性导入整个单元） |
+|| GET | `/api/admin/info/sessions/` | 小测列表 |
+|| POST | `/api/admin/info/sessions/` | **创建小测**（选单元+定题量+难度比例+可见性） |
+|| PUT | `/api/admin/info/sessions/{id}/` | 修改小测（增删改范围/题量/可见性） |
+|| DELETE | `/api/admin/info/sessions/{id}/delete/` | 删除小测 |
+|| GET | `/api/admin/info/stats/submissions/` | 成绩统计（支持 `?grade=&class_num=` 过滤，返回5×10矩阵） |
+|| GET | `/api/admin/info/stats/overview/` | 全班统计概览（正确率分布） |
+|| GET | `/api/admin/info/submissions/` | 某次小测的全班成绩（支持 `?session=&grade=&class_num=`） |
 
 **POST `/api/admin/info/sessions/` 请求体：
 
@@ -799,33 +811,36 @@ def shuffle_options(question: Question) -> list:
 
 ```
 frontend/src/
-  api/
-    index.js          ← 已有，新增 info 相关 API 导出
-    info.js           ← 新增：信息课 API（学生端+教师端）
-```
   pages/
     student/
-      StudentDashboard.jsx  ← 改动：course=info 时渲染小测卡片列表
+      StudentDashboard.jsx   ← 改动：course=info 时渲染小测卡片列表
       info/
         QuizPage.jsx        ← 新增：答题页（随机抽题展示+提交+重做）
         QuizResult.jsx      ← 新增：成绩+错题解析页
 
     teacher/
-      ProblemManagement.jsx ← 改动：去除 selectedCourse 下拉框，纯 AI课题库
-      info/
-        InfoAdmin.jsx       ← 新增：信息课管理（Tab0单元 + Tab1题库 + Tab2小测 + Tab3成绩统计）
+      TeacherDashboard.jsx  ← 已简化：删除课程Tab栏，保留3个管理卡片入口
+      StudentManagement.jsx ← 学生管理（年级+班级筛选）
+      AiAdmin.jsx           ← 新增（2026-04-23）：AI课题库管理(Tab0)+成绩统计(Tab1)
+      InfoAdmin.jsx          ← 改动（2026-04-23）：Tab移至Header；Tab0=单元管理 + Tab1=题库管理 + Tab2=小测管理 + Tab3=成绩统计
+  # 已删除：
+  #   ProblemManagement.jsx  → 合并入 aiAdmin.jsx
+  #   ScoreManagement.jsx    → 合并入 aiAdmin.jsx
 ```
 
 #### 11.5.2 路由（App.jsx）
 
-| 路由 | 页面 | 说明 |
-|------|------|------|
-| `/student/dashboard?course=info` | StudentDashboard | 复用，小测卡片列表 |
-| `/student/quiz/:sessionId` | QuizPage | **新增路由** |
-| `/student/quiz-result/:submissionId` | QuizResult | **新增路由** |
-| `/teacher/problems` | ProblemManagement | 改动：纯 AI课题库，去除 selectCourse |
-| `/teacher/scores` | ScoreManagement | 纯 AI课成绩，不动 |
-| `/teacher/info` | InfoAdmin | **新增**（Tab0单元 + Tab1题库 + Tab2小测 + Tab3成绩统计） |
+|| 路由 | 页面 | 说明 |
+||------|------|------|
+|| `/student/dashboard?course=info` | StudentDashboard | 复用，小测卡片列表 |
+|| `/student/quiz/:sessionId` | QuizPage | 答题页 |
+|| `/student/quiz-result/:submissionId` | QuizResult | 成绩+错题解析 |
+|| `/teacher/dashboard` | TeacherDashboard | 老师首页（3卡片：AI课管理/信息课管理/学生管理） |
+|| `/teacher/ai` | AiAdmin | AI课管理（Tab0题库+Tab1成绩统计） |
+|| `/teacher/info` | InfoAdmin | 信息课管理（Header内Tab：单元/题库/小测/成绩统计） |
+|| `/teacher/students` | StudentManagement | 学生管理 |
+|| ~~`/teacher/problems`~~ | — | 已删除（合并入 AiAdmin） |
+|| ~~`/teacher/scores`~~ | — | 已删除（合并入 AiAdmin） |
 
 #### 11.5.3 StudentDashboard 改动说明
 
@@ -843,20 +858,24 @@ frontend/src/
 
 ### 11.6 进度追踪
 
-| 功能 | 状态 |
-|------|------|
-| **后端** | |
-| 数据模型（Unit/Question/QuizSession/QuizSubmission） | ✅ 已完成（2026-04-22） |
-| 题库管理 API（增删改查+JSON导入） | ✅ 已完成（2026-04-22） |
-| 小测管理 API（创建+发布+修改） | ✅ 已完成（2026-04-22） |
-| 学生随机抽题 API | ✅ 已完成（2026-04-22） |
-| 学生提交+评分 API | ✅ 已完成（2026-04-22） |
-| 成绩统计 API | ✅ 已完成（2026-04-22） |
-| **前端** | |
-| api/info.js（学生端+教师端 API） | ✅ 已完成（2026-04-22） |
-| StudentDashboard（course=info 小测卡片） | ✅ 已完成（2026-04-22） |
-| QuizPage（答题页） | ✅ 已完成（2026-04-22） |
-| QuizResult（成绩+错题解析） | ✅ 已完成（2026-04-22） |
-| ProblemManagement（去除 selectCourse，纯 AI） | ✅ 已完成（2026-04-22） |
-| InfoAdmin（Tab0单元 + Tab1题库 + Tab2小测 + Tab3成绩统计） | ✅ 已完成（2026-04-22） |
-| HTML 题目转 JSON 导入脚本 | 📋 待开发 |
+|| 功能 | 状态 | 完成日期 |
+||------|------|----------|
+|| **后端** | | |
+|| 数据模型（Unit/Question/QuizSession/QuizSubmission） | ✅ 完成 | 2026-04-22 |
+|| Unit 三级结构（grade + parent）| ✅ 完成 | 2026-04-23 |
+|| 题库管理 API（增删改查+JSON导入） | ✅ 完成 | 2026-04-22 |
+|| 小测管理 API（创建+发布+修改+删除） | ✅ 完成 | 2026-04-22 |
+|| 学生随机抽题 API | ✅ 完成 | 2026-04-22 |
+|| 学生提交+评分 API（含错题解析） | ✅ 完成 | 2026-04-22 |
+|| 成绩统计 API（含5×10矩阵，`?grade=&class_num=`过滤） | ✅ 完成 | 2026-04-23 |
+|| **前端** | | |
+|| 教师端合并（AiAdmin + InfoAdmin + TeacherDashboard） | ✅ 完成 | 2026-04-23 |
+|| AiAdmin（Tab0题库管理 + Tab1成绩统计） | ✅ 完成 | 2026-04-23 |
+|| InfoAdmin（Header内Tab：单元/题库/小测/成绩统计） | ✅ 完成 | 2026-04-23 |
+|| TeacherDashboard 简化（删除课程Tab，3卡片入口） | ✅ 完成 | 2026-04-23 |
+|| 七年级/八年级 单元目录预导入 | ✅ 完成 | 2026-04-23 |
+|| **待开发** | | |
+|| HTML 题目转 JSON 导入脚本 | 📋 待开发 | — |
+|| AI课教师端 Tab 合并（题库+成绩） | ✅ 完成 | 2026-04-23 |
+|| 学生端信息课 QuizPage + QuizResult | ✅ 完成 | 2026-04-22 |
+|| 课件上传功能（ZIP 解压） | 📋 待开发 | — |
