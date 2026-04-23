@@ -10,6 +10,7 @@ import TeacherDashboard from './pages/teacher/TeacherDashboard.jsx'
 import StudentManagement from './pages/teacher/StudentManagement.jsx'
 import ScoreManagement from './pages/teacher/ScoreManagement.jsx'
 import ProblemManagement from './pages/teacher/ProblemManagement.jsx'
+import InfoAdmin from './pages/teacher/InfoAdmin.jsx'
 import ProblemDetail from './pages/ProblemDetail.jsx'
 import './index.css'
 
@@ -102,6 +103,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ProblemManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/info"
+            element={
+              <ProtectedRoute>
+                <InfoAdmin />
               </ProtectedRoute>
             }
           />

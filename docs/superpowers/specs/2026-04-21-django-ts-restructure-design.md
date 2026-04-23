@@ -813,7 +813,7 @@ frontend/src/
     teacher/
       ProblemManagement.jsx ← 改动：去除 selectedCourse 下拉框，纯 AI课题库
       info/
-        InfoAdmin.jsx       ← 新增：信息课管理（Tab1题库 + Tab2小测 + Tab3成绩统计）
+        InfoAdmin.jsx       ← 新增：信息课管理（Tab0单元 + Tab1题库 + Tab2小测 + Tab3成绩统计）
 ```
 
 #### 11.5.2 路由（App.jsx）
@@ -825,7 +825,7 @@ frontend/src/
 | `/student/quiz-result/:submissionId` | QuizResult | **新增路由** |
 | `/teacher/problems` | ProblemManagement | 改动：纯 AI课题库，去除 selectCourse |
 | `/teacher/scores` | ScoreManagement | 纯 AI课成绩，不动 |
-| `/teacher/info` | InfoAdmin | **新增**（Tab1题库 + Tab2小测管理 + Tab3成绩统计） |
+| `/teacher/info` | InfoAdmin | **新增**（Tab0单元 + Tab1题库 + Tab2小测 + Tab3成绩统计） |
 
 #### 11.5.3 StudentDashboard 改动说明
 
@@ -857,6 +857,6 @@ frontend/src/
 | StudentDashboard（course=info 小测卡片） | ✅ 已完成（2026-04-22） |
 | QuizPage（答题页） | ✅ 已完成（2026-04-22） |
 | QuizResult（成绩+错题解析） | ✅ 已完成（2026-04-22） |
-| ProblemManagement（去除 selectCourse，纯 AI） | 📋 待开发 |
-| InfoAdmin（Tab1题库 + Tab2小测 + Tab3成绩统计） | 📋 待开发 |
+| ProblemManagement（去除 selectCourse，纯 AI） | ✅ 已完成（2026-04-22） |
+| InfoAdmin（Tab0单元 + Tab1题库 + Tab2小测 + Tab3成绩统计） | ✅ 已完成（2026-04-22） |
 | HTML 题目转 JSON 导入脚本 | 📋 待开发 |

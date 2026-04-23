@@ -48,6 +48,40 @@ class UnitCreateView(APIView):
         return Response(serializer.errors, status=400)
 
 
+class UnitUpdateView(APIView):
+    """PUT /api/admin/info/units/<id>/ 编辑单元"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        if request.user.role != 'teacher':
+            return Response({'error': '仅老师可操作'}, status=403)
+        try:
+            unit = Unit.objects.get(pk=pk)
+        except Unit.DoesNotExist:
+            return Response({'error': '单元不存在'}, status=404)
+        unit.name = request.data.get('name', unit.name)
+        unit.display_name = request.data.get('display_name', unit.display_name)
+        unit.order = request.data.get('order', unit.order)
+        unit.save()
+        serializer = UnitSerializer(unit)
+        return Response(serializer.data)
+
+
+class UnitDeleteView(APIView):
+    """DELETE /api/admin/info/units/<id>/delete/ 删除单元"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        if request.user.role != 'teacher':
+            return Response({'error': '仅老师可操作'}, status=403)
+        try:
+            unit = Unit.objects.get(pk=pk)
+        except Unit.DoesNotExist:
+            return Response({'error': '单元不存在'}, status=404)
+        unit.delete()
+        return Response(status=204)
+
+
 # ─── Question API ─────────────────────────────────────────────────────────────
 class QuestionListView(APIView):
     """GET /api/admin/info/questions/ 题库列表（支持过滤）"""
@@ -409,4 +443,67 @@ class QuizStatsGradeView(APIView):
             'total_submissions': subs.count(),
             'avg_score': round(subs.aggregate(avg=Avg('score'))['avg'], 1),
             'by_session': list(by_session),
+        })
+
+
+class QuizStatsSubmissionsView(APIView):
+    """GET /api/admin/info/stats/submissions/ 学生个体成绩（满分矩阵）
+    查询参数: grade, class_num, session_id
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'teacher':
+            return Response({'error': '仅老师可操作'}, status=403)
+
+        grade = request.query_params.get('grade')
+        class_num = request.query_params.get('class_num')
+        session_id = request.query_params.get('session_id')
+
+        subs = QuizSubmission.objects.select_related('user', 'session').order_by('user__grade', 'user__class_num', 'user__student_number')
+
+        if grade:
+            subs = subs.filter(grade=grade)
+        if class_num:
+            subs = subs.filter(user__class_num=int(class_num))
+        if session_id:
+            subs = subs.filter(session_id=int(session_id))
+
+        if not subs.exists():
+            return Response({'students': [], 'sessions': []})
+
+        # 收集所有涉及的 session
+        session_ids = sorted(set(subs.values_list('session_id', flat=True)))
+        sessions = QuizSession.objects.filter(id__in=session_ids).order_by('created_at')
+        session_titles = {s.id: s.title for s in sessions}
+
+        # 按学生聚合
+        from collections import defaultdict
+        student_map = defaultdict(lambda: {'scores': {}})
+        for sub in subs:
+            key = (sub.user_id, sub.user.display_name, sub.grade, sub.user.class_num, sub.user.student_number)
+            student_map[key]['display_name'] = sub.user.display_name
+            student_map[key]['grade'] = sub.grade
+            student_map[key]['class_num'] = sub.user.class_num
+            student_map[key]['student_number'] = sub.user.student_number
+            student_map[key]['scores'][sub.session_id] = sub.score
+
+        rows = []
+        for (uid, dname, grade, cls, snum), data in sorted(student_map.items()):
+            row = {
+                'user_id': uid,
+                'display_name': dname,
+                'grade': grade,
+                'class_num': cls,
+                'student_number': snum,
+                'scores': [data['scores'].get(sid) for sid in session_ids],
+            }
+            # 计算该学生平均
+            scores = [s for s in row['scores'] if s is not None]
+            row['avg_score'] = round(sum(scores) / len(scores), 1) if scores else None
+            rows.append(row)
+
+        return Response({
+            'sessions': [{'id': sid, 'title': session_titles[sid]} for sid in session_ids],
+            'students': rows,
         })

@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    UnitListView, UnitCreateView,
+    UnitListView, UnitCreateView, UnitDeleteView, UnitUpdateView,
     QuestionListView, QuestionCreateView,
     QuestionUpdateView, QuestionDeleteView,
     QuestionImportView,
@@ -9,12 +9,15 @@ from .views import (
     QuizSessionToggleView,
     QuizStatsOverviewView, QuizStatsSessionView,
     QuizStatsSessionDetailView, QuizStatsGradeView,
+    QuizStatsSubmissionsView,
 )
 
 urlpatterns = [
     # Unit
     path('admin/info/units/', UnitListView.as_view(), name='info-units-list'),
     path('admin/info/units/create/', UnitCreateView.as_view(), name='info-units-create'),
+    path('admin/info/units/<int:pk>/', UnitUpdateView.as_view(), name='info-units-update'),
+    path('admin/info/units/<int:pk>/delete/', UnitDeleteView.as_view(), name='info-units-delete'),
 
     # Question CRUD
     path('admin/info/questions/', QuestionListView.as_view(), name='info-questions-list'),
@@ -34,6 +37,7 @@ urlpatterns = [
 
     # Stats
     path('admin/info/stats/overview/', QuizStatsOverviewView.as_view(), name='info-stats-overview'),
+    path('admin/info/stats/submissions/', QuizStatsSubmissionsView.as_view(), name='info-stats-submissions'),
     path('admin/info/stats/sessions/', QuizStatsSessionView.as_view(), name='info-stats-sessions'),
     path('admin/info/stats/sessions/<int:pk>/', QuizStatsSessionDetailView.as_view(), name='info-stats-session-detail'),
     path('admin/info/stats/grade/<str:grade>/', QuizStatsGradeView.as_view(), name='info-stats-grade'),
