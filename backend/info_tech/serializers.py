@@ -4,23 +4,45 @@ from .models import Unit, Question, QuizSession
 
 class UnitSerializer(serializers.ModelSerializer):
     question_count = serializers.IntegerField(source='questions.count', read_only=True)
+    sections = serializers.SerializerMethodField()
 
     class Meta:
         model = Unit
-        fields = ['id', 'name', 'display_name', 'order', 'question_count']
+        fields = ['id', 'grade', 'parent', 'name', 'display_name', 'order', 'question_count', 'sections']
+
+    def get_sections(self, obj):
+        # 只返回小节（parent 不为空）
+        sections = obj.sections.all().order_by('order')
+        return UnitSectionSerializer(sections, many=True).data
+
+
+class UnitSectionSerializer(serializers.ModelSerializer):
+    """小节的简化序列化（不含递归sections）"""
+    question_count = serializers.IntegerField(source='questions.count', read_only=True)
+
+    class Meta:
+        model = Unit
+        fields = ['id', 'grade', 'parent', 'name', 'display_name', 'order', 'question_count']
 
 
 class QuestionSerializer(serializers.ModelSerializer):
     unit_name = serializers.CharField(source='unit.display_name', read_only=True)
+    big_unit_name = serializers.SerializerMethodField()
+    grade = serializers.CharField(source='unit.grade', read_only=True)
 
     class Meta:
         model = Question
         fields = [
-            'id', 'unit', 'unit_name', 'difficulty', 'category',
+            'id', 'unit', 'grade', 'unit_name', 'big_unit_name', 'difficulty', 'category',
             'text', 'answer', 'explanation',
             'option_a', 'option_b', 'option_c', 'option_d',
             'created_at', 'updated_at'
         ]
+
+    def get_big_unit_name(self, obj):
+        if obj.unit.parent:
+            return obj.unit.parent.display_name
+        return ''
 
 
 class QuestionCreateSerializer(serializers.Serializer):
@@ -58,8 +80,9 @@ class QuestionCreateSerializer(serializers.Serializer):
 
 class QuestionImportSerializer(serializers.Serializer):
     """批量导入 JSON"""
-    unit = serializers.CharField()               # 单元 name
+    unit = serializers.CharField()                    # 单元 name（小节 name）
     unit_display_name = serializers.CharField(required=False, default='')
+    grade = serializers.CharField(required=False, default='七年级')  # 用于唯一定位同名单元
     questions = serializers.ListField(child=serializers.DictField())
 
     def validate_questions(self, value):
@@ -70,10 +93,12 @@ class QuestionImportSerializer(serializers.Serializer):
     def validate(self, data):
         unit_name = data['unit']
         unit_display = data.get('unit_display_name', '')
+        grade = data.get('grade', '七年级')
 
-        # 单元不存在则自动创建
-        unit, created = Unit.objects.get_or_create(
+        # 用 name + grade 唯一定位（解决七年级/八年级单元 name 相同的问题）
+        unit, created = Unit.objects.update_or_create(
             name=unit_name,
+            grade=grade,
             defaults={'display_name': unit_display or unit_name}
         )
         data['unit'] = unit
@@ -119,12 +144,15 @@ class QuizSessionSerializer(serializers.ModelSerializer):
     """小测详情（完整，含关联单元）"""
     units = serializers.SerializerMethodField()
     unit_names = serializers.SerializerMethodField()
+    big_unit_names = serializers.SerializerMethodField()
+    section_names = serializers.SerializerMethodField()
+    grade = serializers.SerializerMethodField()   # visible_grades[0] 或第一个单元的年级
     submission_count = serializers.IntegerField(source='quizsubmission_set.count', read_only=True)
 
     class Meta:
         model = QuizSession
         fields = [
-            'id', 'title', 'created_by', 'units', 'unit_names',
+            'id', 'title', 'created_by', 'units', 'unit_names', 'big_unit_names', 'section_names', 'grade',
             'num_questions', 'difficulty_ratio', 'time_limit',
             'is_visible', 'visible_grades', 'submission_count',
             'created_at', 'updated_at'
@@ -135,6 +163,25 @@ class QuizSessionSerializer(serializers.ModelSerializer):
 
     def get_unit_names(self, obj):
         return [u.display_name for u in obj.units.all()]
+
+    def get_big_unit_names(self, obj):
+        seen = set()
+        result = []
+        for u in obj.units.all():
+            if u.parent and u.parent.id not in seen:
+                seen.add(u.parent.id)
+                result.append(u.parent.display_name)
+        return result
+
+    def get_section_names(self, obj):
+        # 小节：所有非根单元（即 parent 不为空的）
+        return [u.display_name for u in obj.units.all() if u.parent]
+
+    def get_grade(self, obj):
+        if obj.visible_grades:
+            return obj.visible_grades[0]
+        first_unit = obj.units.first()
+        return first_unit.grade if first_unit else '七年级'
 
 
 class QuizSessionCreateSerializer(serializers.Serializer):

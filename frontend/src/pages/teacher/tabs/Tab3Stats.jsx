@@ -1,0 +1,206 @@
+import { useState, useEffect, useCallback } from 'react'
+import { BarChart2, Users, CheckCircle, RefreshCw, X } from 'lucide-react'
+
+export default function Tab3Stats({
+  API, headers,
+  statsData, statsLoading, statsFilter,
+  setStatsFilter,
+  selectedQuiz, setSelectedQuiz,
+  autoRefresh, setAutoRefresh,
+  loadStats,
+  gradeDisplay, gradeColor, scoreColor,
+}) {
+  const GRADES = ['七年级', '八年级']
+
+  // 自动刷新
+  useEffect(() => {
+    if (!autoRefresh) return
+    const timer = setInterval(loadStats, 5000)
+    return () => clearInterval(timer)
+  }, [autoRefresh])
+
+  // 选定小测变化时重新加载
+  useEffect(() => {
+    loadStats()
+  }, [selectedQuiz])
+
+  const ROWS = 5, COLS = 10
+
+  // 从 statsData 构建学号→分数映射
+  const scoreMapByNum = {}
+  ;(statsData?.students || []).forEach(stu => {
+    const num = parseInt(stu.student_number) || 0
+    if (num >= 1 && num <= ROWS * COLS) {
+      // 用该学生第一次小测成绩
+      const sc = stu.scores?.[0] ?? null
+      if (sc != null) scoreMapByNum[num] = sc
+    }
+  })
+  const perfectCount = Object.values(scoreMapByNum).filter(v => v === 100).length
+
+  return (
+    <div style={{ display: 'flex', gap: 24, height: 'calc(100vh - 200px)', minHeight: 500 }}>
+
+      {/* 左侧：成绩表格 */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
+        {/* 筛选栏 */}
+        <div style={{
+          background: 'white', borderRadius: 14, padding: '14px 20px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap'
+        }}>
+          <BarChart2 size={18} style={{ color: '#667eea' }} />
+          <span style={{ fontSize: 15, fontWeight: 700, color: '#333' }}>成绩统计</span>
+          <span style={{ fontSize: 12, color: '#888' }}>
+            {statsData?.students?.length || 0} 人 · {statsData?.sessions?.length || 0} 场小测
+          </span>
+
+          <select value={statsFilter.grade} onChange={e => {
+            setStatsFilter(p => ({ ...p, grade: e.target.value }))
+            setSelectedQuiz('')
+          }} style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid #ddd', fontSize: 13, minWidth: 90 }}>
+            {GRADES.map(g => <option key={g} value={g}>{gradeDisplay(g)}</option>)}
+          </select>
+
+          <select value={statsFilter.class_num} onChange={e => setStatsFilter(p => ({ ...p, class_num: e.target.value }))}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid #ddd', fontSize: 13, minWidth: 80 }}>
+            <option value="">全部班级</option>
+            {['1','2','3','4','5','6','7','8','9','10'].map(c => <option key={c} value={c}>{c}班</option>)}
+          </select>
+
+          <select value={selectedQuiz} onChange={e => setSelectedQuiz(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid #ddd', fontSize: 13, minWidth: 140 }}>
+            <option value="">全部小测</option>
+            {(statsData?.sessions || []).map(s => (
+              <option key={s.id} value={String(s.id)}>{s.title || `小测#${s.id}`}</option>
+            ))}
+          </select>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13, color: '#555', marginLeft: 4 }}>
+            <input type="checkbox" checked={autoRefresh} onChange={e => {
+              setAutoRefresh(e.target.checked)
+              if (e.target.checked) loadStats()
+            }} />
+            <RefreshCw size={13} style={{ color: autoRefresh ? '#667eea' : '#ccc' }} />
+            5秒刷新
+          </label>
+
+          <button onClick={loadStats} style={{
+            marginLeft: 'auto', padding: '6px 14px', borderRadius: 8, border: '1.5px solid #667eea',
+            background: 'white', color: '#667eea', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5
+          }}>
+            <RefreshCw size={13} /> 刷新
+          </button>
+        </div>
+
+        {/* 成绩表格 */}
+        <div style={{ flex: 1, background: 'white', borderRadius: 14, overflow: 'auto', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          {statsLoading ? (
+            <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>加载中...</div>
+          ) : statsData?.students?.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+              <Users size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <p>暂无成绩数据</p>
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 500 }}>
+              <thead>
+                <tr style={{ background: '#f8f9fa', position: 'sticky', top: 0, zIndex: 1 }}>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>年级</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>班级</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>姓名</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>学号</th>
+                  {selectedQuiz ? (
+                    <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#667eea', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>成绩</th>
+                  ) : (
+                    (statsData?.sessions || []).map(s => (
+                      <th key={s.id} style={{
+                        padding: '10px 8px', textAlign: 'center', fontWeight: 700, fontSize: 11,
+                        color: s.is_visible ? '#38ef7d' : '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0',
+                        borderLeft: '1px solid #f0f0f0'
+                      }}>
+                        {(s.title || '').length > 10 ? s.title.slice(0, 9) + '…' : s.title}
+                      </th>
+                    ))
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {(statsData?.students || []).map(stu => {
+                  const selectedIdx = selectedQuiz ? (statsData?.sessions?.findIndex(ss => String(ss.id) === String(selectedQuiz)) ?? -1) : -1
+                  const selectedScore = selectedIdx >= 0 ? (stu.scores?.[selectedIdx] ?? null) : null
+                  return (
+                  <tr key={stu.user_id} style={{ borderBottom: '1px solid #f5f5f5' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f8f9fa'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                    <td style={{ padding: '9px 14px', color: '#888', fontSize: 12, whiteSpace: 'nowrap' }}>{gradeDisplay(stu.grade)}</td>
+                    <td style={{ padding: '9px 14px', color: '#888', fontSize: 12, whiteSpace: 'nowrap' }}>{stu.class_num}班</td>
+                    <td style={{ padding: '9px 14px', fontWeight: 700, color: '#333', whiteSpace: 'nowrap' }}>{stu.display_name || stu.username}</td>
+                    <td style={{ padding: '9px 14px', color: '#888', fontSize: 12, whiteSpace: 'nowrap', textAlign: 'center' }}>{stu.student_number ?? '—'}</td>
+                    {selectedQuiz ? (
+                      <td style={{
+                        padding: '9px 14px', textAlign: 'center', fontWeight: 800, fontSize: 14,
+                        color: selectedScore != null ? scoreColor(selectedScore) : '#ccc', whiteSpace: 'nowrap'
+                      }}>
+                        {selectedScore != null ? selectedScore : '—'}
+                      </td>
+                    ) : (
+                      (statsData?.sessions || []).map(s => {
+                        const idx = statsData?.sessions?.findIndex(ss => String(ss.id) === String(s.id))
+                        const sc = idx >= 0 ? (stu.scores?.[idx] ?? null) : null
+                        return (
+                          <td key={s.id} style={{
+                            padding: '9px 8px', textAlign: 'center', fontWeight: 800, fontSize: 13,
+                            color: sc != null ? scoreColor(sc) : '#ccc',
+                            borderLeft: '1px solid #f0f0f0', whiteSpace: 'nowrap'
+                          }}>
+                            {sc != null ? sc : '—'}
+                          </td>
+                        )
+                      })
+                    )}
+                  </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* 右侧：满分灯矩阵 */}
+      <div style={{
+        minWidth: 360, maxWidth: 440,
+        background: 'white', borderRadius: 14, padding: '18px 20px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', gap: 10,
+        height: 'fit-content', maxHeight: '100%', overflow: 'hidden'
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#333', textAlign: 'center' }}>满分监控 · 学号1-50</div>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)`, gap: 5 }}>
+          {Array.from({ length: ROWS * COLS }, (_, idx) => {
+            const lampNum = idx + 1
+            const is100 = (scoreMapByNum[lampNum] || 0) === 100
+            return (
+              <div key={idx} title={`学号${lampNum} ${is100 ? '✓ 满分' : '未满分'}`}
+                style={{
+                  width: 28, height: 28, borderRadius: 5,
+                  background: is100 ? '#4caf50' : '#2a2a2a',
+                  boxShadow: is100 ? '0 0 8px #4caf50' : 'inset 0 1px 3px rgba(0,0,0,0.5)',
+                  border: `1px solid ${is100 ? '#81c784' : '#444'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 700,
+                  color: is100 ? '#fff' : '#555',
+                  transition: 'background 0.3s, box-shadow 0.3s',
+                }}>
+                {lampNum}
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ fontSize: 11, color: '#888', textAlign: 'center' }}>
+          {perfectCount}/{ROWS * COLS} 满分
+        </div>
+      </div>
+    </div>
+  )
+}

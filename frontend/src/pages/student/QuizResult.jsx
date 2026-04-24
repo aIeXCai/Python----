@@ -129,7 +129,7 @@ export default function QuizResult() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Award size={20} color="#f6c90e" />
-                <span style={{ fontSize: '1rem' }}>总分 {total_count * 20} 分</span>
+                <span style={{ fontSize: '1rem' }}>总分 100 分</span>
               </div>
             </div>
           </div>

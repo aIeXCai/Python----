@@ -3,18 +3,23 @@ from users.models import CustomUser
 
 
 class Unit(models.Model):
-    """单元目录"""
-    name         = models.CharField('单元名称', max_length=100, unique=True)   # 如 "第四单元"
-    display_name = models.CharField('显示名称', max_length=200)                 # 如 "第四单元：搭建校园网络系统"
-    order        = models.IntegerField('排序', default=0)
+    """单元目录 — Grade-Unit-Section 三级结构
+    grade  = 年级（大单元和小节都必须属于某年级）
+    parent = 所属大单元（小节用），大单元 parent=null
+    """
+    grade       = models.CharField('年级', max_length=20, default='七年级')   # '七年级'/'八年级'
+    parent      = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sections')
+    name        = models.CharField('单元名称', max_length=100)               # 如 "1-1" 或 "unit_1_1"
+    display_name = models.CharField('显示名称', max_length=200)               # 如 "1.1 变量的概念"
+    order       = models.IntegerField('排序', default=0)
 
     class Meta:
-        ordering = ['order']
+        ordering = ['grade', 'order']
         verbose_name = '单元'
         verbose_name_plural = '单元列表'
 
     def __str__(self):
-        return self.display_name
+        return f"{self.grade} · {self.display_name}"
 
 
 class Question(models.Model):

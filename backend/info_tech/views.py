@@ -24,28 +24,47 @@ class TeacherPermission:
 
 # ─── Unit API ────────────────────────────────────────────────────────────────
 class UnitListView(APIView):
-    """GET /api/admin/info/units/ 列出所有单元"""
+    """GET /api/admin/info/units/?grade=七年级  列出大单元（嵌套sections）
+       POST /api/admin/info/units/                新增大单元或小节"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        units = Unit.objects.all().order_by('order')
+        grade = request.query_params.get('grade')
+        units = Unit.objects.filter(parent__isnull=True).order_by('grade', 'order')
+        if grade:
+            units = units.filter(grade=grade)
         serializer = UnitSerializer(units, many=True)
         return Response(serializer.data)
-
-
-class UnitCreateView(APIView):
-    """POST /api/admin/info/units/ 新增单元"""
-    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         if request.user.role != 'teacher':
             return Response({'error': '仅老师可操作'}, status=403)
 
-        serializer = UnitSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
+        grade = request.data.get('grade', '七年级')
+        parent_id = request.data.get('parent')
+        name = request.data.get('name')
+        display_name = request.data.get('display_name', '')
+
+        if not name:
+            return Response({'error': 'name 不能为空'}, status=400)
+
+        parent = None
+        if parent_id:
+            try:
+                parent = Unit.objects.get(pk=int(parent_id), parent__isnull=True)
+            except Unit.DoesNotExist:
+                return Response({'error': '所属大单元不存在'}, status=400)
+
+        if Unit.objects.filter(grade=grade, parent=parent, name=name).exists():
+            return Response({'error': f'同年级下已存在同名单元 "{name}"'}, status=400)
+
+        unit = Unit.objects.create(
+            grade=grade, parent=parent, name=name,
+            display_name=display_name or name,
+            order=request.data.get('order', 0),
+        )
+        serializer = UnitSerializer(unit)
+        return Response(serializer.data, status=201)
 
 
 class UnitUpdateView(APIView):
@@ -59,9 +78,20 @@ class UnitUpdateView(APIView):
             unit = Unit.objects.get(pk=pk)
         except Unit.DoesNotExist:
             return Response({'error': '单元不存在'}, status=404)
+
         unit.name = request.data.get('name', unit.name)
         unit.display_name = request.data.get('display_name', unit.display_name)
+        unit.grade = request.data.get('grade', unit.grade)
         unit.order = request.data.get('order', unit.order)
+        parent_id = request.data.get('parent')
+        if parent_id is not None:
+            if parent_id == '' or parent_id is None:
+                unit.parent = None
+            else:
+                try:
+                    unit.parent = Unit.objects.get(pk=int(parent_id), parent__isnull=True)
+                except Unit.DoesNotExist:
+                    return Response({'error': '所属大单元不存在'}, status=400)
         unit.save()
         serializer = UnitSerializer(unit)
         return Response(serializer.data)
@@ -90,10 +120,20 @@ class QuestionListView(APIView):
     def get(self, request):
         qs = Question.objects.all()
 
-        # 按单元过滤
-        unit_name = request.query_params.get('unit')
-        if unit_name:
-            qs = qs.filter(unit__name=unit_name)
+        # 按年级过滤
+        grade = request.query_params.get('grade')
+        if grade:
+            qs = qs.filter(unit__grade=grade)
+
+        # 按大单元过滤（通过 unit.parent.name 匹配）
+        big_unit_name = request.query_params.get('big_unit_name')
+        if big_unit_name:
+            qs = qs.filter(unit__parent__name=big_unit_name)
+
+        # 按小节过滤
+        unit = request.query_params.get('unit')
+        if unit:
+            qs = qs.filter(unit__name=unit)
 
         # 按难度过滤
         difficulty = request.query_params.get('difficulty')
@@ -105,7 +145,7 @@ class QuestionListView(APIView):
         if q:
             qs = qs.filter(Q(text__icontains=q) | Q(category__icontains=q))
 
-        qs = qs.select_related('unit').order_by('id')
+        qs = qs.select_related('unit', 'unit__parent').order_by('id')
         serializer = QuestionSerializer(qs, many=True)
         return Response(serializer.data)
 
@@ -169,24 +209,32 @@ class QuestionImportView(APIView):
         if request.user.role != 'teacher':
             return Response({'error': '仅老师可操作'}, status=403)
 
-        serializer = QuestionImportSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=400)
+        try:
+            serializer = QuestionImportSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=400)
 
-        result = serializer.save()
-        unit_created = serializer.validated_data.get('unit_created', False)
-        msg = f"成功导入 {result['imported']} 题"
-        if result['errors']:
-            msg += f"，{len(result['errors'])} 题有错误"
-        if unit_created:
-            msg += f"（新建单元: {serializer.validated_data['unit'].name}）"
+            result = serializer.save()
+            unit_created = serializer.validated_data.get('unit_created', False)
+            unit_obj = serializer.validated_data.get('unit')
+            unit_name_str = unit_obj.name if unit_obj else ''
 
-        return Response({
-            'detail': msg,
-            'imported': result['imported'],
-            'unit_created': unit_created,
-            'errors': result['errors'][:20]
-        }, status=201)
+            msg = f"成功导入 {result['imported']} 题"
+            if result['errors']:
+                msg += f"，{len(result['errors'])} 题有错误"
+            if unit_created:
+                msg += f"（新建单元: {unit_name_str}）"
+
+            return Response({
+                'detail': msg,
+                'imported': result['imported'],
+                'unit_created': unit_created,
+                'errors': result['errors'][:20]
+            }, status=201)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e), 'type': type(e).__name__}, status=500)
 
 
 # ─── QuizSession API ──────────────────────────────────────────────────────────
@@ -277,17 +325,26 @@ class QuizSessionToggleView(APIView):
 # ─── 成绩统计 API ─────────────────────────────────────────────────────────────
 
 class QuizStatsOverviewView(APIView):
-    """GET /api/admin/info/stats/overview/ 全局概览"""
+    """GET /api/admin/info/stats/overview/ 全局概览，支持 grade/class_num 筛选"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         if request.user.role != 'teacher':
             return Response({'error': '仅老师可操作'}, status=403)
 
+        grade = request.query_params.get('grade')
+        class_num = request.query_params.get('class_num')
+
+        subs = QuizSubmission.objects.all()
+        if grade:
+            subs = subs.filter(grade=grade)
+        if class_num:
+            subs = subs.filter(class_num=class_num)
+
         total_sessions = QuizSession.objects.count()
-        total_submissions = QuizSubmission.objects.count()
-        avg_score = QuizSubmission.objects.aggregate(avg=Avg('score'))['avg'] or 0
-        scores = list(QuizSubmission.objects.values_list('score', flat=True))
+        total_submissions = subs.count()
+        avg_score = subs.aggregate(avg=Avg('score'))['avg'] or 0
+        scores = list(subs.values_list('score', flat=True))
         p90 = sorted(scores)[int(len(scores) * 0.9)] if len(scores) >= 10 else max(scores, default=0)
         p50 = sorted(scores)[int(len(scores) * 0.5)] if len(scores) >= 2 else max(scores, default=0)
 
@@ -301,8 +358,8 @@ class QuizStatsOverviewView(APIView):
             else:
                 bins['80-100'] += 1
 
-        # 按年级统计
-        grade_stats = QuizSubmission.objects.values('grade').annotate(
+        # 按年级统计（如果有筛选则基于筛选后的数据）
+        grade_stats = subs.values('grade').annotate(
             count=Count('id'),
             avg_score=Avg('score')
         ).order_by('-count')
@@ -326,14 +383,22 @@ class QuizStatsSessionView(APIView):
         if request.user.role != 'teacher':
             return Response({'error': '仅老师可操作'}, status=403)
 
+        grade = request.query_params.get('grade')
+        class_num = request.query_params.get('class_num')
+
         sessions = QuizSession.objects.all().order_by('-created_at')
         result = []
         for s in sessions:
             subs = s.quizsubmission_set.all()
+            if grade:
+                subs = subs.filter(grade=grade)
+            if class_num:
+                subs = subs.filter(class_num=class_num)
             total = subs.count()
             result.append({
                 'session_id': s.id,
                 'title': s.title,
+                'grade': grade or None,
                 'total_submissions': total,
                 'avg_score': round(subs.aggregate(avg=Avg('score'))['avg'], 1) if total > 0 else None,
                 'max_score': subs.aggregate(max=Max('score'))['max'],

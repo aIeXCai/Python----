@@ -434,8 +434,11 @@ class AdminStudentScoresView(APIView):
                 'best_score': None,
             }
 
-        # 获取所有题目
-        problems = Problem.objects.filter(course=course_type).order_by('problem_id') if course_type else Problem.objects.all().order_by('problem_id')
+        # 获取所有题目（如果有 problem_id 过滤则只返回该题）
+        if problem_id:
+            problems = Problem.objects.filter(course=course_type, problem_id=problem_id).order_by('problem_id')
+        else:
+            problems = Problem.objects.filter(course=course_type).order_by('problem_id') if course_type else Problem.objects.all().order_by('problem_id')
         problem_ids = [p.problem_id for p in problems]
 
         # 每学生每题取最高分

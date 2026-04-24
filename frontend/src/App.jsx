@@ -8,9 +8,8 @@ import QuizPage from './pages/student/QuizPage.jsx'
 import QuizResult from './pages/student/QuizResult.jsx'
 import TeacherDashboard from './pages/teacher/TeacherDashboard.jsx'
 import StudentManagement from './pages/teacher/StudentManagement.jsx'
-import ScoreManagement from './pages/teacher/ScoreManagement.jsx'
-import ProblemManagement from './pages/teacher/ProblemManagement.jsx'
 import InfoAdmin from './pages/teacher/InfoAdmin.jsx'
+import AiAdmin from './pages/teacher/aiAdmin.jsx'
 import ProblemDetail from './pages/ProblemDetail.jsx'
 import './index.css'
 
@@ -91,18 +90,10 @@ export default function App() {
             }
           />
           <Route
-            path="/teacher/scores"
+            path="/teacher/ai"
             element={
               <ProtectedRoute>
-                <ScoreManagement />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/teacher/problems"
-            element={
-              <ProtectedRoute>
-                <ProblemManagement />
+                <AiAdmin />
               </ProtectedRoute>
             }
           />

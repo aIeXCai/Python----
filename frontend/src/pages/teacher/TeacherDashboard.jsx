@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, BookOpen, BarChart3, Upload, LogOut, Bot, Monitor, ChevronRight, GraduationCap, ListChecks } from 'lucide-react'
+import { Users, BookOpen, BarChart3, Upload, LogOut, Bot, ChevronRight, GraduationCap, ListChecks } from 'lucide-react'
 import { getAdminDashboard } from '../../api/index.js'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 
@@ -8,7 +8,6 @@ export default function TeacherDashboard() {
   const navigate = useNavigate()
   const { logout } = useAuth()
   const [stats, setStats] = useState({ total_students: 0, total_problems: 0, today_submissions: 0, avg_score: 0 })
-  const [selectedCourse, setSelectedCourse] = useState('ai')
 
   useEffect(() => {
     loadDashboard()
@@ -59,28 +58,6 @@ export default function TeacherDashboard() {
       </header>
 
       <div style={{ maxWidth: 1200, margin: '30px auto', padding: '0 24px' }}>
-        {/* Course tabs */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-          {[
-            { key: 'ai', label: '人工智能课', icon: Bot, color: '#667eea' },
-            { key: 'info', label: '信息科技课', icon: Monitor, color: '#11998e' },
-          ].map(({ key, label, icon: Icon, color }) => (
-            <button
-              key={key}
-              onClick={() => setSelectedCourse(key)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '10px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                background: selectedCourse === key ? color : 'white',
-                color: selectedCourse === key ? '#fff' : '#666',
-                fontSize: 14, fontWeight: 600, boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              }}
-            >
-              <Icon size={16} />
-              {label}
-            </button>
-          ))}
-        </div>
 
         {/* Stats row */}
         <div style={{
@@ -115,9 +92,8 @@ export default function TeacherDashboard() {
           gap: 24,
         }}>
           {[
-            { label: 'AI课题目', desc: 'AI课题库管理', icon: BookOpen, color: '#667eea', path: '/teacher/problems' },
+            { label: 'AI课管理', desc: '题库·成绩统计', icon: Bot, color: '#667eea', path: '/teacher/ai' },
             { label: '信息课管理', desc: '题库·小测·成绩统计', icon: ListChecks, color: '#38ef7d', path: '/teacher/info' },
-            { label: '成绩管理', desc: '查看所有学生成绩', icon: BarChart3, color: '#11998e', path: '/teacher/scores' },
             { label: '学生管理', desc: '管理学生帐号', icon: Users, color: '#f59e0b', path: '/teacher/students' },
           ].map(({ label, desc, icon: Icon, color, path }) => (
             <button

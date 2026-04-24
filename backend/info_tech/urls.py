@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    UnitListView, UnitCreateView, UnitDeleteView, UnitUpdateView,
+    UnitListView, UnitDeleteView, UnitUpdateView,
     QuestionListView, QuestionCreateView,
     QuestionUpdateView, QuestionDeleteView,
     QuestionImportView,
@@ -15,7 +15,6 @@ from .views import (
 urlpatterns = [
     # Unit
     path('admin/info/units/', UnitListView.as_view(), name='info-units-list'),
-    path('admin/info/units/create/', UnitCreateView.as_view(), name='info-units-create'),
     path('admin/info/units/<int:pk>/', UnitUpdateView.as_view(), name='info-units-update'),
     path('admin/info/units/<int:pk>/delete/', UnitDeleteView.as_view(), name='info-units-delete'),
 
