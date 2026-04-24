@@ -41,10 +41,14 @@ export default function StudentDashboard() {
     try {
       const course = getCourse()
       if (course === 'info') {
-        // 信息课：加载小测列表
-        const q = await getInfoQuizzes()
+        // 信息课：加载小测列表和统计
+        const [q, st] = await Promise.all([
+          getInfoQuizzes(),
+          getStudentStats('info'),
+        ])
         if (!mountedRef.current || !saved) return
         setQuizzes(q)
+        setStats(st)
       } else {
         // AI课：加载题目列表
         const [p, s, st] = await Promise.all([
@@ -106,12 +110,12 @@ export default function StudentDashboard() {
           <div className="stat-card problems">
             <BookOpen size={36} />
             <h3>{stats.total_problems}</h3>
-            <p>总题目数</p>
+            <p>{isInfo ? '总小测数' : '总题目数'}</p>
           </div>
           <div className="stat-card completed">
             <CheckCircle size={36} />
             <h3>{stats.completed_problems}</h3>
-            <p>已完成题目</p>
+            <p>{isInfo ? '已完成小测' : '已完成题目'}</p>
           </div>
           <div className="stat-card average">
             <BarChart2 size={36} />

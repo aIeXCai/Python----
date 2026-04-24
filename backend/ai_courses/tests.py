@@ -8,6 +8,7 @@ from rest_framework.test import APITestCase
 from rest_framework.authtoken.models import Token
 from users.models import CustomUser
 from .models import Problem, Submission
+from info_tech.models import QuizSession, QuizSubmission
 
 
 # ─── 测试辅助 ──────────────────────────────────────────────────────────────
@@ -437,13 +438,22 @@ class StudentStatsViewTest(APITestCase):
         self.assertEqual(resp.data['rank'], 1)
 
     def test_stats_filter_by_course(self):
-        """?course=info 只看信息课"""
-        prob3 = Problem.objects.create(problem_id='stat3', course='info')
-        Submission.objects.create(user=self.student, problem=prob3, score=90.0, code='c')
+        """?course=info 只看信息课（小测/QuizSession）"""
+        # 信息课统计来自 QuizSession / QuizSubmission
+        teacher = make_teacher()
+        session = QuizSession.objects.create(
+            title='信息课小测', created_by=teacher,
+            num_questions=5, is_visible=True, visible_grades=['七年级']
+        )
+        QuizSubmission.objects.create(
+            user=self.student, session=session,
+            score=90.0, correct_count=4, total_count=5
+        )
         resp = self.client.get('/api/ai/stats/?course=info',
                                 HTTP_AUTHORIZATION=f'Token {self.token}')
         self.assertEqual(resp.data['total_problems'], 1)
         self.assertEqual(resp.data['completed_problems'], 1)
+        self.assertEqual(resp.data['average_score'], 90.0)
 
 
 # ─── 老师端：管理后台概览 ───────────────────────────────────────────────

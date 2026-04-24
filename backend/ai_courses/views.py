@@ -2,7 +2,7 @@ import os
 import uuid
 import datetime
 from django.conf import settings
-from django.db.models import Max, Avg, Count
+from django.db.models import Max, Avg, Count, OuterRef, Subquery, Q
 from rest_framework import status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -226,34 +226,71 @@ class StudentStatsView(APIView):
         user = request.user
         course = request.query_params.get('course', 'ai')
 
-        # 总题目数（按课程）
-        total_problems = Problem.objects.filter(course=course).count()
+        if course == 'info':
+            # 信息课：统计 QuizSession / QuizSubmission
+            from info_tech.models import QuizSession, QuizSubmission
 
-        # 已完成题目数（>=80分，按课程）
-        completed_problems = (
-            Submission.objects.filter(user=user, score__gte=80, problem__course=course)
-            .values('problem')
-            .distinct()
-            .count()
-        )
+            user_grade = getattr(user, 'grade', '') or ''
 
-        # 平均分（只算当前课程）
-        avg_result = (
-            Submission.objects.filter(user=user, problem__course=course)
-            .values('problem__problem_id')
-            .annotate(best=Max('score'))
-            .aggregate(avg=Avg('best'))
-        )
-        avg_score = round(avg_result['avg'] or 0, 1)
+            # 可见的小测（is_visible=True）
+            # 年级过滤：SQLite 不支持 JSONField __contains，换为内存过滤
+            all_visible = QuizSession.objects.filter(is_visible=True)
+            if user_grade:
+                visible_sessions = [
+                    s for s in all_visible
+                    if not s.visible_grades or user_grade in s.visible_grades
+                ]
+                visible_ids = [s.id for s in visible_sessions]
+            else:
+                visible_sessions = list(all_visible)
+                visible_ids = [s.id for s in visible_sessions]
 
-        # 班级排名：简单实现，暂无精确班级内对比
-        my_avg = avg_score
-        rank = 1  # TODO: 实现班级对比逻辑后替换
+            total_problems = len(visible_sessions)
+
+            if visible_ids:
+                user_submissions = QuizSubmission.objects.filter(
+                    user=user, session_id__in=visible_ids
+                )
+                completed_problems = user_submissions.values('session').distinct().count()
+
+                # 平均分：每场小测取最高分，再算均值
+                best_scores = []
+                for session_id in visible_ids:
+                    best = user_submissions.filter(session_id=session_id).aggregate(
+                        best=Max('score'))['best']
+                    if best is not None:
+                        best_scores.append(best)
+                avg_score = round(sum(best_scores) / len(best_scores), 1) if best_scores else 0
+            else:
+                completed_problems = 0
+                avg_score = 0
+
+            rank = 1
+        else:
+            # AI课：统计 Problem / Submission（原有逻辑）
+            total_problems = Problem.objects.filter(course=course).count()
+
+            completed_problems = (
+                Submission.objects.filter(user=user, score__gte=80, problem__course=course)
+                .values('problem')
+                .distinct()
+                .count()
+            )
+
+            avg_result = (
+                Submission.objects.filter(user=user, problem__course=course)
+                .values('problem__problem_id')
+                .annotate(best=Max('score'))
+                .aggregate(avg=Avg('best'))
+            )
+            avg_score = round(avg_result['avg'] or 0, 1)
+
+            rank = 1
 
         return Response({
             'total_problems': total_problems,
             'completed_problems': completed_problems,
-            'average_score': my_avg,
+            'average_score': avg_score,
             'rank': rank,
         })
 
