@@ -19,6 +19,11 @@ vi.mock('../../components/Navbar.jsx', () => ({
   ),
 }))
 
+vi.mock('../../contexts/ChatContext.jsx', () => ({
+  useChat: () => ({ setContext: vi.fn() }),
+  ChatProvider: ({ children }) => children,
+}))
+
 vi.mock('react-router-dom', () => {
   const Link = ({ to, children }) => <a href={to}>{children}</a>
   const fakeSearchParams = { get: () => null, [Symbol.iterator]: function* () {} }

@@ -4,8 +4,10 @@ import { Trophy, CheckCircle, BarChart2, BookOpen, RefreshCw, Loader, FileText, 
 import Navbar from '../../components/Navbar.jsx'
 import { getProblems, getScores, getStudentStats } from '../../api/index.js'
 import { getInfoQuizzes } from '../../api/info.js'
+import { useChat } from '../../contexts/ChatContext.jsx'
 
 export default function StudentDashboard() {
+  const chat = useChat()
   const [problems, setProblems] = useState([])
   const [scores, setScores] = useState([])
   const [stats, setStats] = useState({ total_problems: 0, completed_problems: 0, average_score: 0, rank: 1 })
@@ -33,6 +35,11 @@ export default function StudentDashboard() {
 
     fetchData()
   }, [searchParams])
+
+  // 清除聊天上下文（dashboard 无特定上下文）
+  useEffect(() => {
+    chat.setContext(null)
+  }, [])
 
   // StrictMode 下 useEffect 会 double-invoke，mountedRef 跨调用共享，防止旧请求状态覆盖新渲染
   const fetchData = async () => {

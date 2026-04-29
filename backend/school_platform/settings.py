@@ -2,9 +2,13 @@
 Django settings for school_platform project.
 """
 
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR / '.env')
 
 SECRET_KEY = 'django-insecure-change-this-in-production'
 
@@ -28,6 +32,7 @@ INSTALLED_APPS = [
     'users',
     'ai_courses',
     'info_tech',
+    'chat',
 ]
 
 MIDDLEWARE = [
@@ -116,3 +121,8 @@ PROBLEMS_DIR = BASE_DIR.parent / 'problems'
 SUBMISSIONS_DIR = BASE_DIR / 'submissions'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# MiniMax API 配置
+MINIMAX_API_KEY = os.environ.get('MINIMAX_API_KEY', '')
+MINIMAX_API_BASE = 'https://api.minimax.chat/v1'
+MINIMAX_MODEL = 'minimax-m2.5'

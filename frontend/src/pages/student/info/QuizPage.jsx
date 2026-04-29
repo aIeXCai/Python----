@@ -2,11 +2,13 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import Navbar from '../../../components/Navbar.jsx'
 import { getInfoQuizDetail, submitInfoQuiz } from '../../../api/info.js'
+import { useChat } from '../../../contexts/ChatContext.jsx'
 import { Loader, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function QuizPage() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
+  const chat = useChat()
 
   const [quiz, setQuiz] = useState(null)
   const [questions, setQuestions] = useState([])
@@ -33,8 +35,23 @@ export default function QuizPage() {
       } catch {}
     }
     loadQuiz()
-    return () => clearInterval(timerRef.current)
+    return () => {
+      clearInterval(timerRef.current)
+      chat.setContext(null)
+    }
   }, [sessionId])
+
+  // 注册小测上下文 → 聊天助手
+  useEffect(() => {
+    if (quiz) {
+      chat.setContext({
+        type: 'info_quiz',
+        id: sessionId,
+        title: quiz.title || '',
+        description: `${quiz.num_questions || 0}题${quiz.time_limit ? ` · ${quiz.time_limit}分钟` : ''}`,
+      })
+    }
+  }, [quiz, sessionId])
 
   const loadQuiz = async () => {
     setLoading(true)

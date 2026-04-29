@@ -13,6 +13,12 @@ vi.mock('../../../components/Navbar.jsx', () => ({
   }
 }))
 
+// Mock ChatContext (页面现在调用 useChat)
+vi.mock('../../../contexts/ChatContext.jsx', () => ({
+  useChat: () => ({ setContext: vi.fn() }),
+  ChatProvider: ({ children }) => children,
+}))
+
 // Mock lucide-react icons
 vi.mock('lucide-react', () => ({
   BookOpen: () => <span data-testid="icon-book">BookOpen</span>,

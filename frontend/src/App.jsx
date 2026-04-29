@@ -1,5 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext.jsx'
+import { ChatProvider } from './contexts/ChatContext.jsx'
+import FloatingChat from './components/FloatingChat.jsx'
 import Login from './pages/auth/Login.jsx'
 import TeacherLogin from './pages/auth/TeacherLogin.jsx'
 import CourseSelect from './pages/student/CourseSelect.jsx'
@@ -19,6 +21,18 @@ function ProtectedRoute({ children }) {
   return children
 }
 
+/** 学生端布局包裹：权限 + 聊天 */
+function StudentLayout() {
+  return (
+    <ProtectedRoute>
+      <ChatProvider>
+        <Outlet />
+        <FloatingChat />
+      </ChatProvider>
+    </ProtectedRoute>
+  )
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -28,33 +42,14 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/teacher-login" element={<TeacherLogin />} />
 
-          {/* 选课页 */}
-          <Route
-            path="/course-select"
-            element={
-              <ProtectedRoute>
-                <CourseSelect />
-              </ProtectedRoute>
-            }
-          />
+          {/* 学生端 — 含 AI 助手（Dashboard / AI课题目 / 选课） */}
+          <Route element={<StudentLayout />}>
+            <Route path="/course-select" element={<CourseSelect />} />
+            <Route path="/problem/:problemId" element={<ProblemDetail />} />
+            <Route path="/student/dashboard" element={<StudentDashboard />} />
+          </Route>
 
-          {/* 学生端 */}
-          <Route
-            path="/problem/:problemId"
-            element={
-              <ProtectedRoute>
-                <ProblemDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/student/dashboard"
-            element={
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            }
-          />
+          {/* 信息科技课 — 小测 / 成绩页，不提供 AI 助手 */}
           <Route
             path="/student/quiz/:sessionId"
             element={

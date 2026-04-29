@@ -3,11 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { BookOpen, Send, ArrowLeft, Loader, CheckCircle, XCircle, Clock, Upload } from 'lucide-react'
 import Navbar from '../../../components/Navbar.jsx'
 import { getProblemDetail, getSubmissionHistory, getToken } from '../../../api/index.js'
+import { useChat } from '../../../contexts/ChatContext.jsx'
 
 export default function ProblemDetail() {
   const { problemId } = useParams()
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
+  const chat = useChat()
 
   const [problem, setProblem] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -30,6 +32,19 @@ export default function ProblemDetail() {
     } catch {}
     loadData()
   }, [problemId])
+
+  // 注册 AI 题目上下文 → 聊天助手
+  useEffect(() => {
+    if (problem) {
+      chat.setContext({
+        type: 'ai_problem',
+        id: problemId,
+        title: problem.title || problemId,
+        description: problem.description || '',
+      })
+    }
+    return () => chat.setContext(null)
+  }, [problem, problemId])
 
   const loadData = async () => {
     setLoading(true)
