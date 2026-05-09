@@ -16,4 +16,7 @@ urlpatterns = [
     path('admin/problems/<str:problem_id>/', views.AdminProblemDetailView.as_view(), name='admin-problem-detail'),
     path('admin/students/', views.AdminStudentListView.as_view(), name='admin-student-list'),
     path('admin/scores/', views.AdminStudentScoresView.as_view(), name='admin-scores'),
+
+    # Code execution
+    path('run_code/', views.CodeRunView.as_view(), name='run-code'),
 ]

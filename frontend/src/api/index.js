@@ -89,6 +89,15 @@ export async function getSubmissionHistory() {
   return request('/ai/submissions/history/')
 }
 
+// ─── Code Execution ───────────────────────────────────────────────────────────
+
+export async function runCode(code, stdin = '') {
+  return request('/ai/run_code/', {
+    method: 'POST',
+    body: JSON.stringify({ code, stdin }),
+  })
+}
+
 // ─── Scores & Stats ────────────────────────────────────────────────────────────
 
 export async function getScores(course = 'ai') {

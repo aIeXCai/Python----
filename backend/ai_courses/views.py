@@ -4,10 +4,12 @@ import datetime
 from django.conf import settings
 from django.db.models import Max, Avg, Count, OuterRef, Subquery, Q
 from rest_framework import status, permissions
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from .models import Problem, Submission, grade_submission
+from .utils import run_code_interactive
 from .serializers import (
     ProblemListSerializer,
     ProblemDetailSerializer,
@@ -76,7 +78,18 @@ class SubmissionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        serializer = SubmissionCreateSerializer(data=request.data)
+        # Support both JSON body and FormData file upload
+        if 'file' in request.FILES:
+            uploaded_file = request.FILES['file']
+            code = uploaded_file.read().decode('utf-8')
+            data = {
+                'problem_id': request.data.get('problem_id', ''),
+                'code': code,
+            }
+        else:
+            data = request.data
+
+        serializer = SubmissionCreateSerializer(data=data)
         if not serializer.is_valid():
             return Response(
                 {'error': '参数错误', 'details': serializer.errors},
@@ -285,7 +298,40 @@ class StudentStatsView(APIView):
             )
             avg_score = round(avg_result['avg'] or 0, 1)
 
-            rank = 1
+            # Rank: compare average best-score among classmates
+            user_grade = getattr(user, 'grade', '') or ''
+            user_class = getattr(user, 'class_num', '') or ''
+            if user_grade and user_class:
+                from users.models import CustomUser
+                classmates = CustomUser.objects.filter(
+                    grade=user_grade, class_num=user_class
+                )
+                mate_scores = []
+                for mate in classmates:
+                    m_avg = (
+                        Submission.objects.filter(user=mate, problem__course=course)
+                        .values('problem__problem_id')
+                        .annotate(best=Max('score'))
+                        .aggregate(avg=Avg('best'))
+                    )['avg'] or 0
+                    mate_scores.append((mate.id, round(m_avg, 1)))
+                mate_scores.sort(key=lambda x: x[1], reverse=True)
+                rank = 1
+                prev_score = None
+                same_count = 0
+                for uid, score in mate_scores:
+                    if prev_score is not None and score < prev_score:
+                        rank += same_count
+                        same_count = 1
+                    else:
+                        same_count += 1
+                    if uid == user.id:
+                        break
+                    prev_score = score
+                else:
+                    rank = len(mate_scores) + 1
+            else:
+                rank = 1
 
         return Response({
             'total_problems': total_problems,
@@ -508,3 +554,57 @@ class AdminStudentScoresView(APIView):
             'students': students,
             'problems': problem_list,
         })
+
+
+# ============================================================
+# 代码执行端点
+# ============================================================
+
+class CodeRunRateThrottle(UserRateThrottle):
+    """Per-user rate throttle: 3 requests per second"""
+    rate = '3/second'
+
+
+class CodeRunView(APIView):
+    """
+    POST /api/ai/run_code/
+    Execute Python code interactively with stdin support.
+
+    Request body:
+        {
+            "code": "print('hello')",
+            "stdin": ""  (optional)
+        }
+
+    Responses:
+        200: {"output": "...", "error": "...", "execution_time": 0.123}
+        400: {"error": "code is required"}
+        408: timeout after 10 seconds
+        429: rate limit exceeded (3 req/s per user)
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [CodeRunRateThrottle]
+
+    def post(self, request):
+        code = request.data.get('code', '')
+        stdin = request.data.get('stdin', '')
+
+        if not code or not code.strip():
+            return Response(
+                {'error': 'code is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        result = run_code_interactive(code, stdin)
+
+        http_status = (
+            status.HTTP_408_REQUEST_TIMEOUT
+            if result.get('timed_out')
+            else status.HTTP_200_OK
+        )
+
+        return Response({
+            'output': result['output'],
+            'error': result['error'],
+            'execution_time': result['execution_time'],
+        }, status=http_status)

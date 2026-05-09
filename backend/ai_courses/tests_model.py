@@ -53,6 +53,24 @@ class ProblemModelTest(TestCase):
         ids = list(Problem.objects.values_list('problem_id', flat=True))
         self.assertEqual(ids, ['a_problem', 'm_problem', 'z_problem'])
 
+    def test_default_template_code_empty(self):
+        """默认 template_code 为空字符串"""
+        p = Problem.objects.create(problem_id='test_template_default')
+        self.assertEqual(p.template_code, '')
+
+    def test_template_code_set_explicitly(self):
+        """可以显式设置 template_code"""
+        code = 'def solve():\n    # write your code here\n    pass\n'
+        p = Problem.objects.create(problem_id='test_template_set', template_code=code)
+        self.assertEqual(p.template_code, code)
+
+    def test_template_code_persisted(self):
+        """template_code 持久化到数据库"""
+        code = 'print("hello world")'
+        p = Problem.objects.create(problem_id='test_template_persist', template_code=code)
+        p.refresh_from_db()
+        self.assertEqual(p.template_code, code)
+
 
 class ProblemGetTestCasesTest(TestCase):
     """Problem.get_test_cases() 和 get_test_count() — 读文件系统"""
@@ -205,6 +223,60 @@ class ProblemSyncFromDiskTest(TestCase):
                 created, updated = Problem.sync_from_disk()
             self.assertEqual(created, [])
 
+    # ── template_code sync tests ──────────────────────────────────────────────
+
+    def test_sync_with_template_py(self):
+        """有 template.py 的题目 → sync 后 template_code 非空"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'ai', 'problem_with_template')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'description.txt'), 'w', encoding='utf-8') as f:
+                f.write('带模板的题目')
+            with open(os.path.join(prob_dir, 'template.py'), 'w', encoding='utf-8') as f:
+                f.write('def solve():\n    # TODO: implement\n    pass\n')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertIn('problem_with_template', created)
+            p = Problem.objects.get(problem_id='problem_with_template')
+            self.assertEqual(p.template_code, 'def solve():\n    # TODO: implement\n    pass\n')
+
+    def test_sync_without_template_py(self):
+        """无 template.py 的题目 → template_code 为空字符串（向后兼容）"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'ai', 'problem_no_template')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'description.txt'), 'w', encoding='utf-8') as f:
+                f.write('没有模板的题目')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertIn('problem_no_template', created)
+            p = Problem.objects.get(problem_id='problem_no_template')
+            self.assertEqual(p.template_code, '')
+
+    def test_sync_updates_template_code_on_resync(self):
+        """重新 sync 时更新 template_code"""
+        Problem.objects.create(problem_id='problem_re_sync', title='旧标题', course='ai',
+                               template_code='OLD CODE')
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'ai', 'problem_re_sync')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'template.py'), 'w', encoding='utf-8') as f:
+                f.write('NEW CODE')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertIn('problem_re_sync', updated)
+            p = Problem.objects.get(problem_id='problem_re_sync')
+            self.assertEqual(p.template_code, 'NEW CODE')
+
 
 class SubmissionModelTest(TestCase):
     """Submission 模型"""
@@ -291,3 +363,45 @@ class SubmissionCreateSerializerTest(TestCase):
         s = SubmissionCreateSerializer(data={'problem_id': 'p1'})
         self.assertFalse(s.is_valid())
         self.assertIn('code', s.errors)
+
+
+# ─── ProblemDetailSerializer template_code Tests ─────────────────────────────
+
+class ProblemDetailSerializerTest(TestCase):
+    """ProblemDetailSerializer — template_code 序列化"""
+
+    def setUp(self):
+        self.prob = Problem.objects.create(
+            problem_id='serializer_test', title='序列化测试', difficulty='easy',
+            description='题目描述内容', course='ai',
+            template_code='def solve():\n    pass\n'
+        )
+
+    def test_serializer_includes_template_code(self):
+        """序列化输出包含 template_code 字段"""
+        from ai_courses.serializers import ProblemDetailSerializer
+        with patch.object(Problem, 'get_test_cases', return_value=[]):
+            serializer = ProblemDetailSerializer(self.prob)
+            data = serializer.data
+            self.assertIn('template_code', data)
+            self.assertEqual(data['template_code'], 'def solve():\n    pass\n')
+
+    def test_serializer_template_code_empty(self):
+        """template_code 为空时序列化为空字符串"""
+        prob = Problem.objects.create(
+            problem_id='empty_template', title='空模板', course='ai',
+            template_code=''
+        )
+        from ai_courses.serializers import ProblemDetailSerializer
+        with patch.object(Problem, 'get_test_cases', return_value=[]):
+            serializer = ProblemDetailSerializer(prob)
+            data = serializer.data
+            self.assertIn('template_code', data)
+            self.assertEqual(data['template_code'], '')
+
+    def test_serializer_includes_all_expected_fields(self):
+        """ProblemDetailSerializer 包含完整字段列表"""
+        from ai_courses.serializers import ProblemDetailSerializer
+        expected_fields = {'problem_id', 'title', 'description', 'difficulty',
+                           'template_code', 'test_cases', 'created_at'}
+        self.assertEqual(set(ProblemDetailSerializer.Meta.fields), expected_fields)

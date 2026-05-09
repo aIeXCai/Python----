@@ -18,6 +18,7 @@ class Problem(models.Model):
     description = models.TextField('题目描述', blank=True)
     difficulty = models.CharField('难度', max_length=20, blank=True)
     course = models.CharField('所属课程', max_length=10, choices=[('ai', '人工智能课'), ('info', '信息科技课')], default='ai')
+    template_code = models.TextField('模板代码', blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -98,6 +99,16 @@ class Problem(models.Model):
 
         return test_cases
 
+    def get_template_code(self):
+        """从磁盘读取 template.py 内容，不存在则返回空字符串"""
+        template_path = self.get_problem_dir() / 'template.py'
+        if not template_path.exists():
+            return ''
+        try:
+            return template_path.read_text(encoding='utf-8')
+        except UnicodeDecodeError:
+            return template_path.read_text(encoding='gbk')
+
     def get_test_count(self):
         """返回测试点数量"""
         return len(self.get_test_cases())
@@ -158,6 +169,20 @@ class Problem(models.Model):
                     except Exception:
                         pass
 
+                # Read template.py if exists
+                template_code = ''
+                template_path = os.path.join(item_path, 'template.py')
+                if os.path.exists(template_path):
+                    try:
+                        with open(template_path, 'r', encoding='utf-8') as f:
+                            template_code = f.read()
+                    except UnicodeDecodeError:
+                        try:
+                            with open(template_path, 'r', encoding='gbk') as f:
+                                template_code = f.read()
+                        except Exception:
+                            pass
+
                 obj, created = cls.objects.update_or_create(
                     problem_id=item,
                     defaults={
@@ -165,6 +190,7 @@ class Problem(models.Model):
                         'description': description,
                         'course': course,
                         'difficulty': difficulty,
+                        'template_code': template_code,
                     }
                 )
                 if created:

@@ -142,6 +142,32 @@ class ProblemDetailViewTest(APITestCase):
         )
         self.assertEqual(resp.status_code, 404)  # detail_test 是 ai 课
 
+    @patch.object(Problem, 'get_test_cases')
+    def test_detail_includes_template_code(self, mock_get_cases):
+        """GET 题目详情返回 template_code 字段"""
+        mock_get_cases.return_value = []
+        self.prob.template_code = 'def solve():\n    pass\n'
+        self.prob.save()
+        resp = self.client.get(
+            '/api/ai/problems/detail_test/',
+            HTTP_AUTHORIZATION=f'Token {self.token}'
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('template_code', resp.data)
+        self.assertEqual(resp.data['template_code'], 'def solve():\n    pass\n')
+
+    @patch.object(Problem, 'get_test_cases')
+    def test_detail_template_code_empty(self, mock_get_cases):
+        """无模板题目 template_code 为空字符串"""
+        mock_get_cases.return_value = []
+        resp = self.client.get(
+            '/api/ai/problems/detail_test/',
+            HTTP_AUTHORIZATION=f'Token {self.token}'
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('template_code', resp.data)
+        self.assertEqual(resp.data['template_code'], '')
+
 
 # ─── 学生端：提交代码 ─────────────────────────────────────────────────────
 
@@ -257,6 +283,83 @@ class SubmissionViewTest(APITestCase):
         }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
         self.assertEqual(resp.status_code, 500)
         self.assertIn('批改系统错误', resp.data['detail'])
+
+    # FormData file upload tests ───────────────────────────────────────
+
+    @patch('ai_courses.views.grade_submission')
+    def test_submit_formdata_file_success(self, mock_grade):
+        """FormData with .py file upload should grade successfully"""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        mock_grade.return_value = (True, '全部通过', 100.0)
+        py_file = SimpleUploadedFile(
+            "test.py",
+            b"print('hello world')",
+            content_type="text/x-python"
+        )
+        resp = self.client.post('/api/ai/submissions/', {
+            'problem_id': 'submit_test',
+            'file': py_file,
+        }, format='multipart', HTTP_AUTHORIZATION=f'Token {self.token}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['score'], 100.0)
+        self.assertEqual(resp.data['status'], 'accepted')
+        # Verify code was extracted from file and saved
+        self.assertEqual(Submission.objects.count(), 1)
+        self.assertEqual(Submission.objects.first().code, "print('hello world')")
+
+    @patch('ai_courses.views.grade_submission')
+    def test_submit_formdata_file_partial_score(self, mock_grade):
+        """FormData file upload with partial score should work"""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        mock_grade.return_value = (True, '部分通过', 50.0)
+        py_file = SimpleUploadedFile(
+            "solution.py",
+            b"def solve():\n    return 1",
+            content_type="text/x-python"
+        )
+        resp = self.client.post('/api/ai/submissions/', {
+            'problem_id': 'submit_test',
+            'file': py_file,
+        }, format='multipart', HTTP_AUTHORIZATION=f'Token {self.token}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['score'], 50.0)
+        self.assertEqual(resp.data['status'], 'wrong_answer')
+
+    def test_submit_formdata_file_empty_content(self):
+        """FormData with empty .py file should return 400"""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        py_file = SimpleUploadedFile(
+            "empty.py",
+            b"   ",
+            content_type="text/x-python"
+        )
+        resp = self.client.post('/api/ai/submissions/', {
+            'problem_id': 'submit_test',
+            'file': py_file,
+        }, format='multipart', HTTP_AUTHORIZATION=f'Token {self.token}')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_submit_formdata_file_no_problem_id(self):
+        """FormData file upload without problem_id should return 400"""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        py_file = SimpleUploadedFile(
+            "test.py",
+            b"print(1)",
+            content_type="text/x-python"
+        )
+        resp = self.client.post('/api/ai/submissions/', {
+            'file': py_file,
+        }, format='multipart', HTTP_AUTHORIZATION=f'Token {self.token}')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_submit_formdata_without_file_falls_back_to_json(self):
+        """FormData POST without 'file' field should use JSON body (backward compatible)"""
+        resp = self.client.post('/api/ai/submissions/', {
+            'problem_id': 'nonexistent_problem',
+            'code': 'print("test")',
+        }, format='multipart', HTTP_AUTHORIZATION=f'Token {self.token}')
+        # Falls to request.data path, problem doesn't exist → 404
+        self.assertEqual(resp.status_code, 404)
 
 
 # ─── 学生端：提交历史 ─────────────────────────────────────────────────────
@@ -433,7 +536,7 @@ class StudentStatsViewTest(APITestCase):
         self.assertEqual(resp.data['average_score'], 75.0)
 
     def test_stats_rank(self):
-        """排名（目前固定返回1）"""
+        """排名：同班级学生按平均最佳成绩排序"""
         resp = self.client.get('/api/ai/stats/', HTTP_AUTHORIZATION=f'Token {self.token}')
         self.assertEqual(resp.data['rank'], 1)
 

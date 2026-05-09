@@ -21,13 +21,17 @@ class TestCaseSerializer(serializers.Serializer):
 class ProblemDetailSerializer(serializers.ModelSerializer):
     """题目详情序列化器（含测试点）"""
     test_cases = serializers.SerializerMethodField()
+    template_code = serializers.SerializerMethodField()
 
     class Meta:
         model = Problem
-        fields = ['problem_id', 'title', 'description', 'difficulty', 'test_cases', 'created_at']
+        fields = ['problem_id', 'title', 'description', 'difficulty', 'template_code', 'test_cases', 'created_at']
 
     def get_test_cases(self, obj):
         return obj.get_test_cases()
+
+    def get_template_code(self, obj):
+        return obj.get_template_code()
 
 
 class SubmissionCreateSerializer(serializers.Serializer):

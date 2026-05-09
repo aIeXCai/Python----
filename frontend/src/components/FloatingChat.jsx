@@ -116,7 +116,7 @@ export default function FloatingChat() {
         title="AI 学习助手"
         aria-label="打开 AI 对话"
       >
-        <MessageCircle size={24} />
+        <MessageCircle size={28} />
       </button>
 
       {/* 聊天面板 */}

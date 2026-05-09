@@ -1,14 +1,14 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { BookOpen, Send, ArrowLeft, Loader, CheckCircle, XCircle, Clock, Upload } from 'lucide-react'
+import { BookOpen, Send, ArrowLeft, Loader, CheckCircle, XCircle, Clock, Play, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react'
+import Editor from '@monaco-editor/react'
 import Navbar from '../../../components/Navbar.jsx'
-import { getProblemDetail, getSubmissionHistory, getToken } from '../../../api/index.js'
+import { getProblemDetail, getSubmissionHistory, runCode, submitCode } from '../../../api/index.js'
 import { useChat } from '../../../contexts/ChatContext.jsx'
 
 export default function ProblemDetail() {
   const { problemId } = useParams()
   const navigate = useNavigate()
-  const fileInputRef = useRef(null)
   const chat = useChat()
 
   const [problem, setProblem] = useState(null)
@@ -19,7 +19,12 @@ export default function ProblemDetail() {
   const [username, setUsername] = useState('')
   const [grade, setGrade] = useState('')
   const [classNum, setClassNum] = useState('')
-  const [selectedFile, setSelectedFile] = useState(null)
+  const [code, setCode] = useState('')
+  const [runOutput, setRunOutput] = useState(null)
+  const [stdinDialogOpen, setStdinDialogOpen] = useState(false)
+  const [stdinValue, setStdinValue] = useState('')
+  const [running, setRunning] = useState(false)
+  const [testCasesOpen, setTestCasesOpen] = useState(true)
 
   useEffect(() => {
     const raw = localStorage.getItem('user')
@@ -33,7 +38,7 @@ export default function ProblemDetail() {
     loadData()
   }, [problemId])
 
-  // 注册 AI 题目上下文 → 聊天助手
+  // Register AI problem context for chat assistant
   useEffect(() => {
     if (problem) {
       chat.setContext({
@@ -55,6 +60,7 @@ export default function ProblemDetail() {
       ])
       setProblem(pd)
       setHistory(hist.filter((h) => h.problem_id === problemId))
+      setCode(pd.template_code || '')
     } catch (err) {
       console.error(err)
     } finally {
@@ -62,28 +68,66 @@ export default function ProblemDetail() {
     }
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!selectedFile) return
-    await submitByFile()
+  const handleRun = async () => {
+    if (!code.trim()) return
+    setRunning(true)
+    setRunOutput(null)
+
+    if (code.includes('input(')) {
+      setStdinDialogOpen(true)
+      setRunning(false)
+      return
+    }
+
+    await executeRun(code, '')
   }
 
-  const submitByFile = async () => {
-    if (!selectedFile) return
+  const executeRun = async (sourceCode, stdin) => {
+    setRunning(true)
+    setRunOutput(null)
+    try {
+      const data = await runCode(sourceCode, stdin)
+      setRunOutput({
+        output: data.output || '',
+        error: data.error || '',
+      })
+    } catch (err) {
+      setRunOutput({
+        output: '',
+        error: err.message,
+      })
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  const handleStdinSubmit = () => {
+    setStdinDialogOpen(false)
+    executeRun(code, stdinValue)
+    setStdinValue('')
+  }
+
+  const handleStdinCancel = () => {
+    setStdinDialogOpen(false)
+    setStdinValue('')
+  }
+
+  const handleReset = () => {
+    if (problem?.template_code) {
+      setCode(problem.template_code)
+    } else {
+      setCode('')
+    }
+    setRunOutput(null)
+    setResult(null)
+  }
+
+  const handleSubmitCode = async () => {
+    if (!code.trim()) return
     setSubmitting(true)
     setResult(null)
     try {
-      const formData = new FormData()
-      formData.append('problem_id', problemId)
-      formData.append('code', selectedFile)
-
-      const token = getToken()
-      const res = await fetch('http://localhost:8080/api/ai/submit_code/', {
-        method: 'POST',
-        headers: { 'Authorization': `Token ${token}` },
-        body: formData,
-      })
-      const data = await res.json()
+      const data = await submitCode({ problem_id: problemId, code })
       const normalized = {
         success: data.passed !== undefined ? data.passed : data.success,
         score: data.score ?? (data.passed ? 100 : 0),
@@ -96,15 +140,6 @@ export default function ProblemDetail() {
       setResult({ success: false, detail: err.message })
     } finally {
       setSubmitting(false)
-    }
-  }
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0]
-    if (file && file.name.endsWith('.py')) {
-      setSelectedFile(file)
-    } else {
-      alert('请上传 .py 格式的 Python 档案')
     }
   }
 
@@ -144,7 +179,7 @@ export default function ProblemDetail() {
       <Navbar username={username} grade={grade} class_num={classNum} />
 
       <main className="main-content problem-layout">
-        {/* 左侧题目列表 */}
+        {/* Left sidebar: problem list */}
         <aside className="problems-sidebar">
           <div className="sidebar-header">
             <h2><BookOpen size={20} /> 题目列表</h2>
@@ -162,9 +197,9 @@ export default function ProblemDetail() {
           </div>
         </aside>
 
-        {/* 右侧答题区 */}
+        {/* Right: answer area */}
         <div className="answer-area">
-          {/* 题目信息 */}
+          {/* Problem info */}
           <div className="problem-header">
             <h1 className="problem-title">
               <BookOpen size={28} />
@@ -178,39 +213,48 @@ export default function ProblemDetail() {
             </div>
           </div>
 
-          {/* 题目描述 - 可滚动查看完整内容 */}
+          {/* Problem description */}
           <div className="content-section">
             <h3><BookOpen size={18} /> 题目描述</h3>
             <pre className="problem-description">{problem.description}</pre>
           </div>
 
-          {/* 测试点 - 默认全部展开 */}
+          {/* Test cases */}
           {problem.test_cases && problem.test_cases.length > 0 && (
             <div className="content-section">
-              <h3>🧪 测试点</h3>
-              <div className="test-cases">
-                {problem.test_cases.map((tc, i) => (
-                  <div key={i} className="test-case-card">
-                    <div className="test-case-header">
-                      <span>测试点 {i + 1}</span>
-                    </div>
-                    <div className="test-case-body">
-                      <div className="io-item">
-                        <div className="io-label">输入</div>
-                        <pre className="io-content">{tc.input || '(无输入)'}</pre>
+              <h3
+                className="test-cases-toggle"
+                onClick={() => setTestCasesOpen(!testCasesOpen)}
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+              >
+                {testCasesOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                🧪 测试点 ({problem.test_cases.length})
+              </h3>
+              {testCasesOpen && (
+                <div className="test-cases">
+                  {problem.test_cases.map((tc, i) => (
+                    <div key={i} className="test-case-card">
+                      <div className="test-case-header">
+                        <span>测试点 {i + 1}</span>
                       </div>
-                      <div className="io-item">
-                        <div className="io-label">输出</div>
-                        <pre className="io-content">{tc.output}</pre>
+                      <div className="test-case-body">
+                        <div className="io-item">
+                          <div className="io-label">输入</div>
+                          <pre className="io-content">{tc.input || '(无输入)'}</pre>
+                        </div>
+                        <div className="io-item">
+                          <div className="io-label">输出</div>
+                          <pre className="io-content">{tc.output}</pre>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {/* 提交结果 */}
+          {/* Submission result */}
           {result && (
             <div className={`result-card ${result.success ? 'result-success' : 'result-error'}`}>
               <h3>{result.success ? '✅ 批改完成' : '❌ 提交失败'}</h3>
@@ -223,47 +267,73 @@ export default function ProblemDetail() {
             </div>
           )}
 
-          {/* 提交区域 - 仅 .py 文件上传 */}
-          <div className="submit-section">
-            <div className="submit-header">
-              <h3><Upload size={20} /> 上传 Python 档案</h3>
-              <p>请上传你的 Python 程式码档案 (.py)，系统将自动批改</p>
-            </div>
-            <form onSubmit={handleSubmit}>
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept=".py"
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
+          {/* Monaco Editor */}
+          <div className="content-section">
+            <h3>💻 代码编辑器</h3>
+            <div className="ide-editor-wrapper">
+              <Editor
+                height="400px"
+                language="python"
+                theme="vs-dark"
+                value={code}
+                onChange={(value) => setCode(value || '')}
+                loading={<div className="ide-loading"><Loader size={24} className="spin" /><span>编辑器加载中...</span></div>}
+                options={{
+                  fontSize: 14,
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  lineNumbers: 'on',
+                  tabSize: 4,
+                  automaticLayout: true,
+                }}
               />
-              <div className="file-upload-area">
-                <button
-                  type="button"
-                  className="file-upload-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload size={18} />
-                  {selectedFile ? selectedFile.name : '选择 .py 档案'}
-                </button>
-                {selectedFile && (
-                  <span className="file-selected-name">✓ {selectedFile.name}</span>
-                )}
-              </div>
-              <button
-                type="submit"
-                className={`submit-btn ${submitting ? 'loading' : ''}`}
-                disabled={submitting || !selectedFile}
-              >
-                {submitting
-                  ? <><Loader size={18} className="spin" /> 批改中...</>
-                  : <><Send size={18} /> 提交档案</>
-                }
-              </button>
-            </form>
+            </div>
           </div>
 
-          {/* 提交历史 */}
+          {/* Run output */}
+          {runOutput && (
+            <div className="content-section">
+              <h3>📤 运行输出</h3>
+              <div className="run-output-area">
+                {runOutput.output && (
+                  <pre className="run-output-stdout">{runOutput.output}</pre>
+                )}
+                {runOutput.error && (
+                  <pre className="run-output-stderr">{runOutput.error}</pre>
+                )}
+                {!runOutput.output && !runOutput.error && (
+                  <p className="run-output-empty">（无输出）</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="ide-actions">
+            <button
+              className="ide-btn ide-btn-run"
+              onClick={handleRun}
+              disabled={running || !code.trim()}
+            >
+              {running ? <><Loader size={16} className="spin" /> 运行中...</> : <><Play size={16} /> 运行</>}
+            </button>
+            <button
+              className="ide-btn ide-btn-reset"
+              onClick={handleReset}
+              disabled={running || submitting}
+            >
+              <RotateCcw size={16} /> 重做
+            </button>
+            <button
+              className="ide-btn ide-btn-submit"
+              onClick={handleSubmitCode}
+              disabled={submitting || running || !code.trim()}
+            >
+              {submitting ? <><Loader size={16} className="spin" /> 提交中...</> : <><Send size={16} /> 保存并提交</>}
+            </button>
+          </div>
+
+          {/* Submission history */}
           {history.length > 0 && (
             <div className="submission-history">
               <div className="history-header">
@@ -287,6 +357,28 @@ export default function ProblemDetail() {
           )}
         </div>
       </main>
+
+      {/* stdin dialog */}
+      {stdinDialogOpen && (
+        <div className="ide-overlay" onClick={handleStdinCancel}>
+          <div className="ide-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>📥 输入</h3>
+            <p>您的代码使用了 input()，请输入程序需要的值：</p>
+            <textarea
+              className="ide-dialog-input"
+              value={stdinValue}
+              onChange={(e) => setStdinValue(e.target.value)}
+              placeholder="在此输入..."
+              rows={4}
+              autoFocus
+            />
+            <div className="ide-dialog-actions">
+              <button className="ide-btn ide-btn-reset" onClick={handleStdinCancel}>取消</button>
+              <button className="ide-btn ide-btn-run" onClick={handleStdinSubmit}>运行</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
