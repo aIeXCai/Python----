@@ -31,12 +31,12 @@ const defaultProps = {
   handleDrop: vi.fn(),
   doImport: vi.fn(),
   importMsg: { type: '', text: '' },
-  API: 'http://localhost:8080/api',
+  API: '/api',
   token: 'mock-token',
 }
 
 // 内联 ImportModal（简化版，复制自 Tab1Questions.jsx）
-function ImportModal({ importModal, setImportModal, importFileName, importing, handleFileSelect, handleDrop, doImport, importMsg }) {
+function ImportModal({ importModal, setImportModal, importFileName, importing, handleFileSelect, doImport, importMsg }) {
   const selectedBigUnit = mockUnits.find(b => b.sections?.some(s => s.name === importModal.unit))
 
   return (
@@ -148,7 +148,6 @@ describe('ImportModal', () => {
   })
 
   it('选择单元后显示提示信息', async () => {
-    const user = userEvent.setup()
     render(<ImportModal {...defaultProps} importModal={{ ...defaultProps.importModal, unit: '第一节' }} />)
     expect(screen.getByTestId('selected-unit-hint')).toBeInTheDocument()
     expect(screen.getByTestId('selected-unit-hint').textContent).toContain('第一章')

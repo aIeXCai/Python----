@@ -4,9 +4,6 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// We import the module under test dynamically after setting up mocks
-let runCode, request, getToken
-
 beforeEach(() => {
   // Reset localStorage mock
   vi.stubGlobal('localStorage', {
@@ -42,9 +39,12 @@ describe('runCode (src/api/index.js)', () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1)
     const [url, options] = mockFetch.mock.calls[0]
-    expect(url).toBe('http://localhost:8080/api/ai/run_code/')
+    expect(url).toBe('/api/ai/run_code/')
     expect(options.method).toBe('POST')
     expect(options.headers['Content-Type']).toBe('application/json')
+    expect(options.headers['Idempotency-Key']).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    )
     const body = JSON.parse(options.body)
     expect(body.code).toBe('print("hello")')
     expect(body.stdin).toBe('')
@@ -143,5 +143,102 @@ describe('runCode (src/api/index.js)', () => {
 
     expect(result.error).toBe("NameError: name 'x' is not defined")
     expect(result.output).toBe('')
+  })
+})
+
+describe('execution task API', () => {
+  it('returns null for the active-task 204 response', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 204 })
+    vi.stubGlobal('fetch', mockFetch)
+    const mod = await import('./index.js?t=' + Math.random())
+
+    const result = await mod.getActiveExecutionTask({ taskType: 'grade', problemId: 'p 1' })
+
+    expect(result).toBeNull()
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/ai/executions/active/?task_type=grade&problem_id=p+1')
+  })
+
+  it('polls queued tasks until a final result and reports updates', async () => {
+    const responses = [
+      { task_id: 'task-1', status: 'running', poll_after_ms: 0 },
+      { task_id: 'task-1', status: 'succeeded', output: 'ok\n' },
+    ]
+    const mockFetch = vi.fn().mockImplementation(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => responses.shift(),
+    }))
+    vi.stubGlobal('fetch', mockFetch)
+    const mod = await import('./index.js?t=' + Math.random())
+    const onUpdate = vi.fn()
+
+    const result = await mod.pollExecutionTask('task-1', {
+      initialDelay: 0, maxDelay: 0, maxAttempts: 3, onUpdate,
+    })
+
+    expect(result.status).toBe('succeeded')
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(onUpdate).toHaveBeenCalledTimes(2)
+  })
+
+  it('passes AbortSignal to task detail requests', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ task_id: 'task-2', status: 'queued' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+    const mod = await import('./index.js?t=' + Math.random())
+    const controller = new AbortController()
+
+    await mod.getExecutionTask('task-2', { signal: controller.signal })
+
+    expect(mockFetch.mock.calls[0][1].signal).toBe(controller.signal)
+  })
+})
+
+describe('account security API', () => {
+  it('logout calls backend before clearing local credentials', async () => {
+    localStorage.setItem('token', 'logout-token')
+    localStorage.setItem('user', '{"role":"teacher"}')
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ message: '已登出' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+    const mod = await import('./index.js?t=' + Math.random())
+    await mod.logout()
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/auth/logout/')
+    expect(mockFetch.mock.calls[0][1].method).toBe('POST')
+    expect(mockFetch.mock.calls[0][1].headers.Authorization).toBe('Token logout-token')
+    expect(localStorage.getItem('token')).toBeNull()
+    expect(localStorage.getItem('user')).toBeNull()
+  })
+
+  it('logout clears local credentials even when network fails', async () => {
+    localStorage.setItem('token', 'logout-token')
+    localStorage.setItem('user', '{"role":"teacher"}')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
+    const mod = await import('./index.js?t=' + Math.random())
+    await expect(mod.logout()).rejects.toThrow('network down')
+    expect(localStorage.getItem('token')).toBeNull()
+    expect(localStorage.getItem('user')).toBeNull()
+  })
+
+  it('password APIs use dedicated POST endpoints and expected bodies', async () => {
+    localStorage.setItem('token', 'teacher-token')
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ message: 'ok' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+    const mod = await import('./index.js?t=' + Math.random())
+    await mod.revealStudentPassword(7)
+    await mod.resetStudentPassword(7, 'NewPassword42')
+    await mod.generateStudentTemporaryPassword(7)
+
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/auth/students/7/password/reveal/')
+    expect(mockFetch.mock.calls[0][1].method).toBe('POST')
+    expect(JSON.parse(mockFetch.mock.calls[1][1].body)).toEqual({
+      mode: 'manual', password: 'NewPassword42',
+    })
+    expect(JSON.parse(mockFetch.mock.calls[2][1].body)).toEqual({ mode: 'generated' })
   })
 })

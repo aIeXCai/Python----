@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import * as apiIndex from '../../api/index.js'
@@ -8,10 +8,11 @@ import StudentDashboard from './StudentDashboard.jsx'
 import AuthContext from '../../contexts/AuthContext.jsx'
 
 const navigateFn = vi.hoisted(() => vi.fn())
+const searchParamsState = vi.hoisted(() => ({ course: null }))
 const logoutFn = vi.fn()
 
 vi.mock('../../components/Navbar.jsx', () => ({
-  default: ({ username, grade, class_num }) => (
+  default: ({ username }) => (
     <div data-testid="navbar">
       <div data-testid="navbar-user">{username}</div>
       <button data-testid="logout-btn" onClick={() => { logoutFn(); navigateFn('/login') }}>登出</button>
@@ -26,7 +27,7 @@ vi.mock('../../contexts/ChatContext.jsx', () => ({
 
 vi.mock('react-router-dom', () => {
   const Link = ({ to, children }) => <a href={to}>{children}</a>
-  const fakeSearchParams = { get: () => null, [Symbol.iterator]: function* () {} }
+  const fakeSearchParams = { get: (key) => key === 'course' ? searchParamsState.course : null, [Symbol.iterator]: function* () {} }
   return {
     useNavigate: () => navigateFn,
     useSearchParams: () => [fakeSearchParams, vi.fn()],
@@ -38,6 +39,7 @@ vi.mock('react-router-dom', () => {
 describe('StudentDashboard.jsx', () => {
   beforeEach(() => {
     navigateFn.mockReset()
+    searchParamsState.course = null
     logoutFn.mockReset().mockImplementation(() => localStorage.removeItem('user'))
     localStorage.clear()
     localStorage.setItem('user', JSON.stringify({ display_name: '张三', grade: '七年级', class_num: '1' }))
@@ -101,5 +103,26 @@ describe('StudentDashboard.jsx', () => {
     await user.click(screen.getByRole('button', { name: /登出/ }))
     expect(localStorage.getItem('user')).toBeNull()
     expect(navigateFn).toHaveBeenCalledWith('/login')
+  })
+
+  it('shows latest score and both result/retry actions for a completed open quiz', async () => {
+    searchParamsState.course = 'info'
+    apiInfo.getInfoQuizzes.mockResolvedValue([{
+      id: 7,
+      title: '循环小测',
+      num_questions: 5,
+      time_limit: 20,
+      action: 'restart',
+      score: 80,
+      best_score: 80,
+      submitted: true,
+      unit_names: ['循环结构'],
+    }])
+
+    renderDashboard()
+
+    expect(await screen.findByText('80分')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '查看成绩' })).toHaveAttribute('href', '/student/quiz-result/7')
+    expect(screen.getByRole('link', { name: '再做一次' })).toHaveAttribute('href', '/student/quiz/7')
   })
 })

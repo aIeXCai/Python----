@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, ClipboardList, BarChart2, ListChecks, X, Home } from 'lucide-react'
+import { API_BASE_URL } from '../../api/config.js'
 
 import Tab0Units from './tabs/Tab0Units'
 import Tab1Questions from './tabs/Tab1Questions'
 import Tab2Sessions from './tabs/Tab2Sessions'
 import Tab3Stats from './tabs/Tab3Stats'
 
-const API = 'http://localhost:8080/api'
+const API = API_BASE_URL
 const DIFFICULTY_COLORS = { easy: '#38ef7d', medium: '#f59e0b', hard: '#ef4444' }
 
 // ── 工具函数 ────────────────────────────────────────────────────────────────
@@ -34,25 +35,34 @@ const TABS = [
 export default function InfoAdmin() {
   const navigate = useNavigate()
   const token = localStorage.getItem('token')
-  const headers = { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` }
+  const headers = useMemo(() => ({
+    'Content-Type': 'application/json', 'Authorization': `Token ${token}`,
+  }), [token])
+  const currentUser = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('user') || '{}') }
+    catch { return {} }
+  }, [])
+  const initialGrade = currentUser.managed_grade || '七年级'
+  const scopeMissing = currentUser.role === 'teacher'
+    && !currentUser.is_superuser && !currentUser.managed_grade
 
   // Tab 状态
   const [tab, setTab] = useState('units')
 
   // ── Tab0: 单元 ────────────────────────────────────────────────────────────
   const [bigUnits, setBigUnits] = useState([])
-  const [unitGradeFilter, setUnitGradeFilter] = useState('七年级')
+  const [unitGradeFilter, setUnitGradeFilter] = useState(initialGrade)
   const [expandedUnits, setExpandedUnits] = useState(new Set())
   const [newBigUnitOpen, setNewBigUnitOpen] = useState(false)
   const [sectionModal, setSectionModal] = useState({ open: false, bigUnit: null })
   const [editUnit, setEditUnit] = useState(null)
-  const [unitForm, setUnitForm] = useState({ name: '', display_name: '', grade: '七年级' })
+  const [unitForm, setUnitForm] = useState({ name: '', display_name: '', grade: initialGrade })
   const [unitMsg, setUnitMsg] = useState({ type: '', text: '' })
 
   // ── Tab1: 题库 ────────────────────────────────────────────────────────────
   const [questions, setQuestions] = useState([])
   const [qLoading, setQLoading] = useState(false)
-  const [qGradeFilter, setQGradeFilter] = useState('七年级')
+  const [qGradeFilter, setQGradeFilter] = useState(initialGrade)
   const [qBigUnits, setQBigUnits] = useState([])
   const [qBigUnitFilter, setQBigUnitFilter] = useState('')
   const [qAllUnits, setQAllUnits] = useState([])
@@ -62,7 +72,7 @@ export default function InfoAdmin() {
   const [qForm, setQForm] = useState({ unit: '', difficulty: 'easy', text: '', option_a: '', option_b: '', option_c: '', option_d: '', answer: 'A', category: '', explanation: '' })
   const [qMsg, setQMsg] = useState({ type: '', text: '' })
   const [qSaving, setQSaving] = useState(false)
-  const [importModal, setImportModal] = useState({ open: false, unit: '', grade: '七年级', file: null })
+  const [importModal, setImportModal] = useState({ open: false, unit: '', grade: initialGrade, file: null })
   const [importFileName, setImportFileName] = useState('')
   const [importPreview, setImportPreview] = useState(null)
   const [importing, setImporting] = useState(false)
@@ -72,14 +82,17 @@ export default function InfoAdmin() {
   const [sessions, setSessions] = useState([])
   const [sLoading, setSLoading] = useState(false)
   const [sModal, setSModal] = useState({ open: false, mode: 'create', data: null })
-  const [sForm, setSForm] = useState({ name: '', grade: '七年级', unit: '', duration: 30, question_count: 10 })
+  const [sForm, setSForm] = useState({
+    name: '', grade: initialGrade, units: [], duration: 30,
+    question_count: 10, difficulty_ratio: { easy: 10 }, visible_classes: [],
+  })
   const [sMsg, setSMsg] = useState({ type: '', text: '' })
   const [sSaving, setSSaving] = useState(false)
 
   // ── Tab3: 成绩 ────────────────────────────────────────────────────────────
   const [statsData, setStatsData] = useState(null)
   const [statsLoading, setStatsLoading] = useState(false)
-  const [statsFilter, setStatsFilter] = useState({ grade: '七年级', class_num: '' })
+  const [statsFilter, setStatsFilter] = useState({ grade: initialGrade, class_num: '' })
   const [selectedQuiz, setSelectedQuiz] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(false)
 
@@ -318,7 +331,6 @@ export default function InfoAdmin() {
     try {
       const text = await importModal.file.text()
       const questions = JSON.parse(text)
-      const big = qBigUnits.find(b => b.sections?.some(s => s.name === importModal.unit))
       const sec = qBigUnits.flatMap(b => b.sections || []).find(s => s.name === importModal.unit)
       const res = await fetch(`${API}/admin/info/questions/import/`, {
         method: 'POST', headers,
@@ -353,17 +365,25 @@ export default function InfoAdmin() {
     } finally { setSLoading(false) }
   }, [unitGradeFilter, headers])
 
-  useEffect(() => { if (tab === 'sessions') loadSessions() }, [tab])
+  useEffect(() => { if (tab === 'sessions') loadSessions() }, [tab, loadSessions])
 
   const openNewSession = () => {
-    setSForm({ name: '', grade: unitGradeFilter, units: [], duration: 30, question_count: 10, difficulty_ratio: { easy: 10 } })
+    setSForm({ name: '', grade: unitGradeFilter, units: [], duration: 30, question_count: 10, difficulty_ratio: { easy: 10 }, visible_classes: [] })
     setSMsg({ type: '', text: '' })
     setSModal({ open: true, mode: 'create', data: null })
   }
 
   const openEditSession = s => {
     // s.units 是后端返回的 [unit_id, ...] 数组，直接用
-    setSForm({ name: s.title, grade: s.grade || s.visible_grades?.[0] || '七年级', units: s.units || [], duration: s.time_limit || 30, question_count: s.num_questions || 10, difficulty_ratio: s.difficulty_ratio || { easy: 10 } })
+    setSForm({
+      name: s.title,
+      grade: s.grade || s.visible_grades?.[0] || '七年级',
+      units: s.units || [],
+      duration: s.time_limit || 30,
+      question_count: s.num_questions || 10,
+      difficulty_ratio: s.difficulty_ratio || { easy: 10 },
+      visible_classes: s.visible_classes || [],
+    })
     setSMsg({ type: '', text: '' })
     setSModal({ open: true, mode: 'edit', data: s })
   }
@@ -381,6 +401,7 @@ export default function InfoAdmin() {
         time_limit:       sForm.duration,
         is_visible:       false,
         visible_grades:   sForm.grade ? [sForm.grade] : [],
+        visible_classes:  sForm.visible_classes || [],
       }
       const url = sModal.mode === 'edit'
         ? `${API}/admin/info/sessions/${sModal.data.id}/`
@@ -395,24 +416,36 @@ export default function InfoAdmin() {
   }
 
   const deleteSession = async s => {
-    if (!confirm(`删除小测"${s.title}"？`)) return
-    await fetch(`${API}/admin/info/sessions/${s.id}/delete/`, { method: 'DELETE', headers })
+    if (!confirm(`删除小测“${s.title}”后，它会从教师端和学生端列表移除；已有作答和成绩会安全保留。确定删除吗？`)) return
+    const res = await fetch(`${API}/admin/info/sessions/${s.id}/delete/`, { method: 'DELETE', headers })
+    const data = await res.json()
+    if (!res.ok) setSMsg({ type: 'error', text: data.error || '删除小测失败' })
     loadSessions()
   }
 
   const handleStartSession = async id => {
-    await fetch(`${API}/admin/info/sessions/${id}/toggle/`, {
+    const target = sessions.find(s => s.id === id)
+    const res = await fetch(`${API}/admin/info/sessions/${id}/status/`, {
       method: 'PATCH', headers,
-      body: JSON.stringify({ is_visible: true, visible_grades: [] })
+      body: JSON.stringify({
+        status: 'open',
+        visible_grades: target?.visible_grades || (target?.grade ? [target.grade] : []),
+        visible_classes: target?.visible_classes || [],
+      })
     })
+    const data = await res.json()
+    if (!res.ok) setSMsg({ type: 'error', text: data.error || '开放小测失败' })
     loadSessions()
   }
 
   const handleEndSession = async id => {
-    await fetch(`${API}/admin/info/sessions/${id}/toggle/`, {
+    if (!confirm('关闭后将立即按已保存答案结算所有进行中的作答，确定关闭吗？')) return
+    const res = await fetch(`${API}/admin/info/sessions/${id}/status/`, {
       method: 'PATCH', headers,
-      body: JSON.stringify({ is_visible: false, visible_grades: [] })
+      body: JSON.stringify({ status: 'closed' })
     })
+    const data = await res.json()
+    if (!res.ok) setSMsg({ type: 'error', text: data.error || '关闭小测失败' })
     loadSessions()
   }
 
@@ -446,7 +479,7 @@ export default function InfoAdmin() {
     finally { setStatsLoading(false) }
   }, [API, headers, statsFilter, selectedQuiz])
 
-  useEffect(() => { if (tab === 'stats') loadStats() }, [tab])
+  useEffect(() => { if (tab === 'stats') loadStats() }, [tab, loadStats])
 
   // ── 渲染 ───────────────────────────────────────────────────────────────────
   return (
@@ -458,7 +491,7 @@ export default function InfoAdmin() {
         padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
         boxShadow: '0 2px 12px rgba(17,153,158,0.3)'
       }}>
-        <button onClick={() => navigate('/teacher')} style={{
+        <button onClick={() => navigate('/teacher/dashboard')} style={{
           padding: '6px 14px', borderRadius: 20, border: '1.5px solid rgba(255,255,255,0.7)',
           background: 'rgba(255,255,255,0.15)', color: 'white',
           cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6,
@@ -487,6 +520,14 @@ export default function InfoAdmin() {
 
       {/* Tab 内容区 */}
       <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+        {scopeMissing && (
+          <div role="alert" style={{
+            padding: 14, marginBottom: 16, borderRadius: 10,
+            color: '#8a4b08', background: '#fff4df', border: '1px solid #f3c477',
+          }}>
+            当前教师账号未设置管理年级，暂时无法查看或修改课程数据。请联系超级管理员配置。
+          </div>
+        )}
         {tab === 'units' && (
           <Tab0Units
             bigUnits={bigUnits} unitGradeFilter={unitGradeFilter} setUnitGradeFilter={setUnitGradeFilter}

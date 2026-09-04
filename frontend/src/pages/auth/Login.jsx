@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GraduationCap, User, Lock, UserPlus, Layers, Users, Hash, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext.jsx'
-import { login, register } from '../../api/index.js'
+import { register } from '../../api/index.js'
+import { GRADES } from '../../constants/grades.js'
 
 export default function Login() {
   const [isRegister, setIsRegister] = useState(false)
@@ -27,7 +28,7 @@ export default function Login() {
   const setL = (key) => (e) => setLoginForm((f) => ({ ...f, [key]: e.target.value }))
   const setR = (key) => (e) => setRegForm((f) => ({ ...f, [key]: e.target.value }))
 
-  const grades = ['七年级', '八年级', '九年级']
+  const grades = GRADES
   const classOptions = Array.from({ length: 20 }, (_, i) => i + 1)
   const studentNumberOptions = Array.from({ length: 50 }, (_, i) => i + 1)
 
@@ -58,7 +59,7 @@ export default function Login() {
       } else if (msg.includes('密码')) {
         setFieldErrors({ password: '密码错误，请重新输入' })
       } else {
-        setGlobalError(msg || '登入失败，请稍后重试')
+        setGlobalError(msg || '登录失败，请稍后重试')
       }
     } finally {
       setLoading(false)
@@ -113,14 +114,14 @@ export default function Login() {
       <div className="main-container">
         <div className="header">
           <h1><GraduationCap size={38} /> Python 学习平台</h1>
-          <p className="subtitle">开启你的程式设计之旅</p>
+          <p className="subtitle">开启你的程序设计之旅</p>
         </div>
 
         {/* ── 登录表单 ── */}
         {!isRegister && (
           <div className="form-card">
             <div className="form-header">
-              <h2><GraduationCap size={22} /> 学生登入</h2>
+              <h2><GraduationCap size={22} /> 学生登录</h2>
               <p>欢迎回到学习平台！请输入你的学习资讯</p>
             </div>
 
@@ -211,7 +212,7 @@ export default function Login() {
               )}
 
               <button type="submit" className={`btn btn-primary ${loading ? 'loading' : ''}`} disabled={loading}>
-                {loading ? '登入中...' : '登入学习'}
+                {loading ? '登录中...' : '登录学习'}
               </button>
             </form>
 
@@ -219,7 +220,7 @@ export default function Login() {
               <p>还没有帐号？<span className="toggle-link" onClick={() => { setIsRegister(true); clearErrors() }}>立即注册</span></p>
             </div>
             <div className="toggle-section" style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 12 }}>
-              <p>老师？<span className="toggle-link" onClick={() => navigate('/teacher-login')}>老师登入</span></p>
+              <p>教师？<span className="toggle-link" onClick={() => navigate('/teacher-login')}>教师登录</span></p>
             </div>
           </div>
         )}
@@ -229,7 +230,7 @@ export default function Login() {
           <div className="form-card">
             <div className="form-header">
               <h2><UserPlus size={22} /> 学生注册</h2>
-              <p>加入我们的学习平台，开始你的程式设计之旅！</p>
+              <p>加入我们的学习平台，开始你的程序设计之旅！</p>
             </div>
 
             <form onSubmit={handleRegister} noValidate>
@@ -295,7 +296,7 @@ export default function Login() {
                   <Lock size={16} />
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="请设定登入密码"
+                    placeholder="请设置登录密码"
                     value={regForm.password}
                     onChange={setR('password')}
                     style={{ paddingRight: 40 }}
@@ -347,7 +348,7 @@ export default function Login() {
             </form>
 
             <div className="toggle-section">
-              <p>已有帐号？<span className="toggle-link" onClick={() => { setIsRegister(false); clearErrors() }}>返回登入</span></p>
+              <p>已有账号？<span className="toggle-link" onClick={() => { setIsRegister(false); clearErrors() }}>返回登录</span></p>
             </div>
           </div>
         )}

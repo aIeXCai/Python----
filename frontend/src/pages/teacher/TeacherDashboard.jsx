@@ -22,9 +22,12 @@ export default function TeacherDashboard() {
     }
   }
 
-  const handleLogout = () => {
-    logout()
-    navigate('/teacher-login')
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } finally {
+      navigate('/teacher-login')
+    }
   }
 
   return (
@@ -38,11 +41,11 @@ export default function TeacherDashboard() {
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <GraduationCap size={28} />
-            <h1 style={{ fontSize: 24, fontWeight: 700 }}>老师管理后台</h1>
+            <h1 style={{ fontSize: 24, fontWeight: 700 }}>教师管理后台</h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
-              老师账号
+              教师账号
             </span>
             <button onClick={handleLogout} style={{
               background: 'rgba(255,255,255,0.15)', color: 'white',

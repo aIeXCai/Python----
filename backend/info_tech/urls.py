@@ -1,18 +1,20 @@
 from django.urls import path
 from .views import (
-    UnitListView, UnitDeleteView, UnitUpdateView,
+    ClassListView, UnitListView, UnitDeleteView, UnitUpdateView,
     QuestionListView, QuestionCreateView,
     QuestionUpdateView, QuestionDeleteView,
     QuestionImportView,
     QuizSessionListView, QuizSessionCreateView,
     QuizSessionUpdateView, QuizSessionDeleteView,
-    QuizSessionToggleView,
+    QuizSessionToggleView, QuizSessionStatusView, QuizAttemptResetView,
     QuizStatsOverviewView, QuizStatsSessionView,
     QuizStatsSessionDetailView, QuizStatsGradeView,
     QuizStatsSubmissionsView,
 )
 
 urlpatterns = [
+    path('admin/info/classes/', ClassListView.as_view(), name='info-classes-list'),
+
     # Unit
     path('admin/info/units/', UnitListView.as_view(), name='info-units-list'),
     path('admin/info/units/<int:pk>/', UnitUpdateView.as_view(), name='info-units-update'),
@@ -33,6 +35,8 @@ urlpatterns = [
     path('admin/info/sessions/<int:pk>/', QuizSessionUpdateView.as_view(), name='info-sessions-update'),
     path('admin/info/sessions/<int:pk>/delete/', QuizSessionDeleteView.as_view(), name='info-sessions-delete'),
     path('admin/info/sessions/<int:pk>/toggle/', QuizSessionToggleView.as_view(), name='info-sessions-toggle'),
+    path('admin/info/sessions/<int:pk>/status/', QuizSessionStatusView.as_view(), name='info-sessions-status'),
+    path('admin/info/sessions/<int:pk>/students/<int:student_id>/reset/', QuizAttemptResetView.as_view(), name='info-attempt-reset'),
 
     # Stats
     path('admin/info/stats/overview/', QuizStatsOverviewView.as_view(), name='info-stats-overview'),

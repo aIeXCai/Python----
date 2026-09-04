@@ -1,15 +1,18 @@
 import json
 import time
 import threading
+from datetime import timedelta
 
 from django.conf import settings
+from django.db.models import Q
 from django.http import StreamingHttpResponse
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from openai import OpenAI
 
 from .models import ChatSession, ChatMessage
+from users.permissions import IsStudent
 
 # 并发控制：最多 3 路同时打到 MiniMax
 _semaphore = threading.Semaphore(3)
@@ -50,6 +53,7 @@ def _build_system_prompt(context):
     ctx_type = context.get('type', '')
     title = context.get('title', '')
     description = context.get('description', '')
+    last_error = context.get('last_error', '')
 
     if ctx_type == 'ai_problem':
         return (
@@ -59,12 +63,15 @@ def _build_system_prompt(context):
             f'**{title}**\n\n'
             f'### 题目描述\n'
             f'{description}\n\n'
+            f'### 最近一次评测结果\n'
+            f'{last_error if last_error else "暂无评测错误信息。"}\n\n'
             f'## 辅导策略\n'
             f'1. 先帮学生用大白话理解题目要求（"这道题其实就是让你……"）\n'
             f'2. 把任务拆成 2-3 个小步骤，每一步讲清楚后再讲下一步\n'
             f'3. 遇到新语法（比如 print、input、for），先用类比解释这个语法是什么\n'
             f'4. 学生如果问"怎么写"，只说思路和关键词法，不给完整代码\n'
             f'5. 如果题目涉及数学概念，用八年级学生能理解的数学知识解释\n'
+            f'6. 如果存在最近一次评测结果，请优先结合测试点状态、实际输出和正确输出进行提示\n'
         )
 
     if ctx_type == 'info_quiz':
@@ -93,12 +100,27 @@ def _sse_event(event, data):
 
 class ChatSendView(APIView):
     """POST /api/chat/send/ — SSE 流式代理到 MiniMax"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def post(self, request):
         user = request.user
-        if getattr(user, 'role', '') != 'student':
-            return Response({'error': '仅学生可使用 AI 对话'}, status=403)
+        # 正式小测作答期间前后端同时禁用 AI，不能靠直接调用接口绕过。
+        from info_tech.models import QuizSubmission
+        from info_tech.quiz_services import GRACE_SECONDS, settle_expired_attempts
+        settle_expired_attempts()
+        active_quiz = QuizSubmission.objects.filter(
+            user=user,
+            current_marker=True,
+            status=QuizSubmission.STATUS_IN_PROGRESS,
+        ).filter(
+            Q(deadline_at__isnull=True)
+            | Q(deadline_at__gte=timezone.now() - timedelta(seconds=GRACE_SECONDS))
+        ).exists()
+        if active_quiz:
+            return Response({
+                'error': '正式小测作答期间不能使用站内 AI 助手',
+                'code': 'quiz_in_progress',
+            }, status=403)
 
         message_text = (request.data.get('message', '') or '').strip()
         if not message_text:
@@ -206,13 +228,10 @@ class ChatSendView(APIView):
 
 class ChatSessionListView(APIView):
     """GET /api/chat/sessions/ — 获取当前学生的会话列表"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def get(self, request):
         user = request.user
-        if getattr(user, 'role', '') != 'student':
-            return Response({'error': '仅学生可访问'}, status=403)
-
         sessions = (
             ChatSession.objects.filter(user=user)
             .order_by('-updated_at')
@@ -238,13 +257,10 @@ class ChatSessionDetailView(APIView):
     """GET  /api/chat/sessions/<id>/messages/ — 获取会话消息
        DELETE /api/chat/sessions/<id>/ — 删除会话
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def get(self, request, pk):
         user = request.user
-        if getattr(user, 'role', '') != 'student':
-            return Response({'error': '仅学生可访问'}, status=403)
-
         try:
             session = ChatSession.objects.get(id=pk, user=user)
         except ChatSession.DoesNotExist:
@@ -273,9 +289,6 @@ class ChatSessionDetailView(APIView):
 
     def delete(self, request, pk):
         user = request.user
-        if getattr(user, 'role', '') != 'student':
-            return Response({'error': '仅学生可访问'}, status=403)
-
         try:
             session = ChatSession.objects.get(id=pk, user=user)
         except ChatSession.DoesNotExist:

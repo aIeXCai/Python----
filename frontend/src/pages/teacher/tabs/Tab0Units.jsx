@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import {
   Plus, Edit2, Trash2, ListChecks, CheckCircle, X
 } from 'lucide-react'
+import { gradeOptions } from '../../../constants/grades.js'
 
 export default function Tab0Units({
   bigUnits, unitGradeFilter, setUnitGradeFilter,
@@ -12,14 +12,9 @@ export default function Tab0Units({
   newBigUnitOpen, sectionModal,
   unitForm, setUnitForm,
   unitMsg, handleCreateBigUnit, handleSaveSection,
-  loadUnits,
   gradeColor,
-  API, headers,
 }) {
-  const grades = [
-    { value: '七年级', label: '七年级' },
-    { value: '八年级', label: '八年级' },
-  ]
+  const grades = gradeOptions
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -149,7 +144,6 @@ export default function Tab0Units({
           unitForm={unitForm} setUnitForm={setUnitForm}
           unitMsg={unitMsg} handleSubmit={handleCreateBigUnit}
           onClose={() => {}}
-          unitGradeFilter={unitGradeFilter}
         />
       )}
 
@@ -167,7 +161,7 @@ export default function Tab0Units({
 }
 
 // ── 新建大单元弹窗 ──────────────────────────────────────────────────────────
-function BigUnitModal({ unitForm, setUnitForm, unitMsg, handleSubmit, onClose, unitGradeFilter }) {
+function BigUnitModal({ unitForm, setUnitForm, unitMsg, handleSubmit, onClose }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
       <div style={{ background: 'white', borderRadius: 16, padding: '28px', maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
@@ -188,8 +182,7 @@ function BigUnitModal({ unitForm, setUnitForm, unitMsg, handleSubmit, onClose, u
             <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>年级</label>
             <select value={unitForm.grade} onChange={e => setUnitForm(p => ({ ...p, grade: e.target.value }))}
               style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #ddd', fontSize: 13 }}>
-              <option value="七年级">七年级</option>
-              <option value="八年级">八年级</option>
+              {gradeOptions.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
             </select>
           </div>
           <div>

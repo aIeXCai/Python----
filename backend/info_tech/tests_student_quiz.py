@@ -1,479 +1,459 @@
-"""
-info_tech 学生端小测 API 测试（views_student.py）
-运行: cd backend && python manage.py test info_tech.tests_student_quiz
-"""
-import json
-from rest_framework.test import APITestCase
+"""Stage 4 student quiz API contract and integrity tests."""
+from datetime import timedelta
+
+from django.utils import timezone
 from rest_framework.authtoken.models import Token
+from rest_framework.test import APITestCase
+
 from users.models import CustomUser
-from .models import Unit, Question, QuizSession, QuizSubmission
+from .models import Question, QuizSession, QuizSubmission, Unit
 
 
-def make_teacher(grade='七年级'):
-    u = CustomUser.objects.create_user(
-        username=f'teacher_{grade}_{Unit.objects.count()}',
-        password='test123', role='teacher',
-        display_name='老师', managed_grade=grade
+def make_teacher(grade='七年级', username='quiz_teacher'):
+    return CustomUser.objects.create_user(
+        username=username, password='test123', role='teacher',
+        display_name='老师', managed_grade=grade,
     )
-    return u
 
-def make_student(grade='七年级', class_num='1', student_number='01', display_name=None):
-    uniq = f'{grade}{class_num}{student_number}{Unit.objects.count()}'
-    u = CustomUser.objects.create_user(
-        username=f'stu_{uniq}', password='test123', role='student',
-        grade=grade, class_num=class_num, student_number=student_number,
-        display_name=display_name or f'学生{uniq}',
-        managed_grade=grade
+
+def make_student(grade='七年级', username='quiz_student'):
+    student_number = '02' if username == 'other_student' else '01'
+    return CustomUser.objects.create_user(
+        username=username, password='test123', role='student',
+        grade=grade, class_num='1', student_number=student_number, display_name='学生',
     )
-    return u
-
-def get_token(user):
-    return Token.objects.get_or_create(user=user)[0].key
 
 
-# ─── 学生端小测列表 ───────────────────────────────────────────────────────
-
-class StudentQuizListAPITest(APITestCase):
-    """GET /api/info/quizzes/ — 学生看到自己年级可见的小测列表"""
-
-    def setUp(self):
-        self.teacher = make_teacher(grade='七年级')
-        self.bu1 = Unit.objects.create(grade='七年级', name='big_1', display_name='大单元1', order=1)
-        self.sec1 = Unit.objects.create(grade='七年级', parent=self.bu1, name='sec_1', display_name='小节', order=1)
-
-        for i in range(3):
-            Question.objects.create(
-                unit=self.sec1, difficulty='easy', text=f'题{i}',
-                answer='A', option_a='对', option_b='错', option_c='不确定', option_d='以上都不对'
-            )
-
-        self.student = make_student(grade='七年级', class_num='1', student_number='01')
-        self.token = get_token(self.student)
-
-    def _make_session(self, title, is_visible=True, visible_grades=None, created_by=None):
-        s = QuizSession.objects.create(
-            title=title, created_by=created_by or self.teacher,
-            num_questions=3, difficulty_ratio={'easy': 3},
-            is_visible=is_visible, visible_grades=visible_grades or []
-        )
-        s.units.add(self.sec1)
-        return s
-
-    def test_list_only_visible_sessions(self):
-        """只返回 is_visible=True 的小测"""
-        self._make_session('可见小测', is_visible=True)
-        self._make_session('不可见小测', is_visible=False)
-        resp = self.client.get('/api/info/quizzes/', HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 200)
-        titles = [s['title'] for s in resp.data]
-        self.assertIn('可见小测', titles)
-        self.assertNotIn('不可见小测', titles)
-
-    def test_grade_filter_visible_grades_empty(self):
-        """visible_grades=[] 表示全部年级可见"""
-        s = self._make_session('全部可见', visible_grades=[])
-        resp = self.client.get('/api/info/quizzes/', HTTP_AUTHORIZATION=f'Token {self.token}')
-        titles = [s['title'] for s in resp.data]
-        self.assertIn('全部可见', titles)
-
-    def test_grade_filter_matches(self):
-        """学生年级在 visible_grades 中时应显示"""
-        s = self._make_session('七年级可见', visible_grades=['七年级'])
-        resp = self.client.get('/api/info/quizzes/', HTTP_AUTHORIZATION=f'Token {self.token}')
-        titles = [s['title'] for s in resp.data]
-        self.assertIn('七年级可见', titles)
-
-    def test_grade_filter_mismatch(self):
-        """学生年级不在 visible_grades 中时隐藏"""
-        s = self._make_session('八年级专用', visible_grades=['八年级'])
-        resp = self.client.get('/api/info/quizzes/', HTTP_AUTHORIZATION=f'Token {self.token}')
-        titles = [s['title'] for s in resp.data]
-        self.assertNotIn('八年级专用', titles)
-
-    def test_shows_submitted_status_and_best_score(self):
-        """返回是否已提交和最高分"""
-        s = self._make_session('含状态小测')
-        QuizSubmission.objects.create(
-            user=self.student, session=s, grade='七年级',
-            score=80.0, correct_count=2, total_count=3, answers_json='{}'
-        )
-        resp = self.client.get('/api/info/quizzes/', HTTP_AUTHORIZATION=f'Token {self.token}')
-        quiz = next(q for q in resp.data if q['title'] == '含状态小测')
-        self.assertTrue(quiz['submitted'])
-        self.assertEqual(quiz['best_score'], 80.0)
-
-    def test_multiple_submissions_best_score(self):
-        """同一小测多次提交返回最高分"""
-        s = self._make_session('多次提交')
-        QuizSubmission.objects.create(
-            user=self.student, session=s, grade='七年级',
-            score=60.0, correct_count=2, total_count=3, answers_json='{}'
-        )
-        QuizSubmission.objects.create(
-            user=self.student, session=s, grade='七年级',
-            score=90.0, correct_count=3, total_count=3, answers_json='{}'
-        )
-        resp = self.client.get('/api/info/quizzes/', HTTP_AUTHORIZATION=f'Token {self.token}')
-        quiz = next(q for q in resp.data if q['title'] == '多次提交')
-        self.assertEqual(quiz['best_score'], 90.0)
-
-    def test_unauthenticated_rejected(self):
-        """未登录返回 401"""
-        resp = self.client.get('/api/info/quizzes/')
-        self.assertEqual(resp.status_code, 401)
+def auth(user):
+    return {'HTTP_AUTHORIZATION': f'Token {Token.objects.get_or_create(user=user)[0].key}'}
 
 
-# ─── 学生端小测详情（随机抽题+选项打乱）─────────────────────────────────
-
-class StudentQuizDetailAPITest(APITestCase):
-    """GET /api/info/quizzes/<id>/ — 获取随机抽的题目（选项打乱）"""
-
+class Stage4QuizAPITest(APITestCase):
     def setUp(self):
         self.teacher = make_teacher()
-        self.bu1 = Unit.objects.create(grade='七年级', name='big_1', display_name='大单元1', order=1)
-        self.sec1 = Unit.objects.create(grade='七年级', parent=self.bu1, name='sec_1', display_name='小节', order=1)
-
-        # 创建多个题目
-        for i, diff in enumerate(['easy', 'medium', 'hard', 'easy', 'medium']):
+        self.student = make_student()
+        self.other_student = make_student(username='other_student')
+        self.unit = Unit.objects.create(
+            grade='七年级', name='stage4', display_name='阶段4单元', order=1,
+        )
+        for index in range(4):
             Question.objects.create(
-                unit=self.sec1, difficulty=diff, text=f'题{i}难度{diff}',
-                answer='A', option_a='选项A', option_b='选项B',
-                option_c='选项C', option_d='选项D'
+                unit=self.unit,
+                difficulty='easy',
+                category='基础',
+                text=f'题目{index}',
+                answer='A',
+                explanation=f'解析{index}',
+                option_a=f'正确{index}',
+                option_b=f'错误B{index}',
+                option_c=f'错误C{index}',
+                option_d=f'错误D{index}',
             )
-
-        self.student = make_student()
-        self.token = get_token(self.student)
-
         self.session = QuizSession.objects.create(
-            title='抽题测试', created_by=self.teacher,
-            num_questions=3, difficulty_ratio={'easy': 1, 'medium': 1, 'hard': 1},
-            is_visible=True, visible_grades=[]
+            title='可信小测',
+            created_by=self.teacher,
+            num_questions=4,
+            difficulty_ratio={'easy': 4},
+            time_limit=20,
+            status=QuizSession.STATUS_OPEN,
+            opened_at=timezone.now(),
+            visible_grades=['七年级'],
         )
-        self.session.units.add(self.sec1)
+        self.session.units.add(self.unit)
 
-    def test_get_detail_success(self):
-        """获取详情成功"""
-        resp = self.client.get(
-            f'/api/info/quizzes/{self.session.pk}/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['title'], '抽题测试')
-        self.assertEqual(len(resp.data['questions']), 3)
-
-    def test_invisible_session_returns_404(self):
-        """不可见小测返回 404"""
-        self.session.is_visible = False
-        self.session.save()
-        resp = self.client.get(
-            f'/api/info/quizzes/{self.session.pk}/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 404)
-
-    def test_wrong_grade_returns_403(self):
-        """年级不在 visible_grades 中返回 403"""
-        self.session.visible_grades = ['八年级']
-        self.session.save()
-        resp = self.client.get(
-            f'/api/info/quizzes/{self.session.pk}/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 403)
-
-    def test_questions_contain_required_fields(self):
-        """返回题目包含所有必要字段"""
-        resp = self.client.get(
-            f'/api/info/quizzes/{self.session.pk}/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        q = resp.data['questions'][0]
-        self.assertIn('id', q)
-        self.assertIn('text', q)
-        self.assertIn('options', q)
-        self.assertIn('correct_answer', q)  # 打乱后的字母
-        self.assertIn('shuffled_order', q)
-
-    def test_options_are_shuffled(self):
-        """选项顺序是打乱的（不一定原始 ABCD）"""
-        resp = self.client.get(
-            f'/api/info/quizzes/{self.session.pk}/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        for q in resp.data['questions']:
-            opt_keys = list(q['options'].keys())
-            self.assertEqual(sorted(opt_keys), ['A', 'B', 'C', 'D'])
-            # shuffled_order 长度应为 4
-            self.assertEqual(len(q['shuffled_order']), 4)
-
-    def test_nonexistent_session_returns_404(self):
-        """不存在的小测"""
-        resp = self.client.get(
-            '/api/info/quizzes/99999/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 404)
-
-    def test_question_pool_smaller_than_num_questions(self):
-        """题库少于所需题目数时返回全部"""
-        # 这个 session 抽 100 题但只有 5 题
-        session = QuizSession.objects.create(
-            title='题不够', created_by=self.teacher,
-            num_questions=100, difficulty_ratio={'easy': 100},
-            is_visible=True, visible_grades=[]
-        )
-        session.units.add(self.sec1)
-        resp = self.client.get(
-            f'/api/info/quizzes/{session.pk}/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(len(resp.data['questions']), 5)  # 只有5题
-
-
-# ─── 学生端提交小测 ───────────────────────────────────────────────────────
-
-class StudentQuizSubmitAPITest(APITestCase):
-    """POST /api/info/quizzes/<id>/submit/"""
-
-    def setUp(self):
-        self.teacher = make_teacher()
-        self.bu1 = Unit.objects.create(grade='七年级', name='big_1', display_name='大单元1', order=1)
-        self.sec1 = Unit.objects.create(grade='七年级', parent=self.bu1, name='sec_1', display_name='小节', order=1)
-
-        self.q1 = Question.objects.create(
-            unit=self.sec1, difficulty='easy', text='题1',
-            answer='A', option_a='对', option_b='错', option_c='不确定', option_d='以上都不对'
-        )
-        self.q2 = Question.objects.create(
-            unit=self.sec1, difficulty='easy', text='题2',
-            answer='B', option_a='对', option_b='错', option_c='不确定', option_d='以上都不对'
+    def start(self, student=None):
+        student = student or self.student
+        return self.client.post(
+            f'/api/info/quizzes/{self.session.pk}/attempt/', {}, format='json', **auth(student),
         )
 
-        self.student = make_student()
-        self.token = get_token(self.student)
+    def test_list_uses_student_grade_and_reports_action(self):
+        response = self.client.get('/api/info/quizzes/', **auth(self.student))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data[0]['action'], 'start')
 
-        self.session = QuizSession.objects.create(
-            title='提交测试', created_by=self.teacher,
-            num_questions=2, difficulty_ratio={'easy': 2},
-            is_visible=True, visible_grades=[]
-        )
-        self.session.units.add(self.sec1)
+        wrong_grade = make_student('八年级', 'wrong_grade')
+        response = self.client.get('/api/info/quizzes/', **auth(wrong_grade))
+        self.assertEqual(response.data, [])
 
-    def test_submit_correct_answers(self):
-        resp = self.client.post(
-            f'/api/info/quizzes/{self.session.pk}/submit/',
-            {
-                'answers': {str(self.q1.pk): 'A', str(self.q2.pk): 'B'},
-                'shuffled_answers': {},
-                'shuffled_orders': {},
-            },
-            format='json',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
+    def test_class_scope_filters_list_and_direct_start(self):
+        class_two = CustomUser.objects.create_user(
+            username='class_two_student', password='test123', role='student',
+            grade='七年级', class_num='2', student_number='01', display_name='二班学生',
         )
-        self.assertEqual(resp.status_code, 201)
-        self.assertEqual(resp.data['score'], 100.0)
-        self.assertEqual(resp.data['correct_count'], 2)
+        self.session.visible_classes = ['1']
+        self.session.save(update_fields=['visible_classes'])
 
-    def test_submit_wrong_answers(self):
-        resp = self.client.post(
-            f'/api/info/quizzes/{self.session.pk}/submit/',
-            {
-                'answers': {str(self.q1.pk): 'A', str(self.q2.pk): 'C'},  # q2错
-                'shuffled_answers': {},
-                'shuffled_orders': {},
-            },
-            format='json',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 201)
-        self.assertEqual(resp.data['correct_count'], 1)
+        self.assertEqual(len(self.client.get('/api/info/quizzes/', **auth(self.student)).data), 1)
+        self.assertEqual(self.client.get('/api/info/quizzes/', **auth(class_two)).data, [])
+        forbidden = self.start(class_two)
+        self.assertEqual(forbidden.status_code, 403)
+        self.assertEqual(forbidden.data['code'], 'quiz_class_forbidden')
 
-    def test_submit_returns_detail(self):
-        resp = self.client.post(
-            f'/api/info/quizzes/{self.session.pk}/submit/',
-            {
-                'answers': {str(self.q1.pk): 'A'},
-                'shuffled_answers': {},
-                'shuffled_orders': {},
-            },
-            format='json',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 201)
-        self.assertIn('details', resp.data)
-        self.assertGreater(len(resp.data['details']), 0)
+        self.session.visible_classes = []
+        self.session.save(update_fields=['visible_classes'])
+        self.assertEqual(len(self.client.get('/api/info/quizzes/', **auth(class_two)).data), 1)
 
-    def test_submit_saves_submission_record(self):
-        resp = self.client.post(
-            f'/api/info/quizzes/{self.session.pk}/submit/',
-            {
-                'answers': {str(self.q1.pk): 'A', str(self.q2.pk): 'B'},
-                'shuffled_answers': {},
-                'shuffled_orders': {},
-            },
-            format='json',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
+    def test_only_student_role_can_start(self):
+        response = self.client.post(
+            f'/api/info/quizzes/{self.session.pk}/attempt/', {}, format='json', **auth(self.teacher),
         )
-        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(response.status_code, 403)
+
+    def test_start_response_does_not_leak_answers(self):
+        response = self.start()
+        self.assertEqual(response.status_code, 201)
+        body = str(response.data)
+        for forbidden in ('correct_option', 'correct_answer', 'explanation', 'source_question_id', 'shuffled_order'):
+            self.assertNotIn(forbidden, body)
+        self.assertEqual(len(response.data['questions']), 4)
+        self.assertEqual(response.data['status'], 'in_progress')
+
+    def test_start_is_idempotent_and_refresh_keeps_paper_and_deadline(self):
+        first = self.start()
+        second = self.start()
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(first.data['attempt_id'], second.data['attempt_id'])
+        self.assertEqual(first.data['deadline_at'], second.data['deadline_at'])
+        self.assertEqual(first.data['questions'], second.data['questions'])
         self.assertEqual(QuizSubmission.objects.count(), 1)
-        sub = QuizSubmission.objects.first()
-        self.assertEqual(sub.user, self.student)
-        self.assertEqual(sub.session, self.session)
 
-    def test_submit_multiple_times_updates(self):
-        for _ in range(3):
-            self.client.post(
-                f'/api/info/quizzes/{self.session.pk}/submit/',
-                {'answers': {str(self.q1.pk): 'A'}, 'shuffled_answers': {}, 'shuffled_orders': {}},
-                format='json', HTTP_AUTHORIZATION=f'Token {self.token}'
-            )
-        self.assertEqual(QuizSubmission.objects.count(), 3)
+    def test_insufficient_pool_does_not_create_partial_paper(self):
+        self.session.num_questions = 5
+        self.session.save(update_fields=['num_questions'])
+        response = self.start()
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data['code'], 'quiz_pool_insufficient')
+        self.assertFalse(QuizSubmission.objects.exists())
 
-    def test_submit_invisible_session_returns_404(self):
-        """不可见小测无法提交"""
-        self.session.is_visible = False
-        self.session.save()
-        resp = self.client.post(
-            f'/api/info/quizzes/{self.session.pk}/submit/',
-            {'answers': {}},
-            format='json', HTTP_AUTHORIZATION=f'Token {self.token}'
+    def test_save_and_resume_answers(self):
+        started = self.start().data
+        item_id = started['questions'][0]['item_id']
+        response = self.client.put(
+            f'/api/info/quizzes/{self.session.pk}/attempt/answers/',
+            {'attempt_id': started['attempt_id'], 'revision': 0, 'answers': {item_id: 'B'}},
+            format='json', **auth(self.student),
         )
-        self.assertEqual(resp.status_code, 404)
-
-    def test_submit_wrong_grade_returns_403(self):
-        """年级不在 visible_grades 中无法提交"""
-        self.session.visible_grades = ['八年级']
-        self.session.save()
-        resp = self.client.post(
-            f'/api/info/quizzes/{self.session.pk}/submit/',
-            {'answers': {}},
-            format='json', HTTP_AUTHORIZATION=f'Token {self.token}'
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['revision'], 1)
+        resumed = self.client.get(
+            f'/api/info/quizzes/{self.session.pk}/attempt/', **auth(self.student),
         )
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resumed.data['saved_answers'], {item_id: 'B'})
 
+    def test_old_revision_and_unknown_item_are_rejected_without_partial_write(self):
+        started = self.start().data
+        item_id = started['questions'][0]['item_id']
+        url = f'/api/info/quizzes/{self.session.pk}/attempt/answers/'
+        first = self.client.put(
+            url, {'attempt_id': started['attempt_id'], 'revision': 0, 'answers': {item_id: 'A'}},
+            format='json', **auth(self.student),
+        )
+        self.assertEqual(first.status_code, 200)
+        stale = self.client.put(
+            url, {'attempt_id': started['attempt_id'], 'revision': 0, 'answers': {item_id: 'B'}},
+            format='json', **auth(self.student),
+        )
+        self.assertEqual(stale.status_code, 409)
+        invalid = self.client.put(
+            url, {'attempt_id': started['attempt_id'], 'revision': 1, 'answers': {'not-in-paper': 'A'}},
+            format='json', **auth(self.student),
+        )
+        self.assertEqual(invalid.status_code, 400)
+        attempt = QuizSubmission.objects.get(pk=started['attempt_id'])
+        self.assertEqual(attempt.answers, {item_id: 'A'})
 
-# ─── 学生端成绩查看 ───────────────────────────────────────────────────────
+    def test_invalid_option_is_rejected_and_result_is_hidden_before_settlement(self):
+        started = self.start().data
+        item_id = started['questions'][0]['item_id']
+        invalid = self.client.put(
+            f'/api/info/quizzes/{self.session.pk}/attempt/answers/',
+            {'attempt_id': started['attempt_id'], 'revision': 0, 'answers': {item_id: 'E'}},
+            format='json', **auth(self.student),
+        )
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(invalid.data['code'], 'invalid_answers')
+        result = self.client.get(
+            f'/api/info/quizzes/{self.session.pk}/result/', **auth(self.student),
+        )
+        self.assertEqual(result.status_code, 409)
+        self.assertEqual(result.data['code'], 'attempt_in_progress')
 
-class StudentQuizResultAPITest(APITestCase):
-    """GET /api/info/quizzes/<id>/result/"""
+    def test_other_student_cannot_read_or_write_attempt(self):
+        started = self.start().data
+        item_id = started['questions'][0]['item_id']
+        response = self.client.put(
+            f'/api/info/quizzes/{self.session.pk}/attempt/answers/',
+            {'attempt_id': started['attempt_id'], 'revision': 0, 'answers': {item_id: 'A'}},
+            format='json', **auth(self.other_student),
+        )
+        self.assertEqual(response.status_code, 404)
 
-    def setUp(self):
-        self.teacher = make_teacher()
-        self.bu1 = Unit.objects.create(grade='七年级', name='big_1', display_name='大单元1', order=1)
-        self.sec1 = Unit.objects.create(grade='七年级', parent=self.bu1, name='sec_1', display_name='小节', order=1)
+    def test_fixed_denominator_and_immediate_wrong_answer_analysis(self):
+        started = self.start().data
+        attempt = QuizSubmission.objects.get(pk=started['attempt_id'])
+        first = attempt.snapshot_json['questions'][0]
+        response = self.client.post(
+            f'/api/info/quizzes/{self.session.pk}/attempt/submit/',
+            {
+                'attempt_id': attempt.pk,
+                'revision': 0,
+                'answers': {first['item_id']: first['correct_option']},
+            },
+            format='json', **auth(self.student),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['score'], 25.0)
+        self.assertEqual(response.data['total_count'], 4)
 
-        self.q1 = Question.objects.create(
-            unit=self.sec1, difficulty='easy', text='题1',
-            answer='A', explanation='因为A对', option_a='对', option_b='错',
-            option_c='不确定', option_d='以上都不对'
+        result = self.client.get(
+            f'/api/info/quizzes/{self.session.pk}/result/', **auth(self.student),
         )
-        self.q2 = Question.objects.create(
-            unit=self.sec1, difficulty='easy', text='题2',
-            answer='B', explanation='因为B对', option_a='对', option_b='错',
-            option_c='不确定', option_d='以上都不对'
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.data['score'], 25.0)
+        self.assertEqual(len(result.data['question_results']), 3)
+        for wrong in result.data['question_results']:
+            self.assertFalse(wrong['is_correct'])
+            self.assertIn(wrong['correct_answer'], 'ABCD')
+            self.assertTrue(wrong['explanation'])
+            self.assertIsNone(wrong['user_answer'])
+
+    def test_question_edits_after_start_do_not_change_score_or_result(self):
+        started = self.start().data
+        attempt = QuizSubmission.objects.get(pk=started['attempt_id'])
+        item = attempt.snapshot_json['questions'][0]
+        source = Question.objects.get(pk=item['source_question_id'])
+        original_text = item['text']
+        source.text = '修改后的题干'
+        source.answer = 'D'
+        source.explanation = '修改后的解析'
+        source.save()
+        wrong_answer = next(letter for letter in 'ABCD' if letter != item['correct_option'])
+        response = self.client.post(
+            f'/api/info/quizzes/{self.session.pk}/attempt/submit/',
+            {'attempt_id': attempt.pk, 'revision': 0, 'answers': {item['item_id']: wrong_answer}},
+            format='json', **auth(self.student),
+        )
+        self.assertEqual(response.status_code, 200)
+        result = self.client.get(f'/api/info/quizzes/{self.session.pk}/result/', **auth(self.student))
+        wrong = next(row for row in result.data['question_results'] if row['item_id'] == item['item_id'])
+        self.assertEqual(wrong['text'], original_text)
+        self.assertEqual(wrong['explanation'], item['explanation'])
+
+    def test_teacher_can_edit_open_quiz_without_changing_started_attempt(self):
+        started = self.start().data
+        original_questions = started['questions']
+        original_deadline = started['deadline_at']
+
+        updated = self.client.put(
+            f'/api/admin/info/sessions/{self.session.pk}/',
+            {
+                'title': '修改后的小测',
+                'units': [self.unit.pk],
+                'num_questions': 2,
+                'difficulty_ratio': {'easy': 2},
+                'time_limit': 10,
+                'visible_grades': ['七年级'],
+                'visible_classes': ['2'],
+            },
+            format='json', **auth(self.teacher),
+        )
+        self.assertEqual(updated.status_code, 200, updated.data)
+        self.assertEqual(updated.data['status'], 'open')
+        self.assertEqual(updated.data['visible_classes'], ['2'])
+
+        resumed = self.client.get(
+            f'/api/info/quizzes/{self.session.pk}/attempt/', **auth(self.student),
+        )
+        self.assertEqual(resumed.status_code, 200)
+        self.assertEqual(resumed.data['questions'], original_questions)
+        self.assertEqual(resumed.data['deadline_at'], original_deadline)
+
+        submitted = self.client.post(
+            f'/api/info/quizzes/{self.session.pk}/attempt/submit/',
+            {'attempt_id': started['attempt_id'], 'revision': 0, 'answers': {}},
+            format='json', **auth(self.student),
+        )
+        self.assertEqual(submitted.status_code, 200)
+        denied_new_attempt = self.start()
+        self.assertEqual(denied_new_attempt.status_code, 403)
+        self.assertEqual(denied_new_attempt.data['code'], 'quiz_class_forbidden')
+
+    def test_submit_is_idempotent_and_next_start_creates_new_random_attempt(self):
+        started = self.start().data
+        payload = {'attempt_id': started['attempt_id'], 'revision': 0, 'answers': {}}
+        url = f'/api/info/quizzes/{self.session.pk}/attempt/submit/'
+        first = self.client.post(url, payload, format='json', **auth(self.student))
+        second = self.client.post(url, payload, format='json', **auth(self.student))
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(first.data['submission_id'], second.data['submission_id'])
+        self.assertEqual(QuizSubmission.objects.count(), 1)
+
+        listed = self.client.get('/api/info/quizzes/', **auth(self.student))
+        self.assertEqual(listed.data[0]['action'], 'restart')
+        self.assertEqual(listed.data[0]['score'], 0.0)
+        restarted = self.start()
+        self.assertEqual(restarted.status_code, 201)
+        self.assertNotEqual(restarted.data['attempt_id'], started['attempt_id'])
+        self.assertNotEqual(
+            [item['item_id'] for item in restarted.data['questions']],
+            [item['item_id'] for item in started['questions']],
+        )
+        old = QuizSubmission.objects.get(pk=started['attempt_id'])
+        new = QuizSubmission.objects.get(pk=restarted.data['attempt_id'])
+        self.assertIsNone(old.current_marker)
+        self.assertTrue(new.current_marker)
+        self.assertEqual(new.attempt_no, 2)
+
+        # 新一轮尚未提交时，教师仍看到上一轮最近已完成成绩。
+        stats = self.client.get(
+            f'/api/admin/info/stats/submissions/?session_id={self.session.pk}',
+            **auth(self.teacher),
+        )
+        self.assertEqual(stats.data['students'][0]['scores'], [0.0])
+
+        current = QuizSubmission.objects.get(pk=restarted.data['attempt_id'])
+        correct = {
+            item['item_id']: item['correct_option']
+            for item in current.snapshot_json['questions']
+        }
+        self.client.post(
+            url,
+            {'attempt_id': current.pk, 'revision': 0, 'answers': correct},
+            format='json', **auth(self.student),
+        )
+        stats = self.client.get(
+            f'/api/admin/info/stats/submissions/?session_id={self.session.pk}',
+            **auth(self.teacher),
+        )
+        self.assertEqual(stats.data['students'][0]['scores'], [100.0])
+        self.assertEqual(QuizSubmission.objects.count(), 2)
+
+    def test_deadline_grace_accepts_submit_but_late_submit_uses_saved_draft(self):
+        started = self.start().data
+        attempt = QuizSubmission.objects.get(pk=started['attempt_id'])
+        correct = {
+            item['item_id']: item['correct_option']
+            for item in attempt.snapshot_json['questions']
+        }
+        attempt.deadline_at = timezone.now() - timedelta(seconds=2)
+        attempt.save(update_fields=['deadline_at'])
+        response = self.client.post(
+            f'/api/info/quizzes/{self.session.pk}/attempt/submit/',
+            {'attempt_id': attempt.pk, 'revision': 0, 'answers': correct},
+            format='json', **auth(self.student),
+        )
+        self.assertEqual(response.data['status'], 'submitted')
+        self.assertEqual(response.data['score'], 100.0)
+
+        self.client.post(
+            f'/api/admin/info/sessions/{self.session.pk}/students/{self.student.pk}/reset/',
+            {'reason': '网络故障'}, format='json', **auth(self.teacher),
+        )
+        started2 = self.start().data
+        attempt2 = QuizSubmission.objects.get(pk=started2['attempt_id'])
+        correct2 = {
+            item['item_id']: item['correct_option']
+            for item in attempt2.snapshot_json['questions']
+        }
+        attempt2.deadline_at = timezone.now() - timedelta(seconds=10)
+        attempt2.save(update_fields=['deadline_at'])
+        late = self.client.post(
+            f'/api/info/quizzes/{self.session.pk}/attempt/submit/',
+            {'attempt_id': attempt2.pk, 'revision': 0, 'answers': correct2},
+            format='json', **auth(self.student),
+        )
+        self.assertEqual(late.data['status'], 'timed_out')
+        self.assertEqual(late.data['score'], 0.0)
+
+    def test_teacher_reset_keeps_history_and_allows_new_attempt(self):
+        started = self.start().data
+        self.client.post(
+            f'/api/info/quizzes/{self.session.pk}/attempt/submit/',
+            {'attempt_id': started['attempt_id'], 'revision': 0, 'answers': {}},
+            format='json', **auth(self.student),
+        )
+        response = self.client.post(
+            f'/api/admin/info/sessions/{self.session.pk}/students/{self.student.pk}/reset/',
+            {'reason': '电脑故障'}, format='json', **auth(self.teacher),
+        )
+        self.assertEqual(response.status_code, 200)
+        old = QuizSubmission.objects.get(pk=started['attempt_id'])
+        self.assertEqual(old.status, 'reset')
+        self.assertIsNone(old.current_marker)
+        self.assertEqual(old.reset_by, self.teacher)
+        new = self.start()
+        self.assertEqual(new.status_code, 201)
+        self.assertEqual(QuizSubmission.objects.get(pk=new.data['attempt_id']).attempt_no, 2)
+
+    def test_closing_quiz_settles_saved_draft(self):
+        self.session.visible_classes = ['1']
+        self.session.save(update_fields=['visible_classes'])
+        started = self.start().data
+        attempt = QuizSubmission.objects.get(pk=started['attempt_id'])
+        item = attempt.snapshot_json['questions'][0]
+        self.client.put(
+            f'/api/info/quizzes/{self.session.pk}/attempt/answers/',
+            {'attempt_id': attempt.pk, 'revision': 0, 'answers': {item['item_id']: item['correct_option']}},
+            format='json', **auth(self.student),
+        )
+        response = self.client.patch(
+            f'/api/admin/info/sessions/{self.session.pk}/status/',
+            {'status': 'closed'}, format='json', **auth(self.teacher),
+        )
+        self.assertEqual(response.status_code, 200)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.status, 'timed_out')
+        self.assertEqual(attempt.score, 25.0)
+        result = self.client.get(f'/api/info/quizzes/{self.session.pk}/result/', **auth(self.student))
+        self.assertEqual(result.status_code, 200)
+        self.assertFalse(result.data['can_retry'])
+
+        # 关闭后学生列表隐藏；重新开放后再次出现并可生成新一轮作答。
+        hidden = self.client.get('/api/info/quizzes/', **auth(self.student))
+        self.assertEqual(hidden.data, [])
+        reopened = self.client.patch(
+            f'/api/admin/info/sessions/{self.session.pk}/status/',
+            {'status': 'open', 'visible_classes': ['2']}, format='json', **auth(self.teacher),
+        )
+        self.assertEqual(reopened.status_code, 200)
+        self.assertEqual(reopened.data['status'], 'open')
+        self.assertEqual(reopened.data['visible_classes'], ['1'])
+        visible = self.client.get('/api/info/quizzes/', **auth(self.student))
+        self.assertEqual(visible.data[0]['action'], 'restart')
+        restarted = self.start()
+        self.assertEqual(restarted.status_code, 201)
+        self.assertEqual(
+            QuizSubmission.objects.get(pk=restarted.data['attempt_id']).attempt_no,
+            2,
         )
 
-        self.student = make_student()
-        self.token = get_token(self.student)
+    def test_other_teacher_cannot_manage_session_but_owner_can_edit_open_session(self):
+        other_teacher = make_teacher('八年级', 'other_teacher')
+        forbidden = self.client.patch(
+            f'/api/admin/info/sessions/{self.session.pk}/status/',
+            {'status': 'closed'}, format='json', **auth(other_teacher),
+        )
+        self.assertEqual(forbidden.status_code, 404)
 
-        self.session = QuizSession.objects.create(
-            title='查成绩测试', created_by=self.teacher,
-            num_questions=2, difficulty_ratio={'easy': 2},
-            is_visible=True, visible_grades=[]
+        update = self.client.put(
+            f'/api/admin/info/sessions/{self.session.pk}/',
+            {
+                'title': '试图修改', 'units': [self.unit.pk], 'num_questions': 1,
+                'difficulty_ratio': {'easy': 1}, 'time_limit': 10,
+                'visible_grades': ['七年级'],
+            },
+            format='json', **auth(self.teacher),
         )
-        self.session.units.add(self.sec1)
+        self.assertEqual(update.status_code, 200)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.title, '试图修改')
 
-    def test_get_result_success(self):
-        """有成绩时返回详情"""
-        sub = QuizSubmission.objects.create(
-            user=self.student, session=self.session, grade='七年级',
-            score=50.0, correct_count=1, total_count=2,
-            answers_json=json.dumps({
-                'answers': {str(self.q1.pk): 'A', str(self.q2.pk): 'C'},
-                'shuffled': {},
-                'shuffled_orders': {}
-            })
+    def test_legacy_submit_protocol_is_gone(self):
+        response = self.client.post(
+            f'/api/info/quizzes/{self.session.pk}/submit/', {'answers': {}},
+            format='json', **auth(self.student),
         )
-        resp = self.client.get(
-            f'/api/info/quizzes/{self.session.pk}/result/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['score'], 50.0)
-        self.assertEqual(resp.data['correct_count'], 1)
-        self.assertIn('question_results', resp.data)
-
-    def test_get_result_no_submission(self):
-        """未提交过返回 404"""
-        resp = self.client.get(
-            f'/api/info/quizzes/{self.session.pk}/result/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 404)
-        self.assertIn('暂无成绩', resp.data['error'])
-
-    def test_get_result_returns_latest(self):
-        """多次提交返回最新一次"""
-        QuizSubmission.objects.create(
-            user=self.student, session=self.session, grade='七年级',
-            score=50.0, correct_count=1, total_count=2,
-            answers_json=json.dumps({'answers': {str(self.q1.pk): 'A'}})
-        )
-        sub2 = QuizSubmission.objects.create(
-            user=self.student, session=self.session, grade='七年级',
-            score=100.0, correct_count=2, total_count=2,
-            answers_json=json.dumps({'answers': {str(self.q1.pk): 'A', str(self.q2.pk): 'B'}})
-        )
-        resp = self.client.get(
-            f'/api/info/quizzes/{self.session.pk}/result/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.data['score'], 100.0)
-
-    def test_get_result_nonexistent_session(self):
-        """不存在的小测"""
-        resp = self.client.get(
-            '/api/info/quizzes/99999/result/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 404)
-
-    def test_get_result_unauthenticated(self):
-        """未登录拒绝"""
-        resp = self.client.get(f'/api/info/quizzes/{self.session.pk}/result/')
-        self.assertEqual(resp.status_code, 401)
-
-    def test_get_result_includes_explanation(self):
-        """结果包含题目解析"""
-        QuizSubmission.objects.create(
-            user=self.student, session=self.session, grade='七年级',
-            score=50.0, correct_count=1, total_count=2,
-            answers_json=json.dumps({
-                'answers': {str(self.q1.pk): 'A', str(self.q2.pk): 'B'},
-                'shuffled': {},
-                'shuffled_orders': {}
-            })
-        )
-        resp = self.client.get(
-            f'/api/info/quizzes/{self.session.pk}/result/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 200)
-        # 解析应出现在 question_results 里
-        explanations = [r.get('explanation') for r in resp.data['question_results']]
-        self.assertTrue(any(e for e in explanations if e))
-
-    def test_result_old_format_answers_json(self):
-        """兼容旧格式 answers_json（纯 dict，不是 {answers,shuffled,shuffled_orders}）"""
-        QuizSubmission.objects.create(
-            user=self.student, session=self.session, grade='七年级',
-            score=50.0, correct_count=1, total_count=2,
-            answers_json=json.dumps({str(self.q1.pk): 'A'})  # 旧格式
-        )
-        resp = self.client.get(
-            f'/api/info/quizzes/{self.session.pk}/result/',
-            HTTP_AUTHORIZATION=f'Token {self.token}'
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn('question_results', resp.data)
+        self.assertEqual(response.status_code, 410)
+        self.assertEqual(response.data['code'], 'quiz_api_upgraded')

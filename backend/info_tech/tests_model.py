@@ -111,13 +111,14 @@ class QuizSessionModelTest(TestCase):
         self.unit = Unit.objects.create(grade='七年级', name='第一单元', display_name='第一单元', order=1)
 
     def test_create_session_defaults(self):
-        """默认值：is_visible=False, visible_grades=[]"""
+        """默认值：is_visible=False，年级和班级范围均为全部"""
         qs = QuizSession.objects.create(
             title='小测1', created_by=self.teacher,
             num_questions=10, difficulty_ratio={'easy': 10}
         )
         self.assertFalse(qs.is_visible)
         self.assertEqual(qs.visible_grades, [])
+        self.assertEqual(qs.visible_classes, [])
         self.assertEqual(str(qs), '小测1')
 
     def test_session_with_units(self):
@@ -191,14 +192,17 @@ class QuizSubmissionModelTest(TestCase):
         # 快照值仍为八年级
         self.assertEqual(sub.grade, '八年级')
 
-    def test_multiple_submissions_same_session(self):
-        """同一学生同一 session 可以有多条提交记录"""
+    def test_historical_attempts_use_null_current_marker(self):
+        """同一小测可保留历史，但只能有一个当前有效作答。"""
         QuizSubmission.objects.create(
             user=self.student, session=self.session, grade='七年级',
-            score=60.0, correct_count=6, total_count=10, answers_json='{}'
+            score=60.0, correct_count=6, total_count=10, answers_json='{}',
+            attempt_no=1, current_marker=None, status='superseded',
         )
         QuizSubmission.objects.create(
             user=self.student, session=self.session, grade='七年级',
-            score=80.0, correct_count=8, total_count=10, answers_json='{}'
+            score=80.0, correct_count=8, total_count=10, answers_json='{}',
+            attempt_no=2, current_marker=True, status='submitted',
         )
         self.assertEqual(QuizSubmission.objects.filter(user=self.student).count(), 2)
+        self.assertEqual(QuizSubmission.objects.filter(user=self.student, current_marker=True).count(), 1)

@@ -5,8 +5,17 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from school_platform import errors, health
+
+handler400 = errors.bad_request
+handler403 = errors.permission_denied
+handler404 = errors.page_not_found
+handler500 = errors.server_error
 
 urlpatterns = [
+    path('internal/runner/v1/', include('execution.urls_internal')),
+    path('api/health/live/', health.live, name='health-live'),
+    path('api/health/ready/', health.ready, name='health-ready'),
     path('admin/', admin.site.urls),
     path('api/auth/', include('users.urls')),
     path('api/ai/', include('ai_courses.urls')),

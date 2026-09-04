@@ -5,6 +5,7 @@ users (学生/老师认证) API 测试套件
 from rest_framework.test import APITestCase
 from rest_framework.authtoken.models import Token
 from .models import CustomUser
+from .services import set_student_password
 
 
 def make_teacher(username='teacher_test', managed_grade='七年级'):
@@ -16,17 +17,18 @@ def make_teacher(username='teacher_test', managed_grade='七年级'):
     return u
 
 def make_student(grade='七年级', class_num='1', student_number='01',
-                  display_name='张三', password='pass123'):
+                  display_name='张三', password='student-pass-123'):
     username = f'{grade}-{class_num}-{student_number}'
     # 避免测试间冲突
     if CustomUser.objects.filter(username=username, role='student').exists():
         import uuid
         username = f'{username}-{uuid.uuid4().hex[:4]}'
-    u = CustomUser.objects.create_user(
-        username=username, password=password, role='student',
+    u = CustomUser.objects.create(
+        username=username, role='student',
         grade=grade, class_num=class_num, student_number=student_number,
-        display_name=display_name, plain_password=password
+        display_name=display_name,
     )
+    set_student_password(u, password, validate=False, invalidate_tokens=False)
     return u
 
 def get_token(user):
@@ -133,7 +135,7 @@ class RegisterAPITest(APITestCase):
             'class_num': '3',
             'student_number': '15',
             'display_name': '王小明',
-            'password': 'pass123',
+            'password': 'safe-pass-123',
         }, format='json')
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.data['user']['display_name'], '王小明')
@@ -164,7 +166,7 @@ class RegisterAPITest(APITestCase):
         for missing in ['grade', 'class_num', 'student_number', 'password', 'display_name']:
             data = {
                 'grade': '七年级', 'class_num': '1',
-                'student_number': '01', 'display_name': 'test', 'password': 'pass'
+                'student_number': '01', 'display_name': 'test', 'password': 'safe-pass-123'
             }
             data.pop(missing)
             resp = self.client.post('/api/auth/register/', data, format='json')
@@ -175,7 +177,7 @@ class RegisterAPITest(APITestCase):
         resp = self.client.post('/api/auth/register/', {
             'grade': '八年级', 'class_num': '1', 'student_number': '20',
             'name': '用name字段',   # ← display_name 的别名
-            'password': 'pass123',
+            'password': 'safe-pass-123',
         }, format='json')
         self.assertEqual(resp.status_code, 201)
 
@@ -183,7 +185,7 @@ class RegisterAPITest(APITestCase):
         """注册后自动登录，返回 token"""
         resp = self.client.post('/api/auth/register/', {
             'grade': '高一', 'class_num': '1', 'student_number': '01',
-            'display_name': '新生', 'password': 'pass123',
+            'display_name': '新生', 'password': 'safe-pass-123',
         }, format='json')
         self.assertEqual(resp.status_code, 201)
         self.assertTrue(resp.data.get('token'))
@@ -253,14 +255,17 @@ class StudentManageAPITest(APITestCase):
         self.student_token = get_token(self.student)
 
     def test_teacher_get_student_detail(self):
-        """老师查看学生详情（含 plain_password）"""
+        """老师查看普通学生详情不泄露任何密码材料"""
         resp = self.client.get(
             f'/api/auth/{self.student.id}/',
             HTTP_AUTHORIZATION=f'Token {self.teacher_token}'
         )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data['display_name'], '待管理学生')
-        self.assertEqual(resp.data['plain_password'], 'stu123')
+        self.assertTrue(resp.data['password_available'])
+        self.assertNotIn('password', resp.data)
+        self.assertNotIn('encrypted_password', resp.data)
+        self.assertNotIn('password_encryption_key_id', resp.data)
 
     def test_teacher_update_student(self):
         """老师编辑学生信息"""
@@ -274,21 +279,17 @@ class StudentManageAPITest(APITestCase):
         self.assertEqual(resp.data['student']['display_name'], '已改名')
         self.assertEqual(resp.data['student']['class_num'], '5')
 
-    def test_teacher_update_student_password(self):
-        """老师修改学生密码"""
+    def test_teacher_update_student_rejects_password(self):
+        """普通详情接口拒绝修改密码"""
         resp = self.client.put(
             f'/api/auth/{self.student.id}/',
-            {'password': 'newpass'},
+            {'password': 'new-password-value'},
             format='json',
             HTTP_AUTHORIZATION=f'Token {self.teacher_token}'
         )
-        self.assertEqual(resp.status_code, 200)
-        # 新密码能登录
-        login = self.client.post('/api/auth/login/', {
-            'grade': '七年级', 'class_num': '2',
-            'student_number': '08', 'password': 'newpass'
-        }, format='json')
-        self.assertEqual(login.status_code, 200)
+        self.assertEqual(resp.status_code, 400)
+        self.student.refresh_from_db()
+        self.assertTrue(self.student.check_password('stu123'))
 
     def test_teacher_delete_student(self):
         """老师删除学生"""

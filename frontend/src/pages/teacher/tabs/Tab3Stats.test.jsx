@@ -30,7 +30,7 @@ const gradeColor = g => ({ '七年级': '#38ef7d', '八年级': '#11999e' })[g] 
 const scoreColor = s => s >= 90 ? '#38ef7d' : s >= 60 ? '#f59e0b' : '#ef4444'
 
 const defaultProps = {
-  API: 'http://localhost:8080/api',
+  API: '/api',
   headers: {},
   statsData: mockStatsData,
   statsLoading: false,

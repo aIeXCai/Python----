@@ -60,7 +60,7 @@ describe('CourseSelect.jsx', () => {
 
   it('shows Alex as teacher on both cards', () => {
     renderAsUser()
-    const alexTexts = screen.getAllByText(/授课老师：Alex/)
+    const alexTexts = screen.getAllByText(/授课教师：Alex/)
     expect(alexTexts.length).toBe(2)
   })
 
@@ -74,7 +74,7 @@ describe('CourseSelect.jsx', () => {
   // ── 课程点击导航 ──
   it('has two course cards that are clickable', () => {
     renderAsUser()
-    const cards = screen.getAllByText(/授课老师：Alex/)
+    const cards = screen.getAllByText(/授课教师：Alex/)
     expect(cards.length).toBe(2)
   })
 })

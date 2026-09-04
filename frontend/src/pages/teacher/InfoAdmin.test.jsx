@@ -24,7 +24,13 @@ vi.mock('react-router-dom', () => ({
 
 // Mock localStorage
 const localStorageMock = { getItem: vi.fn() }
-Object.defineProperty(global, 'localStorage', { value: localStorageMock })
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock })
+
+// Parent component loads tab data even though the tab bodies are mocked.
+// Keep these rendering-focused tests isolated from Node's real fetch, which
+// cannot resolve browser-relative /api URLs.
+const mockFetch = vi.fn()
+vi.stubGlobal('fetch', mockFetch)
 
 // Mock tab sub-components to avoid deep rendering
 vi.mock('./tabs/Tab0Units', () => ({
@@ -54,6 +60,10 @@ describe('InfoAdmin (信息课管理后台)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.getItem.mockReturnValue('fake-token')
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    })
   })
 
   it('默认显示单元管理Tab', async () => {

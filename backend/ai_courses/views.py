@@ -1,15 +1,12 @@
-import os
-import uuid
 import datetime
 from django.conf import settings
 from django.db.models import Max, Avg, Count, OuterRef, Subquery, Q
-from rest_framework import status, permissions
+from rest_framework import status
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from .models import Problem, Submission, grade_submission
-from .utils import run_code_interactive
+from .models import Problem, Submission
 from .serializers import (
     ProblemListSerializer,
     ProblemDetailSerializer,
@@ -19,17 +16,29 @@ from .serializers import (
     StudentStatsSerializer,
     AdminStatsSerializer,
 )
+from execution.serializers import CodeRunCreateSerializer, public_task_data
+from execution.services import ExecutionRequestError, enqueue_grade, enqueue_run
+from execution.snapshots import InvalidTestSnapshot
+from users.permissions import IsStudent, IsTeacher
+from users.scopes import scope_students
+from users.models import CustomUser
 
 
-class IsTeacher(permissions.BasePermission):
-    """老师权限"""
-
-    def has_permission(self, request, view):
-        return (
-            request.user
-            and request.user.is_authenticated
-            and request.user.role == 'teacher'
+def _code_execution_unavailable_response():
+    """Fail closed instead of falling back to local execution."""
+    if not getattr(settings, 'CODE_EXECUTION_ENABLED', False):
+        return Response(
+            {'error': '代码执行服务暂不可用，请稍后重试'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+    return None
+
+
+def _execution_error_response(exc):
+    return Response(
+        {'error': exc.message, 'code': exc.code},
+        status=exc.status_code,
+    )
 
 
 # ============================================================
@@ -41,7 +50,7 @@ class ProblemListView(APIView):
     GET /api/ai/problems/?course=ai
     获取题目列表（学生用）
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def get(self, request):
         course = request.query_params.get('course', 'ai')
@@ -55,7 +64,7 @@ class ProblemDetailView(APIView):
     GET /api/ai/problems/<problem_id>/
     获取题目详情（含测试点）
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def get(self, request, problem_id):
         course = request.query_params.get('course', 'ai')
@@ -75,13 +84,28 @@ class SubmissionView(APIView):
     POST /api/ai/submissions/
     学生提交代码
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def post(self, request):
+        unavailable = _code_execution_unavailable_response()
+        if unavailable is not None:
+            return unavailable
+
         # Support both JSON body and FormData file upload
         if 'file' in request.FILES:
             uploaded_file = request.FILES['file']
-            code = uploaded_file.read().decode('utf-8')
+            if uploaded_file.size > settings.EXECUTION_CODE_MAX_BYTES:
+                return Response(
+                    {'error': '代码超出系统大小上限', 'code': 'payload_too_large'},
+                    status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                )
+            try:
+                code = uploaded_file.read().decode('utf-8')
+            except UnicodeDecodeError:
+                return Response(
+                    {'error': '代码文件必须使用 UTF-8 编码'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             data = {
                 'problem_id': request.data.get('problem_id', ''),
                 'code': code,
@@ -108,62 +132,24 @@ class SubmissionView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # 保存代码到 submissions/ 目录
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        safe_filename = f"{request.user.username}_{problem_id}_{timestamp}_{uuid.uuid4().hex[:8]}.py"
-        submissions_dir = settings.BASE_DIR / 'submissions'
-        submissions_dir.mkdir(exist_ok=True)
-        submission_path = submissions_dir / safe_filename
-
-        with open(submission_path, 'w', encoding='utf-8') as f:
-            f.write(code)
-
-        # 批改
         try:
-            ok, result_text, score = grade_submission(str(submission_path), problem)
-        except Exception as e:
-            Submission.objects.create(
+            task, submission, created = enqueue_grade(
                 user=request.user,
                 problem=problem,
                 code=code,
-                score=0,
-                status='error',
-                error_message=str(e),
+                idempotency_key=request.headers.get('Idempotency-Key'),
             )
-            return Response({
-                'success': False,
-                'score': 0,
-                'status': 'error',
-                'detail': f'批改系统错误：{str(e)}',
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except InvalidTestSnapshot as exc:
+            return Response(
+                {'error': str(exc), 'code': 'invalid_test_snapshot'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except ExecutionRequestError as exc:
+            return _execution_error_response(exc)
 
-        # 根据结果确定状态
-        if not ok:
-            submit_status = 'error'
-        elif score == 100:
-            submit_status = 'accepted'
-        elif score == 0:
-            submit_status = 'wrong_answer'
-        else:
-            submit_status = 'wrong_answer'
-
-        # 保存提交记录
-        submission = Submission.objects.create(
-            user=request.user,
-            problem=problem,
-            code=code,
-            score=score,
-            status=submit_status,
-            error_message=result_text if score < 100 else '',
-        )
-
-        return Response({
-            'success': True,
-            'submission_id': submission.id,
-            'score': score,
-            'status': submit_status,
-            'detail': result_text,
-        })
+        response_data = public_task_data(task)
+        response_data.update({'submission_id': submission.id, 'created': created})
+        return Response(response_data, status=status.HTTP_202_ACCEPTED)
 
 
 class SubmissionHistoryView(APIView):
@@ -171,7 +157,7 @@ class SubmissionHistoryView(APIView):
     GET /api/ai/submissions/?problem_id=xxx
     获取某道题的提交历史
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def get(self, request):
         problem_id = request.query_params.get('problem_id')
@@ -188,7 +174,7 @@ class StudentScoresView(APIView):
     GET /api/ai/scores/
     获取学生的所有成绩（每题最高分）
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def get(self, request):
         user = request.user
@@ -202,7 +188,7 @@ class StudentScoresView(APIView):
 
         # 每道题的最好成绩（只取当前课程）
         scores = (
-            Submission.objects.filter(user=user, problem__course=course)
+            Submission.objects.filter(user=user, problem__course=course, score__isnull=False)
             .values('problem__problem_id')
             .annotate(
                 best_score=Max('score'),
@@ -233,7 +219,7 @@ class StudentStatsView(APIView):
     GET /api/ai/stats/
     获取学生的学习统计
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def get(self, request):
         user = request.user
@@ -245,13 +231,21 @@ class StudentStatsView(APIView):
 
             user_grade = getattr(user, 'grade', '') or ''
 
-            # 可见的小测（is_visible=True）
+            # 学生端统计只包含当前开放的小测；关闭后与列表保持一致，不再展示。
             # 年级过滤：SQLite 不支持 JSONField __contains，换为内存过滤
-            all_visible = QuizSession.objects.filter(is_visible=True)
+            all_visible = QuizSession.objects.filter(
+                status=QuizSession.STATUS_OPEN, archived_at__isnull=True,
+            )
             if user_grade:
                 visible_sessions = [
                     s for s in all_visible
-                    if not s.visible_grades or user_grade in s.visible_grades
+                    if (not s.visible_grades or user_grade in s.visible_grades)
+                    and (
+                        not s.visible_classes
+                        or str(getattr(user, 'class_num', '') or '') in {
+                            str(value) for value in s.visible_classes
+                        }
+                    )
                 ]
                 visible_ids = [s.id for s in visible_sessions]
             else:
@@ -261,19 +255,17 @@ class StudentStatsView(APIView):
             total_problems = len(visible_sessions)
 
             if visible_ids:
-                user_submissions = QuizSubmission.objects.filter(
-                    user=user, session_id__in=visible_ids
-                )
-                completed_problems = user_submissions.values('session').distinct().count()
-
-                # 平均分：每场小测取最高分，再算均值
-                best_scores = []
-                for session_id in visible_ids:
-                    best = user_submissions.filter(session_id=session_id).aggregate(
-                        best=Max('score'))['best']
-                    if best is not None:
-                        best_scores.append(best)
-                avg_score = round(sum(best_scores) / len(best_scores), 1) if best_scores else 0
+                settled_submissions = QuizSubmission.objects.filter(
+                    user=user,
+                    session_id__in=visible_ids,
+                    status__in=(QuizSubmission.STATUS_SUBMITTED, QuizSubmission.STATUS_TIMED_OUT),
+                ).order_by('session_id', '-attempt_no', '-id')
+                latest_scores = {}
+                for submission in settled_submissions:
+                    latest_scores.setdefault(submission.session_id, submission.score)
+                completed_problems = len(latest_scores)
+                scores = list(latest_scores.values())
+                avg_score = round(sum(scores) / len(scores), 1) if scores else 0
             else:
                 completed_problems = 0
                 avg_score = 0
@@ -355,16 +347,17 @@ class AdminDashboardView(APIView):
     def get(self, request):
         from users.models import CustomUser
 
-        total_students = CustomUser.objects.filter(role='student').count()
+        students = scope_students(CustomUser.objects.filter(role='student'), request.user)
+        total_students = students.count()
         total_problems = Problem.objects.count()
 
         today = datetime.datetime.now().date()
         today_submissions = Submission.objects.filter(
-            submitted_at__date=today
+            user__in=students, submitted_at__date=today
         ).count()
 
         avg_result = (
-            Submission.objects
+            Submission.objects.filter(user__in=students)
             .values('problem__problem_id')
             .annotate(best=Max('score'))
             .aggregate(avg=Avg('best'))
@@ -452,7 +445,9 @@ class AdminStudentListView(APIView):
         sort_by = request.query_params.get('sort_by', 'grade')
         order = request.query_params.get('order', 'asc')
 
-        students = CustomUser.objects.filter(role='student')
+        students = scope_students(
+            CustomUser.objects.filter(role='student'), request.user,
+        )
         if grade:
             students = students.filter(grade=grade)
         if class_num:
@@ -485,7 +480,12 @@ class AdminStudentScoresView(APIView):
         problem_id = request.query_params.get('problem_id')
 
         # 只看学生（不含教师账号）
-        submissions = Submission.objects.filter(user__role='student')
+        scoped_students = scope_students(
+            CustomUser.objects.filter(role='student'), request.user,
+        )
+        submissions = Submission.objects.filter(
+            user__in=scoped_students, score__isnull=False,
+        )
 
         if grade:
             submissions = submissions.filter(user__grade=grade)
@@ -497,8 +497,7 @@ class AdminStudentScoresView(APIView):
             submissions = submissions.filter(problem__course=course_type)
 
         # 构建学生映射：student_number -> {grade, class_num, username, display_name, scores}
-        from users.models import CustomUser
-        all_students = CustomUser.objects.filter(role='student')
+        all_students = scoped_students
         if grade:
             all_students = all_students.filter(grade=grade)
         if class_num:
@@ -568,7 +567,7 @@ class CodeRunRateThrottle(UserRateThrottle):
 class CodeRunView(APIView):
     """
     POST /api/ai/run_code/
-    Execute Python code interactively with stdin support.
+    Queue Python code for isolated execution with stdin support.
 
     Request body:
         {
@@ -577,34 +576,35 @@ class CodeRunView(APIView):
         }
 
     Responses:
-        200: {"output": "...", "error": "...", "execution_time": 0.123}
-        400: {"error": "code is required"}
-        408: timeout after 10 seconds
-        429: rate limit exceeded (3 req/s per user)
+        202: {"task_id": "uuid", "status": "queued", "poll_after_ms": 500}
+        400/413: invalid or oversized payload
+        429: request throttle or per-user active queue limit exceeded
+        503: code execution is disabled
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStudent]
     throttle_classes = [CodeRunRateThrottle]
 
     def post(self, request):
-        code = request.data.get('code', '')
-        stdin = request.data.get('stdin', '')
+        unavailable = _code_execution_unavailable_response()
+        if unavailable is not None:
+            return unavailable
 
-        if not code or not code.strip():
+        serializer = CodeRunCreateSerializer(data=request.data)
+        if not serializer.is_valid():
             return Response(
-                {'error': 'code is required'},
+                {'error': '参数错误', 'details': serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        try:
+            task, created = enqueue_run(
+                user=request.user,
+                code=serializer.validated_data['code'],
+                stdin=serializer.validated_data['stdin'],
+                idempotency_key=request.headers.get('Idempotency-Key'),
+            )
+        except ExecutionRequestError as exc:
+            return _execution_error_response(exc)
 
-        result = run_code_interactive(code, stdin)
-
-        http_status = (
-            status.HTTP_408_REQUEST_TIMEOUT
-            if result.get('timed_out')
-            else status.HTTP_200_OK
-        )
-
-        return Response({
-            'output': result['output'],
-            'error': result['error'],
-            'execution_time': result['execution_time'],
-        }, status=http_status)
+        response_data = public_task_data(task)
+        response_data['created'] = created
+        return Response(response_data, status=status.HTTP_202_ACCEPTED)

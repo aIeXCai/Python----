@@ -18,14 +18,14 @@ class QuestionAdmin(admin.ModelAdmin):
 
 @admin.register(QuizSession)
 class QuizSessionAdmin(admin.ModelAdmin):
-    list_display = ['id', 'title', 'created_by', 'num_questions', 'is_visible', 'created_at']
-    list_filter = ['is_visible', 'created_at']
+    list_display = ['id', 'title', 'created_by', 'num_questions', 'status', 'created_at']
+    list_filter = ['status', 'created_at']
     filter_horizontal = ['units']
     ordering = ['-created_at']
 
 
 @admin.register(QuizSubmission)
 class QuizSubmissionAdmin(admin.ModelAdmin):
-    list_display = ['id', 'user', 'session', 'score', 'correct_count', 'total_count', 'submitted_at']
-    list_filter = ['session', 'submitted_at']
+    list_display = ['id', 'user', 'session', 'attempt_no', 'status', 'score', 'correct_count', 'total_count', 'submitted_at']
+    list_filter = ['session', 'status', 'submitted_at']
     ordering = ['-submitted_at']

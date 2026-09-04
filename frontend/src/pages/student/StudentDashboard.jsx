@@ -154,18 +154,20 @@ export default function StudentDashboard() {
             {loading ? (
               <div className="loading-state">
                 <Loader size={32} className="spin" />
-                <p>载入小测中...</p>
+                <p>加载小测中...</p>
               </div>
             ) : quizzes.length === 0 ? (
               <div className="empty-state">
                 <FileText size={64} />
                 <h3>暂无小测</h3>
-                <p>老师还未发布小测</p>
+                <p>教师还未发布小测</p>
               </div>
             ) : (
               <div className="problems-grid">
                 {quizzes.map((quiz) => {
-                  const hasScore = quiz.submitted && quiz.best_score !== null
+                  const inProgress = quiz.action === 'continue'
+                  const displayScore = quiz.score ?? quiz.best_score
+                  const hasScore = displayScore !== null && displayScore !== undefined
                   return (
                     <div key={quiz.id} className="problem-card">
                       <div className="problem-header">
@@ -173,8 +175,8 @@ export default function StudentDashboard() {
                           <FileText size={18} />
                           {quiz.title}
                         </div>
-                        <span className={`problem-status status-${hasScore ? 'completed' : 'new'}`}>
-                          {hasScore ? `${quiz.best_score}分` : '未做'}
+                        <span className={`problem-status status-${inProgress ? 'new' : hasScore ? 'completed' : 'new'}`}>
+                          {inProgress ? '作答中' : hasScore ? `${displayScore}分` : '未做'}
                         </span>
                       </div>
                       <div style={{ padding: '12px 16px', color: '#666', fontSize: '0.85rem' }}>
@@ -189,19 +191,15 @@ export default function StudentDashboard() {
                         )}
                       </div>
                       <div className="problem-actions">
-                        {hasScore ? (
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <Link to={`/student/quiz/${quiz.id}`} className="btn btn-primary">
-                              🔄 重新作答
-                            </Link>
-                            <Link to={`/student/quiz-result/${quiz.id}`} className="btn btn-secondary">
-                              查看成绩
-                            </Link>
-                          </div>
+                        {inProgress ? (
+                          <Link to={`/student/quiz/${quiz.id}`} className="btn btn-primary">继续作答</Link>
+                        ) : quiz.action === 'restart' ? (
+                          <>
+                            <Link to={`/student/quiz-result/${quiz.id}`} className="btn btn-secondary">查看成绩</Link>
+                            <Link to={`/student/quiz/${quiz.id}`} className="btn btn-primary">再做一次</Link>
+                          </>
                         ) : (
-                          <Link to={`/student/quiz/${quiz.id}`} className="btn btn-primary">
-                            开始答题
-                          </Link>
+                          <Link to={`/student/quiz/${quiz.id}`} className="btn btn-primary">开始答题</Link>
                         )}
                       </div>
                     </div>
@@ -230,13 +228,13 @@ export default function StudentDashboard() {
             {loading ? (
               <div className="loading-state">
                 <Loader size={32} className="spin" />
-                <p>载入题目中...</p>
+                <p>加载题目中...</p>
               </div>
             ) : problems.length === 0 ? (
               <div className="empty-state">
                 <BookOpen size={64} />
                 <h3>暂无题目</h3>
-                <p>联系老师添加题目</p>
+                <p>联系教师添加题目</p>
               </div>
             ) : (
               <div className="problems-grid">

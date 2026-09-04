@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:8080/api'
+import { apiUrl } from './config.js'
 
 export function getToken() {
   return localStorage.getItem('token')
@@ -9,14 +9,14 @@ async function request(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers }
   if (token) headers['Authorization'] = `Token ${token}`
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers })
+  const res = await fetch(apiUrl(path), { ...options, headers })
   if (res.status === 401) {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     window.location.href = '/login'
     throw new Error('Unauthorized')
   }
-  const data = await res.json()
+  const data = res.status === 204 ? null : await res.json()
   if (!res.ok) {
     const err = data.error || '请求失败'
     if (data.details) throw new Error(`${err}：${JSON.stringify(data.details)}`)
@@ -53,9 +53,15 @@ export async function register(payload) {
   })
 }
 
-export function logout() {
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
+export async function logout() {
+  try {
+    if (getToken()) {
+      await request('/auth/logout/', { method: 'POST' })
+    }
+  } finally {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+  }
 }
 
 export function getCurrentUser() {
@@ -78,9 +84,21 @@ export async function getProblemDetail(problemId, course = 'ai') {
 
 // ─── Submissions ───────────────────────────────────────────────────────────────
 
-export async function submitCode({ problem_id, code }) {
+function createIdempotencyKey() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+  const bytes = new Uint8Array(16)
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes)
+  else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256)
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = [...bytes].map((value) => value.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+export async function submitCode({ problem_id, code, idempotencyKey = createIdempotencyKey() }) {
   return request('/ai/submissions/', {
     method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
     body: JSON.stringify({ problem_id, code }),
   })
 }
@@ -91,11 +109,59 @@ export async function getSubmissionHistory() {
 
 // ─── Code Execution ───────────────────────────────────────────────────────────
 
-export async function runCode(code, stdin = '') {
+export async function runCode(code, stdin = '', idempotencyKey = createIdempotencyKey()) {
   return request('/ai/run_code/', {
     method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
     body: JSON.stringify({ code, stdin }),
   })
+}
+
+export async function getExecutionTask(taskId, { signal } = {}) {
+  return request(`/ai/executions/${encodeURIComponent(taskId)}/`, { signal })
+}
+
+export async function getActiveExecutionTask({ taskType, problemId, signal } = {}) {
+  const params = new URLSearchParams({ task_type: taskType })
+  if (problemId) params.set('problem_id', problemId)
+  return request(`/ai/executions/active/?${params.toString()}`, { signal })
+}
+
+const FINAL_EXECUTION_STATUSES = new Set([
+  'succeeded', 'runtime_error', 'wrong_answer', 'timed_out',
+  'resource_limited', 'system_error', 'cancelled',
+])
+
+function waitForPoll(delay, signal) {
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      signal?.removeEventListener('abort', abort)
+      resolve()
+    }
+    const timer = setTimeout(finish, delay)
+    const abort = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
+      reject(new DOMException('请求已取消', 'AbortError'))
+    }
+    if (signal?.aborted) abort()
+    else signal?.addEventListener('abort', abort, { once: true })
+  })
+}
+
+export async function pollExecutionTask(
+  taskId,
+  { signal, onUpdate, initialDelay = 500, maxDelay = 2000, maxAttempts = 120 } = {},
+) {
+  let delay = initialDelay
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    await waitForPoll(delay, signal)
+    const task = await getExecutionTask(taskId, { signal })
+    onUpdate?.(task)
+    if (FINAL_EXECUTION_STATUSES.has(task.status)) return task
+    delay = Math.min(maxDelay, task.poll_after_ms || Math.ceil(delay * 1.5))
+  }
+  throw new Error('任务状态查询超时，请稍后刷新页面恢复')
 }
 
 // ─── Scores & Stats ────────────────────────────────────────────────────────────
@@ -117,6 +183,30 @@ export async function getAdminDashboard() {
 export async function getAdminStudents(params = {}) {
   const qs = new URLSearchParams(params).toString()
   return request(`/ai/admin/students/${qs ? '?' + qs : ''}`)
+}
+
+export async function getStudentDetail(studentId) {
+  return request(`/auth/${studentId}/`)
+}
+
+export async function revealStudentPassword(studentId) {
+  return request(`/auth/students/${studentId}/password/reveal/`, {
+    method: 'POST',
+  })
+}
+
+export async function resetStudentPassword(studentId, password) {
+  return request(`/auth/students/${studentId}/password/reset/`, {
+    method: 'POST',
+    body: JSON.stringify({ mode: 'manual', password }),
+  })
+}
+
+export async function generateStudentTemporaryPassword(studentId) {
+  return request(`/auth/students/${studentId}/password/reset/`, {
+    method: 'POST',
+    body: JSON.stringify({ mode: 'generated' }),
+  })
 }
 
 export async function getAdminScores(params = {}) {

@@ -180,67 +180,62 @@ class SubmissionViewTest(APITestCase):
         self.prob = Problem.objects.create(
             problem_id='submit_test', title='提交测试', course='ai'
         )
+        self.test_cases_patcher = patch.object(
+            Problem,
+            'get_test_cases',
+            return_value=[{'number': 1, 'input': '', 'output': 'hello'}],
+        )
+        self.test_cases_patcher.start()
+        self.addCleanup(self.test_cases_patcher.stop)
 
-    @patch('ai_courses.views.grade_submission')
-    def test_submit_code_correct(self, mock_grade):
-        """代码完全正确得分100"""
-        mock_grade.return_value = (True, '全部通过\n测试点1: 通过\n测试点2: 通过', 100.0)
+    def test_submit_code_creates_queued_task(self):
+        """代码提交后返回异步任务。"""
         resp = self.client.post('/api/ai/submissions/', {
             'problem_id': 'submit_test',
             'code': 'print("hello")',
         }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['score'], 100.0)
-        self.assertEqual(resp.data['status'], 'accepted')
+        self.assertEqual(resp.status_code, 202)
+        self.assertEqual(resp.data['status'], 'queued')
+        self.assertIn('task_id', resp.data)
         self.assertIn('submission_id', resp.data)
 
-    @patch('ai_courses.views.grade_submission')
-    def test_submit_code_wrong_answer(self, mock_grade):
-        """ok=False → status='error'（批改判定失败）"""
-        mock_grade.return_value = (False, '答案错误', 0.0)
+    def test_submit_code_does_not_grade_inside_web_request(self):
         resp = self.client.post('/api/ai/submissions/', {
             'problem_id': 'submit_test',
             'code': 'wrong answer',
         }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['score'], 0.0)
-        self.assertEqual(resp.data['status'], 'error')
+        self.assertEqual(resp.status_code, 202)
+        self.assertNotIn('score', resp.data)
+        self.assertEqual(Submission.objects.get().status, 'pending')
 
-    @patch('ai_courses.views.grade_submission')
-    def test_submit_code_partial_score(self, mock_grade):
-        """ok=True + score<100 → status='wrong_answer'"""
-        mock_grade.return_value = (True, '部分通过', 50.0)
+    def test_submit_code_starts_without_score(self):
         resp = self.client.post('/api/ai/submissions/', {
             'problem_id': 'submit_test',
             'code': 'half right',
         }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['score'], 50.0)
-        self.assertEqual(resp.data['status'], 'wrong_answer')
+        self.assertEqual(resp.status_code, 202)
+        self.assertIsNone(Submission.objects.get().score)
 
-    @patch('ai_courses.views.grade_submission')
-    def test_submit_creates_submission_record(self, mock_grade):
+    def test_submit_creates_submission_record(self):
         """提交后数据库有记录"""
-        mock_grade.return_value = (True, 'ok', 100.0)
         resp = self.client.post('/api/ai/submissions/', {
             'problem_id': 'submit_test',
             'code': 'correct',
         }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 202)
         self.assertEqual(Submission.objects.count(), 1)
         sub = Submission.objects.first()
         self.assertEqual(sub.user, self.student)
-        self.assertEqual(sub.score, 100.0)
+        self.assertIsNone(sub.score)
+        self.assertIsNotNone(sub.execution_task)
 
-    @patch('ai_courses.views.grade_submission')
-    def test_submit_saves_code(self, mock_grade):
+    def test_submit_saves_code(self):
         """提交后代码被保存"""
-        mock_grade.return_value = (True, 'ok', 100.0)
         resp = self.client.post('/api/ai/submissions/', {
             'problem_id': 'submit_test',
             'code': 'my_code_here',
         }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 202)
         self.assertEqual(Submission.objects.first().code, 'my_code_here')
 
     def test_submit_nonexistent_problem(self):
@@ -273,24 +268,21 @@ class SubmissionViewTest(APITestCase):
         }, format='json')
         self.assertEqual(resp.status_code, 401)
 
-    @patch('ai_courses.views.grade_submission')
-    def test_submit_grade_exception_returns_500(self, mock_grade):
-        """批改系统异常返回 500"""
-        mock_grade.side_effect = Exception('grading system error')
-        resp = self.client.post('/api/ai/submissions/', {
-            'problem_id': 'submit_test',
-            'code': 'bad code',
-        }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 500)
-        self.assertIn('批改系统错误', resp.data['detail'])
+    def test_submit_without_test_cases_is_rejected_atomically(self):
+        """无测试点时不留下半条提交。"""
+        with patch.object(Problem, 'get_test_cases', return_value=[]):
+            resp = self.client.post('/api/ai/submissions/', {
+                'problem_id': 'submit_test',
+                'code': 'bad code',
+            }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
+        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(Submission.objects.count(), 0)
 
     # FormData file upload tests ───────────────────────────────────────
 
-    @patch('ai_courses.views.grade_submission')
-    def test_submit_formdata_file_success(self, mock_grade):
-        """FormData with .py file upload should grade successfully"""
+    def test_submit_formdata_file_success(self):
+        """FormData with .py file upload should enqueue successfully"""
         from django.core.files.uploadedfile import SimpleUploadedFile
-        mock_grade.return_value = (True, '全部通过', 100.0)
         py_file = SimpleUploadedFile(
             "test.py",
             b"print('hello world')",
@@ -300,18 +292,15 @@ class SubmissionViewTest(APITestCase):
             'problem_id': 'submit_test',
             'file': py_file,
         }, format='multipart', HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['score'], 100.0)
-        self.assertEqual(resp.data['status'], 'accepted')
+        self.assertEqual(resp.status_code, 202)
+        self.assertEqual(resp.data['status'], 'queued')
         # Verify code was extracted from file and saved
         self.assertEqual(Submission.objects.count(), 1)
         self.assertEqual(Submission.objects.first().code, "print('hello world')")
 
-    @patch('ai_courses.views.grade_submission')
-    def test_submit_formdata_file_partial_score(self, mock_grade):
-        """FormData file upload with partial score should work"""
+    def test_submit_formdata_file_preserves_code(self):
+        """FormData file upload preserves the source snapshot."""
         from django.core.files.uploadedfile import SimpleUploadedFile
-        mock_grade.return_value = (True, '部分通过', 50.0)
         py_file = SimpleUploadedFile(
             "solution.py",
             b"def solve():\n    return 1",
@@ -321,9 +310,8 @@ class SubmissionViewTest(APITestCase):
             'problem_id': 'submit_test',
             'file': py_file,
         }, format='multipart', HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['score'], 50.0)
-        self.assertEqual(resp.data['status'], 'wrong_answer')
+        self.assertEqual(resp.status_code, 202)
+        self.assertEqual(Submission.objects.get().code, "def solve():\n    return 1")
 
     def test_submit_formdata_file_empty_content(self):
         """FormData with empty .py file should return 400"""
@@ -402,7 +390,7 @@ class SubmissionHistoryViewTest(APITestCase):
 
     def test_get_history_only_own(self):
         """只返回自己的提交，不包含其他学生的"""
-        other = make_student(display_name='其他学生')
+        other = make_student(student_number='02', display_name='其他学生')
         other_sub = Submission.objects.create(
             user=other, problem=self.prob, code='other',
             score=50.0, status='wrong_answer'
@@ -558,6 +546,41 @@ class StudentStatsViewTest(APITestCase):
         self.assertEqual(resp.data['completed_problems'], 1)
         self.assertEqual(resp.data['average_score'], 90.0)
 
+    def test_info_stats_uses_latest_completed_score_and_hides_closed_quizzes(self):
+        teacher = make_teacher()
+        open_session = QuizSession.objects.create(
+            title='开放小测', created_by=teacher, status=QuizSession.STATUS_OPEN,
+            num_questions=5, visible_grades=['七年级'],
+        )
+        closed_session = QuizSession.objects.create(
+            title='关闭小测', created_by=teacher, status=QuizSession.STATUS_CLOSED,
+            num_questions=5, visible_grades=['七年级'],
+        )
+        QuizSubmission.objects.create(
+            user=self.student, session=open_session, status=QuizSubmission.STATUS_SUBMITTED,
+            attempt_no=1, current_marker=None, score=70.0, correct_count=3,
+            total_count=5, answers_json='{}',
+        )
+        QuizSubmission.objects.create(
+            user=self.student, session=open_session, status=QuizSubmission.STATUS_IN_PROGRESS,
+            attempt_no=2, current_marker=True, score=None, correct_count=None,
+            total_count=5, answers_json='{}', submitted_at=None,
+        )
+        QuizSubmission.objects.create(
+            user=self.student, session=closed_session, status=QuizSubmission.STATUS_SUBMITTED,
+            attempt_no=1, current_marker=True, score=100.0, correct_count=5,
+            total_count=5, answers_json='{}',
+        )
+
+        resp = self.client.get(
+            '/api/ai/stats/?course=info', HTTP_AUTHORIZATION=f'Token {self.token}',
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['total_problems'], 1)
+        self.assertEqual(resp.data['completed_problems'], 1)
+        self.assertEqual(resp.data['average_score'], 70.0)
+
 
 # ─── 老师端：管理后台概览 ───────────────────────────────────────────────
 
@@ -568,8 +591,8 @@ class AdminDashboardViewTest(APITestCase):
         self.teacher = make_teacher()
         self.teacher_token = get_token(self.teacher)
         self.student = make_student()
-        Problem.objects.create(problem_id='dash1', course='ai')
-        Submission.objects.create(user=self.student, problem_id=1, score=85.0, code='c')
+        problem = Problem.objects.create(problem_id='dash1', course='ai')
+        Submission.objects.create(user=self.student, problem=problem, score=85.0, code='c')
 
     def test_dashboard_returns_stats(self):
         """返回统计数据"""
@@ -728,13 +751,14 @@ class AdminStudentListViewTest(APITestCase):
         self.stu2 = make_student(grade='八年级', class_num='2', student_number='03', display_name='学生B')
 
     def test_list_students(self):
-        """返回所有学生"""
+        """只返回教师管理年级的学生"""
         resp = self.client.get(
             '/api/ai/admin/students/',
             HTTP_AUTHORIZATION=f'Token {self.teacher_token}'
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(len(resp.data), 2)
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]['display_name'], '学生A')
 
     def test_filter_by_grade(self):
         """?grade= 筛选"""
@@ -753,8 +777,7 @@ class AdminStudentListViewTest(APITestCase):
             HTTP_AUTHORIZATION=f'Token {self.teacher_token}'
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]['display_name'], '学生B')
+        self.assertEqual(len(resp.data), 0)
 
     def test_sort_by_grade_asc(self):
         """默认按 grade 升序"""
@@ -885,16 +908,13 @@ class AdminStudentScoresViewTest(APITestCase):
         resp = self.client.get('/api/ai/admin/scores/')
         self.assertEqual(resp.status_code, 401)
 
-    def test_scores_all_students_appear_even_without_submissions(self):
-        """即使没有提交记录也显示该学生（分数为空）"""
-        stu3 = make_student(grade='八年级', class_num='3', student_number='10', display_name='丙')
+    def test_scores_do_not_include_students_outside_teacher_grade(self):
+        """其他年级学生不因筛选参数被泄露。"""
+        make_student(grade='八年级', class_num='3', student_number='10', display_name='丙')
         resp = self.client.get(
             '/api/ai/admin/scores/?grade=八年级',
             HTTP_AUTHORIZATION=f'Token {self.teacher_token}'
         )
         self.assertEqual(resp.status_code, 200)
         names = [s['display_name'] for s in resp.data['students']]
-        self.assertIn('丙', names)
-        # 丙没有提交，scores 应为空
-        c_scores = next(s['scores'] for s in resp.data['students'] if s['display_name'] == '丙')
-        self.assertEqual(c_scores, [])
+        self.assertNotIn('丙', names)

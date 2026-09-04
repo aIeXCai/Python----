@@ -2,8 +2,8 @@
  * Tab1Questions 筛选逻辑单元测试
  * 运行: cd frontend && npx vitest run src/pages/teacher/tabs/Tab1Questions.test.jsx
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 // Mock lucide-react icons
@@ -18,13 +18,10 @@ vi.mock('lucide-react', () => ({
   CheckCircle: () => <span data-testid="icon-check">Check</span>,
 }))
 
-const API = 'http://localhost:8080/api'
+const API = '/api'
 
 // 真实的 Tab1Questions（从父文件复制出关键逻辑以便测试）
 // 由于 Tab1Questions 嵌套了 QuestionModal/ImportModal，这里只测试主体筛选渲染逻辑
-
-const difficultyLabel = d => ({ easy: '容易', medium: '中等', hard: '困难' }[d] || d)
-const difficultyBadgeColor = d => ({ easy: '#38ef7d', medium: '#f59e0b', hard: '#ef4444' }[d] || '#888')
 
 // 模拟题库数据
 const mockQuestions = [
@@ -54,7 +51,6 @@ const mockQBigUnits = [
 
 // 简化版 Tab1Questions 用于测试筛选逻辑
 function SimplifiedTab1Questions({ questions, qGradeFilter, setQGradeFilter, qBigUnits, qBigUnitFilter, setQBigUnitFilter, qAllUnits, filterUnit, setFilterUnit, selectedQuestions, handleSelectAll, handleSelectOne, handleApplyFilter }) {
-  const difficultyBadgeColorLocal = d => ({ easy: '#38ef7d', medium: '#f59e0b', hard: '#ef4444' }[d] || '#888')
   const difficultyLabelLocal = d => ({ easy: '容易', medium: '中等', hard: '困难' }[d] || d)
 
   return (
@@ -165,10 +161,9 @@ describe('Tab1Questions 筛选逻辑', () => {
 
     it('大单元切换时自动清空小节选中值', async () => {
       const user = userEvent.setup()
-      let clearedBigUnitFilter = ''
       let clearedFilterUnit = ''
 
-      const setQBigUnitFilter = v => { clearedBigUnitFilter = v }
+      const setQBigUnitFilter = () => {}
       const setFilterUnit = v => { clearedFilterUnit = v }
 
       render(<SimplifiedTab1Questions

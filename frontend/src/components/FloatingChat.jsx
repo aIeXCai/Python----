@@ -59,6 +59,7 @@ export default function FloatingChat() {
     toggle, setInputText, sendMessage, newSession, setError,
     view, setView, sessions, isLoadingSessions,
     loadHistory, removeSession, openHistory,
+    isDisabled,
   } = useChat()
 
   const messagesEndRef = useRef(null)
@@ -100,6 +101,8 @@ export default function FloatingChat() {
     if (!inputText.trim() || isStreaming) return
     sendMessage(inputText)
   }
+
+  if (isDisabled) return null
 
   const contextLabel = context
     ? `${context.type === 'ai_problem' ? '题目' : '小测'}：${context.title}`
@@ -181,7 +184,7 @@ export default function FloatingChat() {
               {messages.length === 0 && (
                 <div className="chat-empty">
                   <MessageCircle size={40} strokeWidth={1} />
-                  <p>你好！我是 小 P 老师 👋</p>
+                  <p>你好！我是小 P 教师 👋</p>
                   <p>有任何编程课的问题，随时问我～</p>
                 </div>
               )}

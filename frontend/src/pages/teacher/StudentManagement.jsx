@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Users, Trash2, Search, RefreshCw, Eye, EyeOff, Edit2, X, Check } from 'lucide-react'
+import { ArrowLeft, Users, Trash2, Search, RefreshCw, Edit2, X } from 'lucide-react'
+import { API_BASE_URL } from '../../api/config.js'
+import {
+  generateStudentTemporaryPassword,
+  resetStudentPassword,
+  revealStudentPassword,
+} from '../../api/index.js'
+import { GRADES } from '../../constants/grades.js'
 
-const API = 'http://localhost:8080/api'
-const grades = ['七年级', '八年级', '九年级']
+const API = API_BASE_URL
+const grades = GRADES
 
 export default function StudentManagement() {
   const navigate = useNavigate()
@@ -17,14 +24,22 @@ export default function StudentManagement() {
   const [editModal, setEditModal] = useState({ open: false, student: null })
   const [editForm, setEditForm] = useState({})
   const [editSaving, setEditSaving] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
 
-  // 密码显示状态（studentId -> boolean）
-  const [showPassword, setShowPassword] = useState({})
+  // 同时只在当前组件内存中短时保存一个学生密码。
+  const [revealedPassword, setRevealedPassword] = useState(null)
+  const passwordTimerRef = useRef(null)
 
   const token = localStorage.getItem('token')
   const headers = { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' }
 
   useEffect(() => { loadStudents() }, [])
+
+  useEffect(() => () => {
+    if (passwordTimerRef.current) clearTimeout(passwordTimerRef.current)
+    passwordTimerRef.current = null
+  }, [])
 
   useEffect(() => {
     let result = [...students]
@@ -49,25 +64,38 @@ export default function StudentManagement() {
     setLoading(false)
   }
 
-  // ---------- 统计 ----------
-  const gradeSet = new Set(students.map(s => s.grade).filter(Boolean))
-  const classSet = new Set(students.map(s => `${s.grade}-${s.class_num}`).filter(Boolean))
-
   // ---------- 密码显示/隐藏 ----------
-  const togglePassword = async (studentId) => {
-    if (showPassword[studentId]) {
-      setShowPassword(p => ({ ...p, [studentId]: false }))
+  const clearRevealedPassword = () => {
+    if (passwordTimerRef.current) clearTimeout(passwordTimerRef.current)
+    passwordTimerRef.current = null
+    setRevealedPassword(null)
+  }
+
+  const showPasswordTemporarily = (studentId, password, seconds = 30) => {
+    clearRevealedPassword()
+    setRevealedPassword({ studentId, password, seconds })
+    passwordTimerRef.current = setTimeout(() => {
+      setRevealedPassword(null)
+      passwordTimerRef.current = null
+    }, seconds * 1000)
+  }
+
+  const togglePassword = async (student) => {
+    if (revealedPassword?.studentId === student.id) {
+      clearRevealedPassword()
       return
     }
-    // 获取密码原始值
+    if (!student.password_available) {
+      alert('该学生密码不可查看，请先重置密码。')
+      return
+    }
+    if (!window.confirm('查看操作将被记录，请仅用于帮助该学生登录。')) return
     try {
-      const res = await fetch(`${API}/auth/${studentId}/`, { headers })
-      if (res.ok) {
-        const data = await res.json()
-        setShowPassword(p => ({ ...p, [studentId]: data.plain_password || '********' }))
-      }
+      const data = await revealStudentPassword(student.id)
+      showPasswordTemporarily(student.id, data.password, data.display_seconds)
     } catch (e) {
-      setShowPassword(p => ({ ...p, [studentId]: '********' }))
+      clearRevealedPassword()
+      alert(e.message || '密码查看失败')
     }
   }
 
@@ -79,16 +107,22 @@ export default function StudentManagement() {
       grade: student.grade || '',
       class_num: student.class_num || '',
       student_number: student.student_number || '',
-      password: '',
     })
+    setNewPassword('')
+    clearRevealedPassword()
     setEditModal({ open: true, student })
+  }
+
+  const closeEdit = () => {
+    clearRevealedPassword()
+    setNewPassword('')
+    setEditModal({ open: false, student: null })
   }
 
   const saveEdit = async () => {
     setEditSaving(true)
     try {
       const payload = { ...editForm }
-      if (!payload.password) delete payload.password
       const res = await fetch(`${API}/auth/${editModal.student.id}/`, {
         method: 'PUT',
         headers,
@@ -104,13 +138,57 @@ export default function StudentManagement() {
           class_num: data.student.class_num,
           student_number: data.student.student_number,
         } : s))
-        setEditModal({ open: false, student: null })
+        closeEdit()
       } else {
         const err = await res.json()
         alert('更新失败：' + (err.error || err.detail || JSON.stringify(err)))
       }
     } catch (e) { alert('更新失败：' + e.message) }
     setEditSaving(false)
+  }
+
+  const markPasswordAvailable = (studentId) => {
+    setStudents(prev => prev.map(student => (
+      student.id === studentId ? { ...student, password_available: true } : student
+    )))
+  }
+
+  const handleManualPasswordReset = async () => {
+    if (!newPassword) {
+      alert('请输入至少 8 位的新密码。')
+      return
+    }
+    setPasswordSaving(true)
+    try {
+      const data = await resetStudentPassword(editModal.student.id, newPassword)
+      setNewPassword('')
+      markPasswordAvailable(editModal.student.id)
+      clearRevealedPassword()
+      alert(data.message)
+    } catch (e) {
+      alert(e.message || '密码重置失败')
+    } finally {
+      setPasswordSaving(false)
+    }
+  }
+
+  const handleGeneratedPassword = async () => {
+    if (!window.confirm('确定生成并应用新的随机临时密码吗？学生原登录会立即失效。')) return
+    setPasswordSaving(true)
+    try {
+      const data = await generateStudentTemporaryPassword(editModal.student.id)
+      markPasswordAvailable(editModal.student.id)
+      showPasswordTemporarily(
+        editModal.student.id,
+        data.temporary_password,
+        data.display_seconds,
+      )
+    } catch (e) {
+      clearRevealedPassword()
+      alert(e.message || '临时密码生成失败')
+    } finally {
+      setPasswordSaving(false)
+    }
   }
 
   // ---------- 删除 ----------
@@ -125,7 +203,9 @@ export default function StudentManagement() {
   }
 
   // 密码遮罩
-  const displayPwd = (id) => showPassword[id] ? showPassword[id] : '••••••'
+  const displayPwd = (id) => revealedPassword?.studentId === id
+    ? revealedPassword.password
+    : '••••••••'
 
   const gradeColor = (g) => ({ '七年級': '#667eea', '七年级': '#667eea', '八年級': '#38ef7d', '八年级': '#38ef7d', '九年級': '#f59e0b', '九年级': '#f59e0b' }[g] || '#888')
 
@@ -266,12 +346,19 @@ export default function StudentManagement() {
                       <span style={{ fontFamily: 'monospace', background: '#f0f0f0', padding: '2px 8px', borderRadius: 3, fontSize: 12, color: '#666', marginRight: 6 }}>
                         {displayPwd(s.id)}
                       </span>
-                      <button onClick={() => togglePassword(s.id)} style={{
+                      <button onClick={() => togglePassword(s)} style={{
                         background: 'none', border: 'none', cursor: 'pointer', color: '#667eea',
                         fontSize: 11, textDecoration: 'underline', padding: 0,
                       }}>
-                        {showPassword[s.id] ? '隐藏' : '显示'}
+                        {revealedPassword?.studentId === s.id
+                          ? '隐藏'
+                          : (s.password_available ? '显示' : '需重置')}
                       </button>
+                      {revealedPassword?.studentId === s.id && (
+                        <div style={{ fontSize: 10, color: '#b45309', marginTop: 4 }}>
+                          {revealedPassword.seconds} 秒后自动隐藏
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: '14px 18px', display: 'flex', gap: 6 }}>
                       <button onClick={() => openEdit(s)} style={{
@@ -302,14 +389,14 @@ export default function StudentManagement() {
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }} onClick={() => setEditModal({ open: false, student: null })}>
+        }} onClick={closeEdit}>
           <div style={{
             background: 'white', borderRadius: 16, padding: '32px', width: 440,
             boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <h2 style={{ fontSize: 18, fontWeight: 700, color: '#333', margin: 0 }}>编辑学生信息</h2>
-              <button onClick={() => setEditModal({ open: false, student: null })} style={{
+              <button onClick={closeEdit} style={{
                 background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: 4,
               }}>
                 <X size={20} />
@@ -321,7 +408,6 @@ export default function StudentManagement() {
                 { key: 'display_name', label: '姓名', type: 'text' },
                 { key: 'username', label: '用户名（系统自动生成）', type: 'text', readOnly: true },
                 { key: 'student_number', label: '学号', type: 'text' },
-                { key: 'password', label: '新密码（留空则不变）', type: 'password' },
               ].map(field => (
                 <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <label style={{ fontSize: 13, color: '#666', fontWeight: 600 }}>{field.label}</label>
@@ -356,10 +442,38 @@ export default function StudentManagement() {
                   </select>
                 </div>
               </div>
+
+              <div style={{ borderTop: '1px solid #eee', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <label style={{ fontSize: 13, color: '#666', fontWeight: 600 }}>密码重置</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="输入至少 8 位新密码"
+                  autoComplete="new-password"
+                  style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 14 }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={handleManualPasswordReset} disabled={passwordSaving} style={{
+                    padding: '8px 14px', borderRadius: 8, border: 'none', cursor: passwordSaving ? 'not-allowed' : 'pointer',
+                    background: '#f59e0b', color: 'white', fontSize: 12, fontWeight: 600,
+                  }}>设置新密码</button>
+                  <button type="button" onClick={handleGeneratedPassword} disabled={passwordSaving} style={{
+                    padding: '8px 14px', borderRadius: 8, border: '1px solid #667eea', cursor: passwordSaving ? 'not-allowed' : 'pointer',
+                    background: 'white', color: '#667eea', fontSize: 12, fontWeight: 600,
+                  }}>生成随机临时密码</button>
+                </div>
+                {revealedPassword?.studentId === editModal.student.id && (
+                  <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 11, color: '#9a3412', marginBottom: 4 }}>当前密码（{revealedPassword.seconds} 秒后自动隐藏）</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: 15, color: '#7c2d12' }}>{revealedPassword.password}</div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: 12, marginTop: 28, justifyContent: 'flex-end' }}>
-              <button onClick={() => setEditModal({ open: false, student: null })} style={{
+              <button onClick={closeEdit} style={{
                 padding: '10px 24px', borderRadius: 8, border: '1px solid #e0e0e0',
                 background: 'white', color: '#666', fontSize: 14, fontWeight: 600, cursor: 'pointer',
               }}>取消</button>

@@ -28,6 +28,7 @@ const mockUseChat = vi.fn(() => ({
   view: 'chat',
   sessions: [],
   isLoadingSessions: false,
+  isDisabled: false,
   toggle: mockToggle,
   open: vi.fn(),
   close: vi.fn(),
@@ -72,6 +73,7 @@ function setChat(overrides = {}) {
     view: 'chat',
     sessions: [],
     isLoadingSessions: false,
+    isDisabled: false,
     toggle: mockToggle,
     open: vi.fn(),
     close: vi.fn(),
@@ -104,6 +106,12 @@ describe('FloatingChat — 悬浮按钮', () => {
     render(<FloatingChat />)
     fireEvent.click(screen.getByRole('button', { name: /打开 AI 对话/i }))
     expect(mockToggle).toHaveBeenCalled()
+  })
+
+  it('正式小测作答期间完全隐藏入口', () => {
+    setChat({ isDisabled: true })
+    render(<FloatingChat />)
+    expect(screen.queryByRole('button', { name: /打开 AI 对话/i })).not.toBeInTheDocument()
   })
 })
 
@@ -152,7 +160,7 @@ describe('FloatingChat — 消息列表', () => {
   it('无消息时显示空状态', () => {
     setChat({ isOpen: true })
     render(<FloatingChat />)
-    expect(screen.getByText(/小 P 老师/)).toBeInTheDocument()
+    expect(screen.getByText(/小 P 教师/)).toBeInTheDocument()
   })
 
   it('显示用户消息气泡', () => {

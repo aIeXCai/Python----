@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import Navbar from '../../../components/Navbar.jsx'
 import { getInfoQuizResult } from '../../../api/info.js'
-import { Loader, ArrowLeft, Award, RotateCcw } from 'lucide-react'
+import { Loader, ArrowLeft, Award } from 'lucide-react'
 
 export default function QuizResult() {
   const { sessionId } = useParams()
@@ -52,7 +52,7 @@ export default function QuizResult() {
         <Navbar username={username} grade={grade} class_num={classNum} />
         <div className="loading-state" style={{ marginTop: 80 }}>
           <Loader size={40} className="spin" />
-          <p>载入成绩中...</p>
+          <p>加载成绩中...</p>
         </div>
       </div>
     )
@@ -70,7 +70,7 @@ export default function QuizResult() {
     )
   }
 
-  const { quiz_title, score, total_count, correct_count, submitted_at, question_results = [] } = result
+  const { quiz_title, score, total_count, correct_count, submitted_at, question_results = [], can_retry = false } = result
 
   return (
     <div className="page-bg" style={{ '--bg-gradient': 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' }}>
@@ -144,6 +144,11 @@ export default function QuizResult() {
         </div>
 
         {/* 错题解析 — 只显示做错的题 */}
+        {result.legacy_record && !result.analysis_available && (
+          <div style={{ marginBottom: 24, padding: '14px 16px', background: '#fff8e1', borderRadius: 8, color: '#8a6300' }}>
+            这是一条历史成绩，题库内容已变化，逐题解析无法可靠还原。
+          </div>
+        )}
         {(() => {
           const wrong = (question_results || []).filter(qr => !qr.is_correct)
           if (wrong.length === 0) return null
@@ -151,7 +156,7 @@ export default function QuizResult() {
             <div style={{ marginBottom: 24 }}>
               <h3 style={{ marginBottom: 16, fontSize: '1rem', color: '#333' }}>错题解析</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {wrong.map((qr, i) => (
+                {wrong.map((qr) => (
                   <div key={qr.question_id} style={{
                     background: '#fff',
                     borderRadius: 10,
@@ -211,15 +216,8 @@ export default function QuizResult() {
           )
         })()}
 
-        {/* 返回 + 重新作答 */}
+        {/* 返回列表；开放中的小测可以直接开始新一轮作答 */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 40 }}>
-          <Link
-            to={`/student/quiz/${sessionId}`}
-            className="btn btn-primary"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px', fontSize: '1rem' }}
-          >
-            <RotateCcw size={18} /> 重新作答
-          </Link>
           <Link
             to="/student/dashboard?course=info"
             className="btn btn-secondary"
@@ -227,6 +225,15 @@ export default function QuizResult() {
           >
             <ArrowLeft size={18} /> 返回列表
           </Link>
+          {can_retry && (
+            <Link
+              to={`/student/quiz/${sessionId}`}
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px', fontSize: '1rem' }}
+            >
+              再做一次
+            </Link>
+          )}
         </div>
       </main>
     </div>

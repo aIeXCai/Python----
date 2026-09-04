@@ -2,9 +2,11 @@
 users Model + Serializer 单元测试
 运行: cd backend && python manage.py test users.tests_model
 """
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from users.models import CustomUser
 from users.serializers import LoginSerializer, UserSerializer
+from users.services import set_student_password
 
 
 class CustomUserModelTest(TestCase):
@@ -39,29 +41,34 @@ class CustomUserModelTest(TestCase):
         )
         self.assertEqual(str(u), '7-1-05 (七年级1)')
 
-    def test_str_student_no_grade(self):
-        """无年级/班级 → __str__ = username"""
-        u = CustomUser.objects.create_user(username='user_no_grade', password='x', role='student')
-        self.assertEqual(str(u), 'user_no_grade')
+    def test_student_identity_is_required(self):
+        """学生不能缺少年级、班级和学号。"""
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            CustomUser.objects.create_user(
+                username='user_no_grade', password='x', role='student',
+            )
 
     def test_str_teacher_no_grade_class(self):
         """老师无 grade/class_num → __str__ = username"""
         u = CustomUser.objects.create_user(username='alex', password='x', role='teacher')
         self.assertEqual(str(u), 'alex')
 
-    def test_role_default_is_student(self):
-        """默认 role='student'"""
-        u = CustomUser.objects.create_user(username='default_role', password='x')
-        self.assertEqual(u.role, 'student')
+    def test_default_student_still_requires_identity(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            CustomUser.objects.create_user(username='default_role', password='x')
 
-    def test_plain_password_saved(self):
-        """plain_password 明文保存"""
-        u = CustomUser.objects.create_user(
-            username='stu', password='secret123', role='student',
+    def test_student_password_is_encrypted(self):
+        """学生可恢复密码只保存密文"""
+        u = CustomUser.objects.create(
+            username='stu', role='student',
             grade='七年级', class_num='1', student_number='01',
-            plain_password='secret123'
         )
-        self.assertEqual(u.plain_password, 'secret123')
+        set_student_password(
+            u, 'model-test-password', validate=False, invalidate_tokens=False
+        )
+        self.assertEqual(u.password_recovery_status, 'available')
+        self.assertNotIn('model-test-password', u.encrypted_password)
+        self.assertTrue(u.check_password('model-test-password'))
 
     def test_managed_grade_for_teacher(self):
         """老师可设置 managed_grade"""
@@ -71,15 +78,13 @@ class CustomUserModelTest(TestCase):
         )
         self.assertEqual(u.managed_grade, '八年级')
 
-    def test_teacher_not_student(self):
-        """role='teacher' 时 grade/class_num/managed_grade 都可以有值"""
-        u = CustomUser.objects.create_user(
-            username='dual', password='x', role='teacher',
-            grade='老师所属年级', managed_grade='管理年级',
-            display_name='双角色'
-        )
-        # teacher 也可以有 grade（取决于业务需求）
-        self.assertEqual(u.role, 'teacher')
+    def test_teacher_cannot_have_student_identity(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            CustomUser.objects.create_user(
+                username='dual', password='x', role='teacher',
+                grade='七年级', class_num='1', student_number='01',
+                managed_grade='七年级', display_name='双角色',
+            )
 
 
 class LoginSerializerTest(TestCase):
@@ -147,3 +152,5 @@ class UserSerializerTest(TestCase):
         self.assertEqual(s.data['student_number'], '03')
         self.assertEqual(s.data['display_name'], '王小明')
         self.assertNotIn('plain_password', s.data)  # 不泄露密码
+        self.assertNotIn('encrypted_password', s.data)
+        self.assertNotIn('password_encryption_key_id', s.data)

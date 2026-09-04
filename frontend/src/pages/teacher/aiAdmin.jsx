@@ -4,8 +4,10 @@ import {
   ArrowLeft, Bot, BookOpen, BarChart3, RefreshCw, Eye, Trash2,
   Upload, X, Plus, Edit2, CheckCircle
 } from 'lucide-react'
+import { API_BASE_URL } from '../../api/config.js'
+import { GRADES } from '../../constants/grades.js'
 
-const API = 'http://localhost:8080/api'
+const API = API_BASE_URL
 const DIFFICULTY_COLORS = { '简单': '#38ef7d', '中等': '#f59e0b', '困难': '#ef4444', '入门': '#38ef7d', '进阶': '#f59e0b', '高级': '#ef4444' }
 
 function MsgBanner({ msg }) {
@@ -93,7 +95,7 @@ export default function AiAdmin() {
   const [problems2, setProblems2] = useState([])
   const [scoreMapByNum, setScoreMapByNum] = useState({})
 
-  const grades = ['七年级', '八年级', '九年级']
+  const grades = GRADES
   const classOptions = Array.from({ length: 20 }, (_, i) => i + 1)
 
   const loadScores = async () => {

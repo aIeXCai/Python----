@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import Unit, Question, QuizSession
+from .models import Unit, Question, QuizSession, QuizSubmission
+from users.grade_levels import normalize_grade
+from users.scopes import TeacherScopeError, require_teacher_grade, scope_by_grade
 
 
 class UnitSerializer(serializers.ModelSerializer):
@@ -48,6 +50,7 @@ class QuestionSerializer(serializers.ModelSerializer):
 class QuestionCreateSerializer(serializers.Serializer):
     """新增/编辑单题"""
     unit = serializers.CharField()           # 传单元 name，如 "第四单元"
+    grade = serializers.CharField(required=False, write_only=True)
     difficulty = serializers.ChoiceField(choices=['easy', 'medium', 'hard'], default='easy')
     category = serializers.CharField(required=False, default='', allow_blank=True)
     text = serializers.CharField()
@@ -60,17 +63,26 @@ class QuestionCreateSerializer(serializers.Serializer):
 
     def validate_unit(self, value):
         try:
-            unit = Unit.objects.get(name=value)
+            units = Unit.objects.filter(name=value)
+            grade = self.initial_data.get('grade')
+            if grade:
+                units = units.filter(grade=normalize_grade(grade))
+            request = self.context.get('request')
+            if request:
+                units = scope_by_grade(units, request.user)
+            unit = units.get()
             return unit
-        except Unit.DoesNotExist:
+        except (Unit.DoesNotExist, Unit.MultipleObjectsReturned):
             raise serializers.ValidationError(f"单元 '{value}' 不存在，请先创建单元")
 
     def create(self, validated_data):
         unit = validated_data.pop('unit')
+        validated_data.pop('grade', None)
         return Question.objects.create(unit=unit, **validated_data)
 
     def update(self, instance, validated_data):
         unit = validated_data.pop('unit')
+        validated_data.pop('grade', None)
         validated_data['unit'] = unit
         for key, value in validated_data.items():
             setattr(instance, key, value)
@@ -93,7 +105,14 @@ class QuestionImportSerializer(serializers.Serializer):
     def validate(self, data):
         unit_name = data['unit']
         unit_display = data.get('unit_display_name', '')
-        grade = data.get('grade', '七年级')
+        try:
+            grade = normalize_grade(data.get('grade', '七年级'))
+            request = self.context.get('request')
+            if request:
+                require_teacher_grade(request.user, grade)
+        except Exception as exc:
+            raise serializers.ValidationError({'grade': str(exc)}) from exc
+        data['grade'] = grade
 
         # 用 name + grade 唯一定位（解决七年级/八年级单元 name 相同的问题）
         unit, created = Unit.objects.update_or_create(
@@ -147,16 +166,26 @@ class QuizSessionSerializer(serializers.ModelSerializer):
     big_unit_names = serializers.SerializerMethodField()
     section_names = serializers.SerializerMethodField()
     grade = serializers.SerializerMethodField()   # visible_grades[0] 或第一个单元的年级
-    submission_count = serializers.IntegerField(source='quizsubmission_set.count', read_only=True)
+    submission_count = serializers.SerializerMethodField()
+    is_visible = serializers.SerializerMethodField()
 
     class Meta:
         model = QuizSession
         fields = [
             'id', 'title', 'created_by', 'units', 'unit_names', 'big_unit_names', 'section_names', 'grade',
             'num_questions', 'difficulty_ratio', 'time_limit',
-            'is_visible', 'visible_grades', 'submission_count',
+            'status', 'is_visible', 'visible_grades', 'visible_classes', 'submission_count',
+            'opened_at', 'closed_at', 'archived_at',
             'created_at', 'updated_at'
         ]
+
+    def get_is_visible(self, obj):
+        return obj.status == QuizSession.STATUS_OPEN
+
+    def get_submission_count(self, obj):
+        return obj.quizsubmission_set.filter(
+            status__in=(QuizSubmission.STATUS_SUBMITTED, QuizSubmission.STATUS_TIMED_OUT),
+        ).values('user_id').distinct().count()
 
     def get_units(self, obj):
         return [u.id for u in obj.units.all()]
@@ -192,19 +221,55 @@ class QuizSessionCreateSerializer(serializers.Serializer):
     difficulty_ratio = serializers.JSONField(default=dict)   # {"easy":7,"medium":2,"hard":1}
     time_limit       = serializers.IntegerField(required=False, min_value=1, allow_null=True)
     is_visible       = serializers.BooleanField(default=False)
-    visible_grades   = serializers.JSONField(default=list)   # [] = 全部年级
+    visible_grades   = serializers.ListField(
+        child=serializers.CharField(max_length=20), default=list,
+    )
+    visible_classes  = serializers.ListField(
+        child=serializers.CharField(max_length=20, trim_whitespace=True), default=list,
+    )  # [] = 所选年级全部班级
+
+    def validate(self, attrs):
+        ratio = attrs.get('difficulty_ratio') or {}
+        num_questions = attrs.get('num_questions')
+        if num_questions is not None:
+            if not ratio:
+                ratio = {'easy': num_questions}
+                attrs['difficulty_ratio'] = ratio
+            total = sum(int(v) for v in ratio.values() if isinstance(v, (int, float)) and v >= 0)
+            if total > num_questions:
+                raise serializers.ValidationError({'difficulty_ratio': '难度题数总和不能超过小测题数'})
+        unit_ids = attrs.get('units', [])
+        grades = set(Unit.objects.filter(id__in=unit_ids).values_list('grade', flat=True))
+        visible_grades = attrs.get('visible_grades') or []
+        visible_classes = attrs.get('visible_classes') or []
+        if len(set(visible_classes)) != len(visible_classes) or any(not value for value in visible_classes):
+            raise serializers.ValidationError({'visible_classes': '班级范围不能包含空值或重复值'})
+        request = self.context.get('request')
+        if request and not request.user.is_superuser:
+            try:
+                managed_grade = require_teacher_grade(request.user)
+            except TeacherScopeError as exc:
+                raise serializers.ValidationError({'code': exc.code, 'detail': exc.message}) from exc
+            if grades - {managed_grade} or set(visible_grades) - {managed_grade}:
+                raise serializers.ValidationError('不能管理其他年级的小测')
+            if not visible_grades:
+                attrs['visible_grades'] = [managed_grade]
+        return attrs
 
     def validate_units(self, value):
         if not value:
             raise serializers.ValidationError("必须选择至少一个单元")
         units = Unit.objects.filter(id__in=value)
+        request = self.context.get('request')
+        if request:
+            units = scope_by_grade(units, request.user)
         if units.count() != len(value):
             raise serializers.ValidationError("存在无效的单元ID")
         return value
 
     def validate_difficulty_ratio(self, value):
         if not value:
-            return {'easy': 10}  # 默认全容易
+            return {}
         total = sum(v for v in value.values() if isinstance(v, (int, float)))
         if total == 0:
             raise serializers.ValidationError("难度比例总和不能为0")
@@ -212,6 +277,7 @@ class QuizSessionCreateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         unit_ids = validated_data.pop('units')
+        validated_data.pop('is_visible', False)
         session = QuizSession.objects.create(
             created_by=self.context['request'].user,
             **validated_data
@@ -221,6 +287,7 @@ class QuizSessionCreateSerializer(serializers.Serializer):
 
     def update(self, instance, validated_data):
         unit_ids = validated_data.pop('units', None)
+        validated_data.pop('is_visible', False)
         for key, value in validated_data.items():
             setattr(instance, key, value)
         instance.save()
@@ -233,3 +300,29 @@ class QuizSessionToggleSerializer(serializers.Serializer):
     """切换可见性"""
     is_visible     = serializers.BooleanField()
     visible_grades  = serializers.JSONField(required=False, default=list)
+    visible_classes = serializers.ListField(
+        child=serializers.CharField(max_length=20, trim_whitespace=True), required=False,
+    )
+
+
+class QuizSessionStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=(QuizSession.STATUS_OPEN, QuizSession.STATUS_CLOSED))
+    visible_grades = serializers.ListField(
+        child=serializers.CharField(max_length=20), required=False,
+    )
+    visible_classes = serializers.ListField(
+        child=serializers.CharField(max_length=20, trim_whitespace=True), required=False,
+    )
+
+
+class QuizAttemptAnswersSerializer(serializers.Serializer):
+    attempt_id = serializers.IntegerField(min_value=1)
+    revision = serializers.IntegerField(min_value=0)
+    answers = serializers.DictField(
+        child=serializers.ChoiceField(choices=('A', 'B', 'C', 'D'), allow_null=True),
+        allow_empty=True,
+    )
+
+
+class QuizAttemptResetSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=300, allow_blank=False, trim_whitespace=True)

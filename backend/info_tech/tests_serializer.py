@@ -232,12 +232,12 @@ class QuizSessionCreateSerializerTest(TestCase):
             s = self._make_request(self.teacher, {'title': 't', 'units': [self.u1.pk], 'num_questions': bad})
             self.assertFalse(s.is_valid(), f'num={bad} 应失败')
 
-    def test_difficulty_ratio_empty_defaults_to_easy10(self):
-        """difficulty_ratio={} → 自动补全 {'easy': 10}"""
+    def test_difficulty_ratio_empty_defaults_to_question_count(self):
+        """difficulty_ratio={} → 按固定题数补全容易题"""
         data = {'title': '默认难度', 'units': [self.u1.pk], 'num_questions': 5, 'difficulty_ratio': {}}
         s = self._make_request(self.teacher, data)
         self.assertTrue(s.is_valid(), s.errors)
-        self.assertEqual(s.validated_data['difficulty_ratio'], {'easy': 10})
+        self.assertEqual(s.validated_data['difficulty_ratio'], {'easy': 5})
 
     def test_difficulty_ratio_total_zero_fails(self):
         """难度比例总和为 0 → ValidationError"""

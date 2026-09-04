@@ -14,6 +14,8 @@ export function ChatProvider({ children }) {
   const [view, setView] = useState('chat')          // 'chat' | 'history'
   const [sessions, setSessions] = useState([])      // 历史会话列表
   const [isLoadingSessions, setIsLoadingSessions] = useState(false)
+  const [isDisabled, setIsDisabledState] = useState(false)
+  const [disabledReason, setDisabledReason] = useState('')
   const contextRef = useRef(null)  // 避免闭包过时
 
   // 同步 context 到 ref
@@ -27,10 +29,16 @@ export function ChatProvider({ children }) {
   const open = useCallback(() => setIsOpen(true), [])
   const close = useCallback(() => setIsOpen(false), [])
 
+  const setDisabled = useCallback((disabled, reason = '') => {
+    setIsDisabledState(Boolean(disabled))
+    setDisabledReason(disabled ? reason : '')
+    if (disabled) setIsOpen(false)
+  }, [])
+
   /** 发送消息 */
   const send = useCallback(async (text) => {
     const trimmed = text.trim()
-    if (!trimmed || isStreaming) return
+    if (!trimmed || isStreaming || isDisabled) return
 
     setInputText('')
     setError('')
@@ -89,7 +97,7 @@ export function ChatProvider({ children }) {
     } finally {
       setIsStreaming(false)
     }
-  }, [sessionId, isStreaming])
+  }, [sessionId, isStreaming, isDisabled])
 
   /** 开始新会话 */
   const newSession = useCallback(() => {
@@ -177,6 +185,9 @@ export function ChatProvider({ children }) {
         setView,
         sessions,
         isLoadingSessions,
+        isDisabled,
+        disabledReason,
+        setDisabled,
         loadSessions,
         loadHistory,
         removeSession,
@@ -212,6 +223,9 @@ export function useChat() {
       setView: noop,
       sessions: [],
       isLoadingSessions: false,
+      isDisabled: false,
+      disabledReason: '',
+      setDisabled: noop,
       loadSessions: noop,
       loadHistory: noop,
       removeSession: noop,

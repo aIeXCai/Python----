@@ -1,10 +1,57 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { BookOpen, Send, ArrowLeft, Loader, CheckCircle, XCircle, Clock, Play, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react'
 import Editor from '@monaco-editor/react'
 import Navbar from '../../../components/Navbar.jsx'
-import { getProblemDetail, getSubmissionHistory, runCode, submitCode } from '../../../api/index.js'
+import {
+  getActiveExecutionTask,
+  getProblemDetail,
+  getSubmissionHistory,
+  pollExecutionTask,
+  runCode,
+  submitCode,
+} from '../../../api/index.js'
 import { useChat } from '../../../contexts/ChatContext.jsx'
+
+const SUBMISSION_STATUS_LABELS = {
+  pending: '等待评测',
+  running: '正在评测',
+  accepted: '已通过',
+  wrong_answer: '答案错误',
+  runtime_error: '运行时错误',
+  timeout: '执行超时',
+  error: '系统错误',
+}
+
+function normalizeGradeResult(task) {
+  const statusLabels = {
+    succeeded: '全部测试点通过',
+    wrong_answer: '部分测试点未通过',
+    runtime_error: '代码运行时出错',
+    timed_out: '代码执行超时',
+    resource_limited: '代码的内存、进程数或输出超出限制',
+    system_error: '评测服务暂时异常，本次不计分，请稍后重试',
+    cancelled: '排队超时，本次不计分，请重新提交',
+  }
+  const lines = [statusLabels[task.status] || '评测已完成']
+  for (const test of task.detail?.tests || []) {
+    if (test.status === 'passed') {
+      lines.push(`测试点 ${test.number}：通过`)
+    } else {
+      lines.push(
+        `测试点 ${test.number}：${test.status}`,
+        `正确输出：${test.expected_output || '(无输出)'}`,
+        `你的输出：${test.actual_output || '(无输出)'}`,
+      )
+      if (test.stderr) lines.push(test.stderr)
+    }
+  }
+  return {
+    success: task.status === 'succeeded',
+    score: typeof task.score === 'number' ? task.score : undefined,
+    detail: lines.join('\n'),
+  }
+}
 
 export default function ProblemDetail() {
   const { problemId } = useParams()
@@ -25,8 +72,99 @@ export default function ProblemDetail() {
   const [stdinValue, setStdinValue] = useState('')
   const [running, setRunning] = useState(false)
   const [testCasesOpen, setTestCasesOpen] = useState(true)
+  const [lastError, setLastError] = useState('')
+  const [runTaskStatus, setRunTaskStatus] = useState('')
+  const [submitTaskStatus, setSubmitTaskStatus] = useState('')
+  const runTaskIdRef = useRef(null)
+  const submitTaskIdRef = useRef(null)
+  const runAbortRef = useRef(null)
+  const submitAbortRef = useRef(null)
+
+  const monitorRunTask = useCallback(async (initialTask) => {
+    const taskId = initialTask.task_id
+    runAbortRef.current?.abort()
+    const controller = new AbortController()
+    runAbortRef.current = controller
+    runTaskIdRef.current = taskId
+    setRunning(true)
+    setRunTaskStatus(initialTask.status)
+    try {
+      const finalTask = await pollExecutionTask(taskId, {
+        signal: controller.signal,
+        initialDelay: initialTask.poll_after_ms || 500,
+        onUpdate: (task) => {
+          if (runTaskIdRef.current === taskId) setRunTaskStatus(task.status)
+        },
+      })
+      if (runTaskIdRef.current !== taskId) return
+      const fallbackErrors = {
+        timed_out: '执行超时',
+        resource_limited: '资源使用超限',
+        system_error: '执行服务暂时异常，请稍后重试',
+        cancelled: '排队超时，请重新运行',
+      }
+      setRunOutput({
+        output: finalTask.output || '',
+        error: finalTask.error || fallbackErrors[finalTask.status] || '',
+      })
+    } catch (err) {
+      if (err.name !== 'AbortError' && runTaskIdRef.current === taskId) {
+        setRunOutput({ output: '', error: err.message })
+      }
+    } finally {
+      if (runTaskIdRef.current === taskId) {
+        runTaskIdRef.current = null
+        runAbortRef.current = null
+        setRunning(false)
+        setRunTaskStatus('')
+      }
+    }
+  }, [])
+
+  const monitorGradeTask = useCallback(async (initialTask) => {
+    const taskId = initialTask.task_id
+    submitAbortRef.current?.abort()
+    const controller = new AbortController()
+    submitAbortRef.current = controller
+    submitTaskIdRef.current = taskId
+    setSubmitting(true)
+    setSubmitTaskStatus(initialTask.status)
+    try {
+      const finalTask = await pollExecutionTask(taskId, {
+        signal: controller.signal,
+        initialDelay: initialTask.poll_after_ms || 500,
+        onUpdate: (task) => {
+          if (submitTaskIdRef.current === taskId) setSubmitTaskStatus(task.status)
+        },
+      })
+      if (submitTaskIdRef.current !== taskId) return
+      const normalized = normalizeGradeResult(finalTask)
+      setResult(normalized)
+      setLastError(normalized.success ? '' : normalized.detail)
+      try {
+        const hist = await getSubmissionHistory()
+        if (submitTaskIdRef.current === taskId) {
+          setHistory(hist.filter((item) => item.problem_id === problemId))
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') console.error('刷新提交历史失败:', err)
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError' && submitTaskIdRef.current === taskId) {
+        setResult({ success: false, detail: err.message })
+      }
+    } finally {
+      if (submitTaskIdRef.current === taskId) {
+        submitTaskIdRef.current = null
+        submitAbortRef.current = null
+        setSubmitting(false)
+        setSubmitTaskStatus('')
+      }
+    }
+  }, [problemId])
 
   useEffect(() => {
+    const loadController = new AbortController()
     const raw = localStorage.getItem('user')
     if (!raw) { navigate('/login'); return }
     try {
@@ -35,8 +173,39 @@ export default function ProblemDetail() {
       setGrade(u.grade || '')
       setClassNum(u.class_num || '')
     } catch {}
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        const [pd, hist, activeRun, activeGrade] = await Promise.all([
+          getProblemDetail(problemId),
+          getSubmissionHistory(),
+          getActiveExecutionTask({ taskType: 'run', signal: loadController.signal }),
+          getActiveExecutionTask({ taskType: 'grade', problemId, signal: loadController.signal }),
+        ])
+        if (loadController.signal.aborted) return
+        setProblem(pd)
+        const problemHistory = hist.filter((item) => item.problem_id === problemId)
+        setHistory(problemHistory)
+        const latestFailed = problemHistory.find((item) => item.score < 100 && item.error_message)
+        setLastError(latestFailed?.error_message || '')
+        setCode(pd?.template_code || '')
+        if (activeRun) monitorRunTask(activeRun)
+        if (activeGrade) monitorGradeTask(activeGrade)
+      } catch (err) {
+        if (err.name !== 'AbortError') console.error(err)
+      } finally {
+        if (!loadController.signal.aborted) setLoading(false)
+      }
+    }
     loadData()
-  }, [problemId])
+    return () => {
+      loadController.abort()
+      runAbortRef.current?.abort()
+      submitAbortRef.current?.abort()
+      runTaskIdRef.current = null
+      submitTaskIdRef.current = null
+    }
+  }, [monitorGradeTask, monitorRunTask, navigate, problemId])
 
   // Register AI problem context for chat assistant
   useEffect(() => {
@@ -46,27 +215,11 @@ export default function ProblemDetail() {
         id: problemId,
         title: problem.title || problemId,
         description: problem.description || '',
+        last_error: lastError,
       })
     }
     return () => chat.setContext(null)
-  }, [problem, problemId])
-
-  const loadData = async () => {
-    setLoading(true)
-    try {
-      const [pd, hist] = await Promise.all([
-        getProblemDetail(problemId),
-        getSubmissionHistory(),
-      ])
-      setProblem(pd)
-      setHistory(hist.filter((h) => h.problem_id === problemId))
-      setCode(pd.template_code || '')
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [problem, problemId, lastError])
 
   const handleRun = async () => {
     if (!code.trim()) return
@@ -84,20 +237,22 @@ export default function ProblemDetail() {
 
   const executeRun = async (sourceCode, stdin) => {
     setRunning(true)
+    setRunTaskStatus('queueing')
     setRunOutput(null)
     try {
-      const data = await runCode(sourceCode, stdin)
-      setRunOutput({
-        output: data.output || '',
-        error: data.error || '',
-      })
+      const task = await runCode(sourceCode, stdin)
+      if (!task.task_id) {
+        setRunOutput({ output: task.output || task.stdout || '', error: task.error || task.stderr || '' })
+        return
+      }
+      await monitorRunTask(task)
     } catch (err) {
-      setRunOutput({
-        output: '',
-        error: err.message,
-      })
+      if (err.name !== 'AbortError') setRunOutput({ output: '', error: err.message })
     } finally {
-      setRunning(false)
+      if (!runTaskIdRef.current) {
+        setRunning(false)
+        setRunTaskStatus('')
+      }
     }
   }
 
@@ -125,21 +280,30 @@ export default function ProblemDetail() {
   const handleSubmitCode = async () => {
     if (!code.trim()) return
     setSubmitting(true)
+    setSubmitTaskStatus('queueing')
     setResult(null)
     try {
-      const data = await submitCode({ problem_id: problemId, code })
-      const normalized = {
-        success: data.passed !== undefined ? data.passed : data.success,
-        score: data.score ?? (data.passed ? 100 : 0),
-        detail: data.output || data.detail || data.message || JSON.stringify(data),
+      const task = await submitCode({ problem_id: problemId, code })
+      if (!task.task_id) {
+        const normalized = {
+          success: task.passed !== undefined ? task.passed : task.success,
+          score: task.score ?? (task.passed ? 100 : 0),
+          detail: task.output || task.detail || task.message || JSON.stringify(task),
+        }
+        setResult(normalized)
+        setLastError(normalized.score < 100 ? normalized.detail : '')
+        const hist = await getSubmissionHistory()
+        setHistory(hist.filter((item) => item.problem_id === problemId))
+        return
       }
-      setResult(normalized)
-      const hist = await getSubmissionHistory()
-      setHistory(hist.filter((h) => h.problem_id === problemId))
+      await monitorGradeTask(task)
     } catch (err) {
-      setResult({ success: false, detail: err.message })
+      if (err.name !== 'AbortError') setResult({ success: false, detail: err.message })
     } finally {
-      setSubmitting(false)
+      if (!submitTaskIdRef.current) {
+        setSubmitting(false)
+        setSubmitTaskStatus('')
+      }
     }
   }
 
@@ -160,7 +324,7 @@ export default function ProblemDetail() {
     return (
       <div className="page-bg">
         <Navbar username={username} grade={grade} class_num={classNum} />
-        <div className="loading-state"><Loader size={32} className="spin" /><p>载入题目中...</p></div>
+        <div className="loading-state"><Loader size={32} className="spin" /><p>加载题目中...</p></div>
       </div>
     )
   }
@@ -291,6 +455,11 @@ export default function ProblemDetail() {
           </div>
 
           {/* Run output */}
+          {running && (
+            <div className="content-section" role="status">
+              <p>{runTaskStatus === 'running' ? '代码运行中…' : '代码排队中…'}</p>
+            </div>
+          )}
           {runOutput && (
             <div className="content-section">
               <h3>📤 运行输出</h3>
@@ -315,21 +484,20 @@ export default function ProblemDetail() {
               onClick={handleRun}
               disabled={running || !code.trim()}
             >
-              {running ? <><Loader size={16} className="spin" /> 运行中...</> : <><Play size={16} /> 运行</>}
+              {running ? <><Loader size={16} className="spin" /> {runTaskStatus === 'running' ? '运行中...' : '排队中...'}</> : <><Play size={16} /> 运行</>}
             </button>
             <button
               className="ide-btn ide-btn-reset"
               onClick={handleReset}
-              disabled={running || submitting}
             >
               <RotateCcw size={16} /> 重做
             </button>
             <button
               className="ide-btn ide-btn-submit"
               onClick={handleSubmitCode}
-              disabled={submitting || running || !code.trim()}
+              disabled={submitting || !code.trim()}
             >
-              {submitting ? <><Loader size={16} className="spin" /> 提交中...</> : <><Send size={16} /> 保存并提交</>}
+              {submitting ? <><Loader size={16} className="spin" /> {submitTaskStatus === 'running' ? '评测中...' : '排队中...'}</> : <><Send size={16} /> 保存并提交</>}
             </button>
           </div>
 
@@ -344,13 +512,15 @@ export default function ProblemDetail() {
                   <div className="submission-info">
                     {statusIcon(h.status)}
                     <span className="submission-time">
-                      {new Date(h.submitted_at).toLocaleString('zh-TW')}
+                      {new Date(h.submitted_at).toLocaleString('zh-CN')}
                     </span>
-                    <span className={`submission-score ${scoreClass(h.score)}`}>
-                      {h.score} 分
+                    <span className={`submission-score ${h.score == null ? '' : scoreClass(h.score)}`}>
+                      {h.score == null ? '评测中' : `${h.score} 分`}
                     </span>
                   </div>
-                  <span className={`status-badge status-${h.status}`}>{h.status}</span>
+                  <span className={`status-badge status-${h.status}`}>
+                    {SUBMISSION_STATUS_LABELS[h.status] || '未知状态'}
+                  </span>
                 </div>
               ))}
             </div>

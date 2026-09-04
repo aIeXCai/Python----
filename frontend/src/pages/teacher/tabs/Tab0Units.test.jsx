@@ -52,7 +52,7 @@ const defaultProps = {
   handleSaveSection: vi.fn(),
   loadUnits: vi.fn(),
   gradeColor: () => '#11999e',
-  API: 'http://localhost:8080/api',
+  API: '/api',
   headers: {},
 }
 

@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 from . import views
 
 urlpatterns = [
@@ -9,6 +9,7 @@ urlpatterns = [
     path('submissions/history/', views.SubmissionHistoryView.as_view(), name='submission-history'),
     path('scores/', views.StudentScoresView.as_view(), name='student-scores'),
     path('stats/', views.StudentStatsView.as_view(), name='student-stats'),
+    path('executions/', include('execution.urls_public')),
 
     # 老师端
     path('admin/dashboard/', views.AdminDashboardView.as_view(), name='admin-dashboard'),

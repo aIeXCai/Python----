@@ -1,11 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import TeacherLogin from './TeacherLogin.jsx'
-
-// Store the original localStorage.getItem for cases where we need it
-const originalGetItem = () => 'mocked-get-item-return'
 
 // We need to mock localStorage since jsdom Storage is read-only by default
 const mockSetItem = vi.fn()
@@ -48,7 +45,7 @@ describe('TeacherLogin.jsx', () => {
   // ── Renders ──
   it('renders teacher login heading', () => {
     renderTeacherLogin()
-    expect(screen.getByRole('heading', { name: /老师登入/i })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /教师登录/i })).toBeTruthy()
   })
 
   it('renders username and password fields', () => {
@@ -57,21 +54,21 @@ describe('TeacherLogin.jsx', () => {
     expect(screen.getByPlaceholderText(/密码/i)).toBeTruthy()
   })
 
-  it('renders 登入 button', () => {
+  it('renders 登录 button', () => {
     renderTeacherLogin()
-    expect(screen.getByRole('button', { name: /登入/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /登录/i })).toBeTruthy()
   })
 
   it('renders back to student login link', () => {
     renderTeacherLogin()
-    expect(screen.getByText(/返回学生登入/i)).toBeTruthy()
+    expect(screen.getByText(/返回学生登录/i)).toBeTruthy()
   })
 
   // ── Empty form shows error ──
   it('shows error when submitting empty form', async () => {
     const user = userEvent.setup()
     renderTeacherLogin()
-    await user.click(screen.getByRole('button', { name: /登入/i }))
+    await user.click(screen.getByRole('button', { name: /登录/i }))
     expect(screen.getByText(/请填写用户名和密码/i)).toBeTruthy()
   })
 
@@ -98,7 +95,7 @@ describe('TeacherLogin.jsx', () => {
     renderTeacherLogin()
     await user.type(screen.getByPlaceholderText(/用户名/i), 'alex')
     await user.type(screen.getByPlaceholderText(/密码/i), 'teacher123')
-    await user.click(screen.getByRole('button', { name: /登入/i }))
+    await user.click(screen.getByRole('button', { name: /登录/i }))
     await new Promise(r => setTimeout(r, 50))
 
     expect(mockSetItem).toHaveBeenCalledWith('token', 'test-teacher-token-xyz')
@@ -118,7 +115,7 @@ describe('TeacherLogin.jsx', () => {
     renderTeacherLogin()
     await user.type(screen.getByPlaceholderText(/用户名/i), 'alex')
     await user.type(screen.getByPlaceholderText(/密码/i), 'wrongpassword')
-    await user.click(screen.getByRole('button', { name: /登入/i }))
+    await user.click(screen.getByRole('button', { name: /登录/i }))
     await new Promise(r => setTimeout(r, 50))
 
     expect(screen.getByText(/用户名或密码错误/i)).toBeTruthy()
@@ -131,7 +128,7 @@ describe('TeacherLogin.jsx', () => {
     renderTeacherLogin()
     await user.type(screen.getByPlaceholderText(/用户名/i), 'alex')
     await user.type(screen.getByPlaceholderText(/密码/i), 'teacher123')
-    await user.click(screen.getByRole('button', { name: /登入/i }))
+    await user.click(screen.getByRole('button', { name: /登录/i }))
     await new Promise(r => setTimeout(r, 50))
 
     expect(screen.getByText(/Network failure/i)).toBeTruthy()

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BookOpen, Plus, Edit2, Trash2, FileText, X, Upload, CheckCircle } from 'lucide-react'
+import { GRADES } from '../../../constants/grades.js'
 
 const DIFFICULTY_COLORS = { easy: '#38ef7d', medium: '#f59e0b', hard: '#ef4444' }
 
@@ -26,8 +27,6 @@ export default function Tab1Questions({
 }) {
   const difficultyBadgeColor = (d) => DIFFICULTY_COLORS[d] || '#888'
 
-  const gradeButtons = ['七年级', '八年级']
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
@@ -45,8 +44,7 @@ export default function Tab1Questions({
           {/* 年级筛选 */}
           <select value={qGradeFilter} onChange={e => setQGradeFilter(e.target.value)}
             style={{ padding: '4px 6px', borderRadius: 8, border: '1.5px solid #ddd', fontSize: 12, flexShrink: 0 }}>
-            <option value="七年级">七年级</option>
-            <option value="八年级">八年级</option>
+            {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
           </select>
 
           {/* 大单元筛选 */}
@@ -211,8 +209,6 @@ export default function Tab1Questions({
 
 // ── 题目弹窗 ────────────────────────────────────────────────────────────────
 function QuestionModal({ qModal, setQModal, qForm, setQForm, qMsg, handleSaveQuestion, qSaving, qAllUnits }) {
-  const smallUnits = qAllUnits.filter(u => u.parent != null)
-
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setQModal({ open: false, mode: 'create', data: null })}>
       <div style={{ background: 'white', borderRadius: 16, padding: '28px', maxWidth: 640, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '88vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
@@ -313,7 +309,7 @@ function QuestionModal({ qModal, setQModal, qForm, setQForm, qMsg, handleSaveQue
 }
 
 // ── 批量导入弹窗 ────────────────────────────────────────────────────────────
-function ImportModal({ importModal, setImportModal, importFileName, setImportFileName, importPreview, setImportPreview, importing, handleFileSelect, handleDrop, doImport, importMsg, API, token }) {
+function ImportModal({ importModal, setImportModal, importFileName, importPreview, importing, handleFileSelect, handleDrop, doImport, importMsg, API, token }) {
   const [importUnits, setImportUnits] = useState([])
 
   // 每次年级变化时重新加载对应年级的单元
@@ -358,7 +354,7 @@ function ImportModal({ importModal, setImportModal, importFileName, setImportFil
           <div>
             <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 6 }}>步骤1：选择年级</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              {['七年级', '八年级'].map(g => (
+              {GRADES.map(g => (
                 <button key={g} onClick={() => setImportModal(p => ({ ...p, grade: g, unit: '' }))}
                   style={{
                     padding: '7px 18px', borderRadius: 8, border: '1.5px solid',

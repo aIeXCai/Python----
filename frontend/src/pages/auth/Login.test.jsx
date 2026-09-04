@@ -35,16 +35,16 @@ describe('Login.jsx', () => {
   // ── 登录表单 ──
   it('shows login form by default', () => {
     render(<MemoryRouter><Login /></MemoryRouter>)
-    expect(screen.getByRole('heading', { name: /学生登入/i })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /学生登录/i })).toBeTruthy()
   })
 
   it('shows field errors when submitting empty login form', async () => {
     const user = userEvent.setup()
     render(<MemoryRouter><Login /></MemoryRouter>)
-    await user.click(screen.getByRole('button', { name: /登入学习/i }))
+    await user.click(screen.getByRole('button', { name: /登录学习/i }))
     await new Promise(r => setTimeout(r, 10))
     // At minimum there should be some validation error shown
-    expect(screen.getByRole('button', { name: /登入学习/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /登录学习/i })).toBeTruthy()
   })
 
   it('login success navigates to /course-select', async () => {
@@ -57,7 +57,7 @@ describe('Login.jsx', () => {
     await user.type(getLoginNameInput(), '张三')
     await user.selectOptions(combos[2], '5')
     await user.type(getLoginPwd(), 'password123')
-    await user.click(screen.getByRole('button', { name: /登入学习/i }))
+    await user.click(screen.getByRole('button', { name: /登录学习/i }))
     await new Promise(r => setTimeout(r, 50))
     expect(mockNavigate).toHaveBeenCalledWith('/course-select')
   })
@@ -73,7 +73,7 @@ describe('Login.jsx', () => {
     await user.type(getLoginNameInput(), '张三')
     await user.selectOptions(combos[2], '5')
     await user.type(getLoginPwd(), 'password123')
-    await user.click(screen.getByRole('button', { name: /登入学习/i }))
+    await user.click(screen.getByRole('button', { name: /登录学习/i }))
     await new Promise(r => setTimeout(r, 50))
     expect(screen.getByText(/找不到该年级班级学号的学生/i)).toBeTruthy()
   })
@@ -88,7 +88,7 @@ describe('Login.jsx', () => {
     await user.type(getLoginNameInput(), '张三')
     await user.selectOptions(combos[2], '5')
     await user.type(getLoginPwd(), 'wrongpassword')
-    await user.click(screen.getByRole('button', { name: /登入学习/i }))
+    await user.click(screen.getByRole('button', { name: /登录学习/i }))
     await new Promise(r => setTimeout(r, 50))
     expect(screen.getByText(/密码错误/i)).toBeTruthy()
   })
@@ -107,12 +107,12 @@ describe('Login.jsx', () => {
     expect(screen.getByRole('heading', { name: /学生注册/ })).toBeTruthy()
   })
 
-  it('switches back to login mode when clicking 返回登入', async () => {
+  it('switches back to login mode when clicking 返回登录', async () => {
     const user = userEvent.setup()
     render(<MemoryRouter><Login /></MemoryRouter>)
     await user.click(screen.getByText(/立即注册/))
-    await user.click(screen.getByText(/返回登入/))
-    expect(screen.getByRole('heading', { name: /学生登入/ })).toBeTruthy()
+    await user.click(screen.getByText(/返回登录/))
+    expect(screen.getByRole('heading', { name: /学生登录/ })).toBeTruthy()
   })
 
   // ── 密码显示/隐藏 ──
@@ -131,10 +131,10 @@ describe('Login.jsx', () => {
   })
 
   // ── 老师登录链接 ──
-  it('click 老师登入 navigates to /teacher-login', async () => {
+  it('click 教师登录 navigates to /teacher-login', async () => {
     const user = userEvent.setup()
     render(<MemoryRouter><Login /></MemoryRouter>)
-    await user.click(screen.getByText(/老师登入/))
+    await user.click(screen.getByText(/教师登录/))
     expect(mockNavigate).toHaveBeenCalledWith('/teacher-login')
   })
 })

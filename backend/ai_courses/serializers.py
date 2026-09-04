@@ -42,7 +42,7 @@ class SubmissionCreateSerializer(serializers.Serializer):
     def validate_code(self, value):
         if not value or not value.strip():
             raise serializers.ValidationError("代码不能为空")
-        return value.strip()
+        return value
 
 
 class SubmissionResultSerializer(serializers.Serializer):
@@ -59,7 +59,10 @@ class SubmissionHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Submission
-        fields = ['id', 'problem_id', 'score', 'status', 'submitted_at']
+        fields = [
+            'id', 'problem_id', 'score', 'status', 'error_message',
+            'submitted_at',
+        ]
 
 
 class ScoreSerializer(serializers.Serializer):

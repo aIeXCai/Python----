@@ -20,23 +20,10 @@ export default function TeacherLogin() {
     setLoading(true)
     setError('')
     try {
-      const body = { username: form.username, password: form.password }
-      const res = await fetch('http://localhost:8080/api/auth/login/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || '登入失败')
-
-      localStorage.setItem('token', data.token)
-      if (data.user) {
-        localStorage.setItem('user', JSON.stringify(data.user))
-      }
-
+      await login(form.username, form.password)
       navigate('/teacher/dashboard')
     } catch (err) {
-      setError(err.message || '登入失败')
+      setError(err.message || '登录失败')
     } finally {
       setLoading(false)
     }
@@ -56,18 +43,18 @@ export default function TeacherLogin() {
         }}
       >
         <ArrowLeft size={14} />
-        返回学生登入
+        返回学生登录
       </a>
 
       <div className="main-container">
         <div className="header">
           <h1><GraduationCap size={38} /> Python 学习平台</h1>
-          <p className="subtitle">老师后台管理</p>
+          <p className="subtitle">教师后台管理</p>
         </div>
 
         <div className="form-card">
           <div className="form-header">
-            <h2><Briefcase size={22} /> 老师登入</h2>
+            <h2><Briefcase size={22} /> 教师登录</h2>
             <p>管理学生和课程内容</p>
           </div>
 
@@ -107,7 +94,7 @@ export default function TeacherLogin() {
               className={`btn btn-primary ${loading ? 'loading' : ''}`}
               disabled={loading}
             >
-              {loading ? '登入中...' : '老师登入'}
+              {loading ? '登录中...' : '教师登录'}
             </button>
           </form>
         </div>

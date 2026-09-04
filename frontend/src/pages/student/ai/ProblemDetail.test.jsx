@@ -56,12 +56,15 @@ vi.mock('lucide-react', () => ({
   Clock: () => <span data-testid="icon-clock">Clock</span>,
   Play: () => <span data-testid="icon-play">Play</span>,
   RotateCcw: () => <span data-testid="icon-rotateccw">RotateCcw</span>,
+  ChevronDown: () => <span data-testid="icon-chevron-down">ChevronDown</span>,
+  ChevronRight: () => <span data-testid="icon-chevron-right">ChevronRight</span>,
 }))
 
 // ── Mock react-router-dom ────────────────────────────────────────────────
+const mockNavigate = vi.hoisted(() => vi.fn())
 vi.mock('react-router-dom', () => ({
   useParams: () => ({ problemId: '456' }),
-  useNavigate: () => vi.fn(),
+  useNavigate: () => mockNavigate,
   Link: ({ children, to }) => <a href={to}>{children}</a>,
 }))
 
@@ -70,12 +73,16 @@ const mockGetProblemDetail = vi.fn()
 const mockGetSubmissionHistory = vi.fn()
 const mockRunCode = vi.fn()
 const mockSubmitCode = vi.fn()
+const mockGetActiveExecutionTask = vi.fn()
+const mockPollExecutionTask = vi.fn()
 
 vi.mock('../../../api/index.js', () => ({
   getProblemDetail: (...args) => mockGetProblemDetail(...args),
   getSubmissionHistory: (...args) => mockGetSubmissionHistory(...args),
   runCode: (...args) => mockRunCode(...args),
   submitCode: (...args) => mockSubmitCode(...args),
+  getActiveExecutionTask: (...args) => mockGetActiveExecutionTask(...args),
+  pollExecutionTask: (...args) => mockPollExecutionTask(...args),
 }))
 
 // ── Mock localStorage ────────────────────────────────────────────────────
@@ -103,6 +110,7 @@ import ProblemDetail from './ProblemDetail.jsx'
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockGetActiveExecutionTask.mockResolvedValue(null)
   localStorage.getItem.mockReturnValue(JSON.stringify({
     display_name: '李四',
     grade: '七年级',
@@ -114,11 +122,11 @@ describe('ProblemDetail (AI课做题页 - Monaco IDE)', () => {
 
   // ── 基础渲染 ────────────────────────────────────────────────────────────
 
-  it('AC01: 加载中显示"载入题目中..."', () => {
+  it('AC01: 加载中显示"加载题目中..."', () => {
     mockGetProblemDetail.mockImplementation(() => new Promise(() => {}))
     mockGetSubmissionHistory.mockImplementation(() => new Promise(() => {}))
     render(<ProblemDetail />)
-    expect(screen.getByText('载入题目中...')).toBeInTheDocument()
+    expect(screen.getByText('加载题目中...')).toBeInTheDocument()
   })
 
   it('AC02: 题目不存在时显示"题目不存在"', async () => {
@@ -309,8 +317,9 @@ describe('ProblemDetail (AI课做题页 - Monaco IDE)', () => {
 
     await user.click(screen.getByRole('button', { name: /运行/ }))
 
-    // Button should become disabled with "运行中..."
-    await screen.findByText(/运行中/)
+    // 创建请求未返回时，按钮显示排队阶段并禁用。
+    const queuedButton = await screen.findByRole('button', { name: /排队中/ })
+    expect(queuedButton).toBeDisabled()
   })
 
   // ── 保存并提交 ──────────────────────────────────────────────────────────
@@ -575,9 +584,87 @@ describe('ProblemDetail (AI课做题页 - Monaco IDE)', () => {
       id: '456',
       title: '两数之和',
       description: expect.any(String),
+      last_error: '',
     })
 
     unmount()
     expect(mockSetContext).toHaveBeenCalledWith(null)
+  })
+
+  it('AC27: 异步运行先显示排队，完成后显示输出', async () => {
+    mockGetProblemDetail.mockResolvedValue(mockProblem)
+    mockGetSubmissionHistory.mockResolvedValue([])
+    mockRunCode.mockResolvedValue({ task_id: 'run-task-1', status: 'queued', poll_after_ms: 1 })
+    mockPollExecutionTask.mockImplementation(async (_taskId, options) => {
+      options.onUpdate({ task_id: 'run-task-1', status: 'running' })
+      return { task_id: 'run-task-1', status: 'succeeded', output: 'async hello\n', error: '' }
+    })
+    const user = userEvent.setup()
+    render(<ProblemDetail />)
+    await screen.findByText('简单')
+    const textarea = screen.getByTestId('monaco-textarea')
+    await user.type(textarea, 'print("hello")')
+    await user.click(screen.getByRole('button', { name: /运行/ }))
+    await screen.findByText(/async hello/)
+    expect(mockPollExecutionTask).toHaveBeenCalledWith(
+      'run-task-1', expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
+  })
+
+  it('AC28: 异步评测完成后显示得分和错题正确输出', async () => {
+    mockGetProblemDetail.mockResolvedValue(mockProblem)
+    mockGetSubmissionHistory.mockResolvedValue([])
+    mockSubmitCode.mockResolvedValue({ task_id: 'grade-task-1', status: 'queued', poll_after_ms: 1 })
+    mockPollExecutionTask.mockResolvedValue({
+      task_id: 'grade-task-1', status: 'wrong_answer', score: 50,
+      detail: { tests: [{
+        number: 2, status: 'wrong_answer', expected_output: '4', actual_output: '3', stderr: '',
+      }] },
+    })
+    const user = userEvent.setup()
+    render(<ProblemDetail />)
+    await screen.findByText('简单')
+    await user.type(screen.getByTestId('monaco-textarea'), 'print(3)')
+    await user.click(screen.getByRole('button', { name: /保存并提交/ }))
+    await screen.findByText('50')
+    await screen.findByText(/正确输出：4/)
+    await screen.findByText(/你的输出：3/)
+  })
+
+  it('AC29: 刷新页面时恢复本题未完成评测', async () => {
+    mockGetProblemDetail.mockResolvedValue(mockProblem)
+    mockGetSubmissionHistory.mockResolvedValue([])
+    mockGetActiveExecutionTask.mockImplementation(({ taskType }) => (
+      taskType === 'grade'
+        ? Promise.resolve({ task_id: 'restored-grade', status: 'running', poll_after_ms: 1 })
+        : Promise.resolve(null)
+    ))
+    mockPollExecutionTask.mockResolvedValue({
+      task_id: 'restored-grade', status: 'succeeded', score: 100, detail: { tests: [] },
+    })
+    render(<ProblemDetail />)
+    await screen.findByText('100')
+    expect(mockPollExecutionTask).toHaveBeenCalledWith(
+      'restored-grade', expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
+  })
+
+  it('AC30: 页面卸载时取消正在轮询的任务', async () => {
+    mockGetProblemDetail.mockResolvedValue(mockProblem)
+    mockGetSubmissionHistory.mockResolvedValue([])
+    mockGetActiveExecutionTask.mockImplementation(({ taskType }) => (
+      taskType === 'run'
+        ? Promise.resolve({ task_id: 'restored-run', status: 'queued', poll_after_ms: 1 })
+        : Promise.resolve(null)
+    ))
+    let receivedSignal
+    mockPollExecutionTask.mockImplementation((_taskId, options) => {
+      receivedSignal = options.signal
+      return new Promise(() => {})
+    })
+    const { unmount } = render(<ProblemDetail />)
+    await waitFor(() => expect(receivedSignal).toBeDefined())
+    unmount()
+    expect(receivedSignal.aborted).toBe(true)
   })
 })

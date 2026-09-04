@@ -54,7 +54,7 @@ describe('TeacherDashboard (老师仪表盘)', () => {
 
   it('显示"老师管理后台"标题', async () => {
     render(<TeacherDashboard />)
-    await screen.findByText('老师管理后台')
+    await screen.findByText('教师管理后台')
   })
 
   it('显示学生总数统计卡片', async () => {
@@ -150,6 +150,6 @@ describe('TeacherDashboard (老师仪表盘)', () => {
 
   it('显示"老师账号"标签', async () => {
     render(<TeacherDashboard />)
-    await screen.findByText('老师账号')
+    await screen.findByText('教师账号')
   })
 })

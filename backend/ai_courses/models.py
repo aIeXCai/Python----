@@ -1,8 +1,5 @@
 import os
 import glob
-import uuid
-import datetime
-import subprocess
 from django.db import models
 from django.conf import settings
 
@@ -100,7 +97,9 @@ class Problem(models.Model):
         return test_cases
 
     def get_template_code(self):
-        """从磁盘读取 template.py 内容，不存在则返回空字符串"""
+        """优先使用数据库模板；兼容尚未同步入库的旧磁盘题目。"""
+        if self.template_code:
+            return self.template_code
         template_path = self.get_problem_dir() / 'template.py'
         if not template_path.exists():
             return ''
@@ -224,7 +223,14 @@ class Submission(models.Model):
         related_name='submissions'
     )
     code = models.TextField('提交代码')
-    score = models.FloatField('得分', default=0)
+    score = models.FloatField('得分', default=0, null=True, blank=True)
+    execution_task = models.OneToOneField(
+        'execution.ExecutionTask',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='submission',
+    )
     status = models.CharField('状态', max_length=20, choices=STATUS_CHOICES, default='pending')
     error_message = models.TextField('错误信息', blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
@@ -236,61 +242,3 @@ class Submission(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.problem.problem_id} ({self.score}分)"
-
-
-def grade_submission(submission_path, problem):
-    """
-    自动批改学生提交的代码。
-
-    参数:
-        submission_path: 学生代码文件的绝对路径
-        problem: Problem 实例
-
-    返回:
-        (success: bool, result: str, score: float)
-    """
-    problem_dir = problem.get_problem_dir()
-    if not os.path.exists(problem_dir):
-        return False, "找不到指定的题目文件夹。", 0
-
-    test_cases = problem.get_test_cases()
-    total_tests = len(test_cases)
-    passed_tests = 0
-    test_results = []
-
-    for i, test_case in enumerate(test_cases, 1):
-        test_input = test_case['input']
-        correct_output = test_case['output']
-
-        try:
-            result = subprocess.run(
-                ['python', submission_path],
-                input=test_input,
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=True,
-            )
-            student_output = result.stdout.strip()
-
-            if student_output == correct_output:
-                test_results.append(f"测试点 {i}: 通过")
-                passed_tests += 1
-            else:
-                test_results.append(
-                    f"测试点 {i}: 失败\n"
-                    f"你的输出：'{student_output}'\n"
-                    f"正确输出：'{correct_output}'"
-                )
-        except subprocess.CalledProcessError as e:
-            test_results.append(f"测试点 {i}: 代码执行错误：\n{e.stderr}")
-        except subprocess.TimeoutExpired:
-            test_results.append(f"测试点 {i}: 代码执行超时（5秒）！")
-        except Exception as e:
-            test_results.append(f"测试点 {i}: 意外错误：{e}")
-
-    score = (passed_tests / total_tests) * 100 if total_tests > 0 else 0
-    summary = f"总分: {passed_tests}/{total_tests} (得分率: {score:.2f}%)"
-    full_report = '\n'.join(test_results)
-
-    return True, f"{summary}\n\n详细报告：\n{full_report}", score

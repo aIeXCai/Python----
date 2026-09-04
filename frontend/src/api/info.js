@@ -1,3 +1,5 @@
+import { API_BASE_URL } from './config.js'
+
 /**
  * 信息科技课 API — 前端调用层
  * BASE: /api/info/（学生端）、/api/admin/info/（教师端）
@@ -6,7 +8,7 @@
 // ─── 学生端：小测 ─────────────────────────────────────────────────────────────
 
 /**
- * 获取可见小测列表（含是否已做/最高分）
+ * 获取当前开放的小测列表（含最近一次已完成成绩和下一步动作）
  * GET /api/info/quizzes/
  */
 export async function getInfoQuizzes() {
@@ -16,7 +18,7 @@ export async function getInfoQuizzes() {
 }
 
 /**
- * 获取某小测详情（含随机抽题+打乱选项）
+ * 获取某小测的安全元数据（不创建试卷、不返回题目答案）
  * GET /api/info/quizzes/:id/
  */
 export async function getInfoQuizDetail(sessionId) {
@@ -25,22 +27,37 @@ export async function getInfoQuizDetail(sessionId) {
   return res.json()
 }
 
-/**
- * 提交小测答案
- * POST /api/info/quizzes/:id/submit/
- * @param {number} sessionId
- * @param {Object} answers - { questionId: 'A'|'B'|'C'|'D', ... } 原始字母答案（已还原）
- * @param {Object} shuffledAnswers - { questionId: 'A'|'B'|'C'|'D', ... } 打乱后字母（用于结果显示）
- * @param {Object} shuffledOrders - { questionId: ['C','A','D','B'], ... } 每题打乱顺序
- */
-export async function submitInfoQuiz(sessionId, answers, shuffledAnswers = {}, shuffledOrders = {}) {
-  const res = await fetch(`${API_BASE}/info/quizzes/${sessionId}/submit/`, {
+/** Start or idempotently resume the student's fixed paper. */
+export async function startInfoQuizAttempt(sessionId) {
+  const res = await fetch(`${API_BASE}/info/quizzes/${sessionId}/attempt/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeadersObj() },
-    body: JSON.stringify({ answers, shuffled_answers: shuffledAnswers, shuffled_orders: shuffledOrders }),
   })
-  handleAuthError(res)
-  return res.json()
+  return parseJsonResponse(res)
+}
+
+export async function getInfoQuizAttempt(sessionId) {
+  const res = await fetch(`${API_BASE}/info/quizzes/${sessionId}/attempt/`, authHeaders())
+  return parseJsonResponse(res)
+}
+
+export async function saveInfoQuizAnswers(sessionId, payload, { keepalive = false } = {}) {
+  const res = await fetch(`${API_BASE}/info/quizzes/${sessionId}/attempt/answers/`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeadersObj() },
+    body: JSON.stringify(payload),
+    keepalive,
+  })
+  return parseJsonResponse(res)
+}
+
+export async function submitInfoQuizAttempt(sessionId, payload) {
+  const res = await fetch(`${API_BASE}/info/quizzes/${sessionId}/attempt/submit/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeadersObj() },
+    body: JSON.stringify(payload),
+  })
+  return parseJsonResponse(res)
 }
 
 /**
@@ -218,6 +235,24 @@ export async function toggleSession(id, data) {
   return res.json()
 }
 
+export async function setSessionStatus(id, data) {
+  const res = await fetch(`${API_BASE}/admin/info/sessions/${id}/status/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...adminHeadersObj() },
+    body: JSON.stringify(data),
+  })
+  return parseJsonResponse(res)
+}
+
+export async function resetInfoQuizAttempt(sessionId, studentId, reason) {
+  const res = await fetch(`${API_BASE}/admin/info/sessions/${sessionId}/students/${studentId}/reset/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...adminHeadersObj() },
+    body: JSON.stringify({ reason }),
+  })
+  return parseJsonResponse(res)
+}
+
 // ─── 教师端：成绩统计 ─────────────────────────────────────────────────────────
 
 /**
@@ -262,7 +297,7 @@ export async function getStatsGrade(grade) {
 
 // ─── 内部工具 ────────────────────────────────────────────────────────────────
 
-const API_BASE = 'http://localhost:8080/api'
+const API_BASE = API_BASE_URL
 
 function getToken() {
   return localStorage.getItem('token')
@@ -301,4 +336,17 @@ function handleAuthError(res) {
     window.location.href = '/login'
     throw new Error('Unauthorized')
   }
+}
+
+async function parseJsonResponse(res) {
+  handleAuthError(res)
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const error = new Error(data.error || `请求失败（${res.status}）`)
+    error.code = data.code || 'request_failed'
+    error.status = res.status
+    error.data = data
+    throw error
+  }
+  return data
 }

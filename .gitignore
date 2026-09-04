@@ -5,6 +5,10 @@ __pycache__/
 *.sqlite3
 db.sqlite3
 .env
+.env.*
+!.env.example
+!**/.env.example
+!**/.env.*.example
 *.egg-info/
 dist/
 build/
@@ -14,9 +18,14 @@ media/
 submissions/
 problems/              # AI课题目文件已迁移到 Django，保留目录仅作本地备份
 staticfiles/
+backend/.local/
+backend/.env.mysql.local
+backend/.env.security.local
+backend/migration_artifacts/
 
 # Node / Vite
 node_modules/
+.workbuddy/
 frontend/.vite/
 frontend/dist/
 frontend/node_modules/

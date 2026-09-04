@@ -112,7 +112,7 @@ class UnitAPITest(APITestCase):
 
     def test_teacher_only_post(self):
         """POST 需要 teacher 角色，学生应被拒绝"""
-        student = make_student()
+        student = make_student(student_number='99')
         token = get_token(student)
         resp = self.client.post('/api/admin/info/units/', {
             'grade': '七年级', 'name': 'hack', 'display_name': 'hack'
@@ -161,7 +161,7 @@ class QuestionAPITest(APITestCase):
         """?big_unit_name=big_1 — 只返回该大单元下所有小节的题目"""
         resp = self.client.get('/api/admin/info/questions/?big_unit_name=big_1', HTTP_AUTHORIZATION=f'Token {self.token}')
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(len(resp.data), 3)  # big_1 在七年级和八年级都存在
+        self.assertEqual(len(resp.data), 2)
 
     def test_filter_by_grade_and_big_unit(self):
         """年级+大单元组合筛选"""
@@ -190,8 +190,7 @@ class QuestionAPITest(APITestCase):
         """?difficulty=hard"""
         resp = self.client.get('/api/admin/info/questions/?difficulty=hard', HTTP_AUTHORIZATION=f'Token {self.token}')
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]['difficulty'], 'hard')
+        self.assertEqual(len(resp.data), 0)
 
     def test_search_by_text(self):
         """?q=七年级-小节1"""
@@ -397,6 +396,27 @@ class QuizSessionAPITest(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.data), 1)
 
+    def test_list_available_classes_for_managed_grade(self):
+        make_student(grade='七年级', class_num='10', student_number='01')
+        make_student(grade='七年级', class_num='2', student_number='01')
+        make_student(grade='七年级', class_num='2', student_number='02')
+        make_student(grade='八年级', class_num='1', student_number='01')
+
+        resp = self.client.get(
+            '/api/admin/info/classes/?grade=七年级',
+            HTTP_AUTHORIZATION=f'Token {self.token}',
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data, {'grade': '七年级', 'classes': ['2', '10']})
+
+    def test_teacher_cannot_list_classes_outside_managed_grade(self):
+        resp = self.client.get(
+            '/api/admin/info/classes/?grade=八年级',
+            HTTP_AUTHORIZATION=f'Token {self.token}',
+        )
+        self.assertEqual(resp.status_code, 403)
+
     def test_create_session(self):
         """POST /api/admin/info/sessions/create/"""
         resp = self.client.post('/api/admin/info/sessions/create/', {
@@ -406,10 +426,12 @@ class QuizSessionAPITest(APITestCase):
             'difficulty_ratio': {'easy': 3},
             'time_limit': 30,
             'visible_grades': ['七年级'],
+            'visible_classes': ['1', '3'],
         }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
         self.assertEqual(resp.status_code, 201, f'响应: {resp.data}')
         self.assertEqual(resp.data['title'], '新小测')
         self.assertEqual(resp.data['num_questions'], 3)
+        self.assertEqual(resp.data['visible_classes'], ['1', '3'])
         self.assertEqual(resp.data['is_visible'], False)
 
     def test_create_session_teacher_only(self):
@@ -437,6 +459,47 @@ class QuizSessionAPITest(APITestCase):
         self.assertEqual(resp.status_code, 200, f'响应: {resp.data}')
         self.assertEqual(resp.data['title'], '已修改')
 
+    def test_update_open_session_all_editable_fields(self):
+        session = QuizSession.objects.create(
+            title='开放中的原小测', created_by=self.teacher,
+            num_questions=3, difficulty_ratio={'easy': 3},
+            time_limit=30, status=QuizSession.STATUS_OPEN,
+            visible_grades=['七年级'], visible_classes=[],
+        )
+        session.units.add(self.sec1)
+        resp = self.client.put(f'/api/admin/info/sessions/{session.pk}/', {
+            'title': '开放中的新小测',
+            'units': [self.sec1.pk],
+            'num_questions': 2,
+            'difficulty_ratio': {'easy': 2},
+            'time_limit': 15,
+            'visible_grades': ['七年级'],
+            'visible_classes': ['1', '2'],
+        }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data['title'], '开放中的新小测')
+        self.assertEqual(resp.data['num_questions'], 2)
+        self.assertEqual(resp.data['time_limit'], 15)
+        self.assertEqual(resp.data['visible_classes'], ['1', '2'])
+        self.assertEqual(resp.data['status'], 'open')
+
+    def test_invalid_open_session_edit_rolls_back(self):
+        session = QuizSession.objects.create(
+            title='不可破坏', created_by=self.teacher,
+            num_questions=3, difficulty_ratio={'easy': 3},
+            status=QuizSession.STATUS_OPEN, visible_grades=['七年级'],
+        )
+        session.units.add(self.sec1)
+        resp = self.client.put(f'/api/admin/info/sessions/{session.pk}/', {
+            'title': '不应保存', 'units': [self.sec1.pk],
+            'num_questions': 20, 'difficulty_ratio': {'easy': 20},
+            'time_limit': 15, 'visible_grades': ['七年级'], 'visible_classes': [],
+        }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
+        self.assertEqual(resp.status_code, 409)
+        session.refresh_from_db()
+        self.assertEqual(session.title, '不可破坏')
+        self.assertEqual(session.num_questions, 3)
+
     def test_delete_session(self):
         """DELETE"""
         session = QuizSession.objects.create(
@@ -448,19 +511,49 @@ class QuizSessionAPITest(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(QuizSession.objects.filter(pk=session.pk).exists())
 
+    def test_delete_session_with_results_archives_and_preserves_history(self):
+        session = QuizSession.objects.create(
+            title='有成绩的小测', created_by=self.teacher,
+            num_questions=3, difficulty_ratio={'easy': 3},
+            status=QuizSession.STATUS_OPEN, visible_grades=['七年级'],
+        )
+        session.units.add(self.sec1)
+        student = make_student()
+        submission = QuizSubmission.objects.create(
+            user=student, session=session, status=QuizSubmission.STATUS_SUBMITTED,
+            score=80, correct_count=2, total_count=3, answers_json='{}',
+        )
+
+        resp = self.client.delete(
+            f'/api/admin/info/sessions/{session.pk}/delete/',
+            HTTP_AUTHORIZATION=f'Token {self.token}',
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['deletion_mode'], 'archived')
+        session.refresh_from_db()
+        self.assertIsNotNone(session.archived_at)
+        self.assertEqual(session.status, QuizSession.STATUS_CLOSED)
+        self.assertTrue(QuizSubmission.objects.filter(pk=submission.pk).exists())
+        listed = self.client.get(
+            '/api/admin/info/sessions/', HTTP_AUTHORIZATION=f'Token {self.token}',
+        )
+        self.assertEqual(listed.data, [])
+
     def test_toggle_visible(self):
         """PATCH toggle — 设置 is_visible + visible_grades"""
         session = QuizSession.objects.create(
             title='切换测试', created_by=self.teacher, num_questions=3,
             difficulty_ratio={'easy': 3}, is_visible=False, visible_grades=[]
         )
+        session.units.add(self.sec1)
         resp = self.client.patch(f'/api/admin/info/sessions/{session.pk}/toggle/', {
             'is_visible': True,
-            'visible_grades': ['七年级', '八年级'],
+            'visible_grades': ['七年级'],
         }, format='json', HTTP_AUTHORIZATION=f'Token {self.token}')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data['is_visible'], True)
-        self.assertEqual(resp.data['visible_grades'], ['七年级', '八年级'])
+        self.assertEqual(resp.data['visible_grades'], ['七年级'])
 
     def test_toggle_off(self):
         """关闭可见"""
@@ -531,11 +624,10 @@ class QuizStatsAPITest(APITestCase):
         self.assertEqual(resp.data['total_submissions'], 3)
 
     def test_overview_filter_by_nonexistent_grade(self):
-        """无数据的年级应正常返回（不是报错）"""
+        """教师不能查询管理范围外的年级"""
         resp = self.client.get('/api/admin/info/stats/overview/?grade=高三',
                                 HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['total_submissions'], 0)
+        self.assertEqual(resp.status_code, 403)
 
     def test_stats_sessions_list(self):
         """按小测统计列表"""
@@ -589,16 +681,14 @@ class QuizStatsAPITest(APITestCase):
         self.assertEqual(len(resp.data['students']), 2)
 
     def test_stats_submissions_empty_result(self):
-        """无数据返回空列表"""
+        """管理范围外查询被拒绝"""
         resp = self.client.get('/api/admin/info/stats/submissions/?grade=高三',
                                 HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['students'], [])
-        self.assertEqual(resp.data['sessions'], [])
+        self.assertEqual(resp.status_code, 403)
 
     def test_stats_teacher_only(self):
         """统计接口需要 teacher 角色"""
-        student = make_student()
+        student = make_student(student_number='99')
         resp = self.client.get('/api/admin/info/stats/overview/', HTTP_AUTHORIZATION=f'Token {get_token(student)}')
         self.assertEqual(resp.status_code, 403)
 
@@ -612,6 +702,6 @@ class QuizStatsAPITest(APITestCase):
         self.assertAlmostEqual(resp.data['avg_score'], 81.7, places=1)
 
     def test_stats_grade_view_not_found(self):
-        """无数据的年级返回 404"""
+        """管理范围外年级返回 403"""
         resp = self.client.get('/api/admin/info/stats/grade/高三/', HTTP_AUTHORIZATION=f'Token {self.token}')
-        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.status_code, 403)

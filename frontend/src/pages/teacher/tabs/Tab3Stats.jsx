@@ -1,17 +1,16 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect } from 'react'
 import { BarChart2, Users, CheckCircle, RefreshCw, X } from 'lucide-react'
+import { API_BASE_URL } from '../../../api/config.js'
+import { GRADES } from '../../../constants/grades.js'
 
 export default function Tab3Stats({
-  API, headers,
   statsData, statsLoading, statsFilter,
   setStatsFilter,
   selectedQuiz, setSelectedQuiz,
   autoRefresh, setAutoRefresh,
   loadStats,
-  gradeDisplay, gradeColor, scoreColor,
+  gradeDisplay, scoreColor,
 }) {
-  const GRADES = ['七年级', '八年级']
-
   // 自动刷新
   useEffect(() => {
     if (!autoRefresh) return
@@ -37,6 +36,25 @@ export default function Tab3Stats({
     }
   })
   const perfectCount = Object.values(scoreMapByNum).filter(v => v === 100).length
+
+  const handleReset = async (student) => {
+    if (!selectedQuiz) return
+    const reason = window.prompt(`请输入重置 ${student.display_name || student.username} 本次作答的原因：`)
+    if (!reason?.trim()) return
+    if (!window.confirm('重置后旧成绩会保留为审计历史，学生可重新开始。确定继续吗？')) return
+    const token = localStorage.getItem('token')
+    const response = await fetch(`${API_BASE_URL}/admin/info/sessions/${selectedQuiz}/students/${student.user_id}/reset/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Token ${token}` },
+      body: JSON.stringify({ reason: reason.trim() }),
+    })
+    const data = await response.json()
+    if (!response.ok) {
+      window.alert(data.error || '重置失败')
+      return
+    }
+    loadStats()
+  }
 
   return (
     <div style={{ display: 'flex', gap: 24, height: 'calc(100vh - 200px)', minHeight: 500 }}>
@@ -111,7 +129,10 @@ export default function Tab3Stats({
                   <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>姓名</th>
                   <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>学号</th>
                   {selectedQuiz ? (
-                    <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#667eea', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>成绩</th>
+                    <>
+                      <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#667eea', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>成绩</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>操作</th>
+                    </>
                   ) : (
                     (statsData?.sessions || []).map(s => (
                       <th key={s.id} style={{
@@ -138,12 +159,17 @@ export default function Tab3Stats({
                     <td style={{ padding: '9px 14px', fontWeight: 700, color: '#333', whiteSpace: 'nowrap' }}>{stu.display_name || stu.username}</td>
                     <td style={{ padding: '9px 14px', color: '#888', fontSize: 12, whiteSpace: 'nowrap', textAlign: 'center' }}>{stu.student_number ?? '—'}</td>
                     {selectedQuiz ? (
-                      <td style={{
-                        padding: '9px 14px', textAlign: 'center', fontWeight: 800, fontSize: 14,
-                        color: selectedScore != null ? scoreColor(selectedScore) : '#ccc', whiteSpace: 'nowrap'
-                      }}>
-                        {selectedScore != null ? selectedScore : '—'}
-                      </td>
+                      <>
+                        <td style={{
+                          padding: '9px 14px', textAlign: 'center', fontWeight: 800, fontSize: 14,
+                          color: selectedScore != null ? scoreColor(selectedScore) : '#ccc', whiteSpace: 'nowrap'
+                        }}>
+                          {selectedScore != null ? selectedScore : '—'}
+                        </td>
+                        <td style={{ padding: '9px 14px', textAlign: 'center' }}>
+                          {selectedScore != null && <button type="button" onClick={() => handleReset(stu)} style={{ border: '1px solid #f59e0b', background: '#fff', color: '#b45309', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>重置作答</button>}
+                        </td>
+                      </>
                     ) : (
                       (statsData?.sessions || []).map(s => {
                         const idx = statsData?.sessions?.findIndex(ss => String(ss.id) === String(s.id))

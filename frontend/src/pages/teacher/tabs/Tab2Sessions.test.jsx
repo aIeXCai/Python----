@@ -2,8 +2,9 @@
  * Tab2Sessions 小测列表测试
  * 运行: cd frontend && npx vitest run src/pages/teacher/tabs/Tab2Sessions.test.jsx
  */
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { useState } from 'react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 vi.mock('lucide-react', () => ({
@@ -13,12 +14,19 @@ vi.mock('lucide-react', () => ({
   Trash2: () => <span data-testid="icon-trash">Trash</span>,
   Play: () => <span data-testid="icon-play">Play</span>,
   X: () => <span data-testid="icon-x">X</span>,
+  ChevronDown: () => <span data-testid="icon-chevron-down">ChevronDown</span>,
+  Save: () => <span data-testid="icon-save">Save</span>,
 }))
 
+import Tab2Sessions from './Tab2Sessions.jsx'
+
 const mockSessions = [
-  { id: 1, title: '第一章小测', grade: '七年级', is_visible: true, submission_count: 0, time_limit: 30, num_questions: 5, big_unit_names: ['第一章'], section_names: ['第一节'] },
-  { id: 2, title: '第二章小测', grade: '七年级', is_visible: false, submission_count: 3, time_limit: 45, num_questions: 8, big_unit_names: ['第二章'], section_names: ['第一节'] },
+  { id: 1, title: '第一章小测', grade: '七年级', visible_classes: [], status: 'open', submission_count: 0, time_limit: 30, num_questions: 5, big_unit_names: ['第一章'], section_names: ['第一节'] },
+  { id: 2, title: '第二章小测', grade: '七年级', visible_classes: ['1', '3'], status: 'closed', submission_count: 3, time_limit: 45, num_questions: 8, big_unit_names: ['第二章'], section_names: ['第一节'] },
 ]
+
+const mockFetch = vi.fn()
+vi.stubGlobal('fetch', mockFetch)
 
 const defaultProps = {
   sessions: mockSessions,
@@ -82,7 +90,6 @@ function SessionModal({ sModal, setSModal, sForm, setSForm, sMsg, handleSaveSess
 
 // 简化版 Tab2Sessions（内联关键逻辑）
 function SimplifiedTab2Sessions(props) {
-  const gradeColor = g => ({ '七年级': '#38ef7d', '八年级': '#11999e' })[g] || '#888'
   const sessions = props.sessions
   const sLoading = props.sLoading
 
@@ -104,11 +111,11 @@ function SimplifiedTab2Sessions(props) {
           </thead>
           <tbody>
             {sessions.map((s, i) => {
-              const status = s.is_visible
+              const status = s.status === 'open'
                 ? { label: '进行中', color: '#38ef7d' }
-                : s.submission_count > 0
-                ? { label: `已完成(${s.submission_count})`, color: '#667eea' }
-                : { label: '未开始', color: '#888' }
+                : s.status === 'closed'
+                  ? { label: `已关闭(${s.submission_count})`, color: '#667eea' }
+                  : { label: '未发布', color: '#888' }
               return (
                 <tr key={s.id} data-testid={`row-${s.id}`}>
                   <td>{i + 1}</td>
@@ -116,10 +123,12 @@ function SimplifiedTab2Sessions(props) {
                   <td>{s.grade}</td>
                   <td data-testid={`status-${s.id}`} style={{ color: status.color }}>{status.label}</td>
                   <td>
-                    {s.is_visible ? (
+                    {s.status === 'open' ? (
                       <button data-testid={`end-btn-${s.id}`} onClick={() => props.handleEndSession(s.id)}>结束</button>
                     ) : (
-                      <button data-testid={`start-btn-${s.id}`} onClick={() => props.handleStartSession(s.id)}>开始</button>
+                      <button data-testid={`start-btn-${s.id}`} onClick={() => props.handleStartSession(s.id)}>
+                        {s.status === 'closed' ? '重新开放' : '开始'}
+                      </button>
                     )}
                     <button data-testid={`edit-btn-${s.id}`} onClick={() => props.openEditSession(s)}>编辑</button>
                     <button data-testid={`delete-btn-${s.id}`} onClick={() => props.deleteSession(s)}>删除</button>
@@ -144,6 +153,78 @@ function SimplifiedTab2Sessions(props) {
 }
 
 describe('Tab2Sessions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFetch.mockImplementation(async (url) => ({
+      ok: true,
+      json: async () => String(url).includes('/classes/')
+        ? { grade: '七年级', classes: ['1', '2', '3'] }
+        : [],
+    }))
+  })
+
+  it('真实列表显示全年级或指定的多个班级', () => {
+    render(<Tab2Sessions {...defaultProps} />)
+    expect(screen.getByText('全年级')).toBeInTheDocument()
+    expect(screen.getByText('1班、3班')).toBeInTheDocument()
+  })
+
+  it('真实弹窗支持班级多选和全年级全选', async () => {
+    function Harness() {
+      const [form, setForm] = useState({
+        name: '班级范围测试', grade: '七年级', units: [1], duration: 30,
+        question_count: 5, difficulty_ratio: { easy: 5 }, visible_classes: [],
+      })
+      return <Tab2Sessions {...defaultProps} sessions={[]} sModal={{ open: true, mode: 'create', data: null }} sForm={form} setSForm={setForm} />
+    }
+
+    const user = userEvent.setup()
+    render(<Harness />)
+    const dropdown = screen.getByRole('button', { name: '选择可见班级' })
+    expect(dropdown).toHaveTextContent('全年级（全选）')
+    expect(dropdown).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(dropdown)
+    expect(dropdown).toHaveAttribute('aria-expanded', 'true')
+    const classOne = await screen.findByRole('checkbox', { name: '1班' })
+    const classTwo = screen.getByRole('checkbox', { name: '2班' })
+    const allGrades = screen.getByRole('checkbox', { name: '全年级' })
+    expect(allGrades).toBeChecked()
+
+    await user.click(classOne)
+    await user.click(classTwo)
+    expect(classOne).toBeChecked()
+    expect(classTwo).toBeChecked()
+    expect(allGrades).not.toBeChecked()
+    expect(dropdown).toHaveTextContent('1班、2班')
+
+    await user.click(allGrades)
+    await waitFor(() => expect(allGrades).toBeChecked())
+    expect(classOne).not.toBeChecked()
+    expect(classTwo).not.toBeChecked()
+    expect(dropdown).toHaveTextContent('全年级（全选）')
+  })
+
+  it('真实列表允许教师重新开放已关闭的小测', async () => {
+    const user = userEvent.setup()
+    render(<Tab2Sessions {...defaultProps} />)
+    expect(screen.getByText('已关闭(3)')).toBeInTheDocument()
+    const reopenButton = screen.getByRole('button', { name: /重新开放/ })
+    await user.click(reopenButton)
+    expect(defaultProps.handleStartSession).toHaveBeenCalledWith(2)
+  })
+
+  it('进行中和已关闭的小测都提供编辑与删除', async () => {
+    const user = userEvent.setup()
+    render(<Tab2Sessions {...defaultProps} />)
+
+    await user.click(screen.getByRole('button', { name: '编辑第一章小测' }))
+    await user.click(screen.getByRole('button', { name: '删除第二章小测' }))
+
+    expect(defaultProps.openEditSession).toHaveBeenCalledWith(mockSessions[0])
+    expect(defaultProps.deleteSession).toHaveBeenCalledWith(mockSessions[1])
+  })
+
   it('空状态显示暂无小测', () => {
     render(<SimplifiedTab2Sessions {...defaultProps} sessions={[]} />)
     expect(screen.getByTestId('empty-state')).toBeInTheDocument()
@@ -165,9 +246,10 @@ describe('Tab2Sessions', () => {
     expect(screen.queryByTestId('start-btn-1')).not.toBeInTheDocument()
   })
 
-  it('未开始的小测显示开始按钮', () => {
+  it('已关闭的小测显示重新开放按钮', () => {
     render(<SimplifiedTab2Sessions {...defaultProps} />)
     expect(screen.getByTestId('start-btn-2')).toBeInTheDocument()
+    expect(screen.getByTestId('start-btn-2')).toHaveTextContent('重新开放')
     expect(screen.queryByTestId('end-btn-2')).not.toBeInTheDocument()
   })
 

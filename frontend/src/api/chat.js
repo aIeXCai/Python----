@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:8080/api'
+import { apiUrl } from './config.js'
 
 function getToken() {
   return localStorage.getItem('token')
@@ -16,7 +16,7 @@ function getToken() {
 export async function sendChatMessage({ message, sessionId, context, onToken }) {
   const token = getToken()
 
-  const response = await fetch(`${BASE_URL}/chat/send/`, {
+  const response = await fetch(apiUrl('/chat/send/'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -110,7 +110,7 @@ export async function sendChatMessage({ message, sessionId, context, onToken }) 
  */
 export async function getChatSessions() {
   const token = getToken()
-  const response = await fetch(`${BASE_URL}/chat/sessions/`, {
+  const response = await fetch(apiUrl('/chat/sessions/'), {
     headers: { Authorization: `Token ${token}` },
   })
 
@@ -132,7 +132,7 @@ export async function getChatSessions() {
  */
 export async function getChatMessages(sessionId) {
   const token = getToken()
-  const response = await fetch(`${BASE_URL}/chat/sessions/${sessionId}/messages/`, {
+  const response = await fetch(apiUrl(`/chat/sessions/${sessionId}/messages/`), {
     headers: { Authorization: `Token ${token}` },
   })
 
@@ -153,7 +153,7 @@ export async function getChatMessages(sessionId) {
  */
 export async function deleteChatSession(sessionId) {
   const token = getToken()
-  const response = await fetch(`${BASE_URL}/chat/sessions/${sessionId}/`, {
+  const response = await fetch(apiUrl(`/chat/sessions/${sessionId}/`), {
     method: 'DELETE',
     headers: { Authorization: `Token ${token}` },
   })

@@ -88,7 +88,7 @@ describe('AuthContext', () => {
   it('logout 清除用户状态', async () => {
     const user = userEvent.setup()
     getCurrentUser.mockReturnValue({ user_id: 1, username: 'alex', role: 'teacher' })
-    logout.mockImplementation(() => {})
+    logout.mockResolvedValue(undefined)
 
     render(<AuthProvider><TestComponent /></AuthProvider>)
     expect(screen.getByTestId('user').textContent).toBe('alex (teacher)')

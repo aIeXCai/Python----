@@ -10,7 +10,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const u = getCurrentUser()
     if (u && u.user_id) {
-      setUser({ username: u.username, role: u.role })
+      setUser({
+        username: u.username, role: u.role,
+        managed_grade: u.managed_grade, is_superuser: u.is_superuser,
+      })
     }
     setLoading(false)
   }, [])
@@ -18,12 +21,18 @@ export function AuthProvider({ children }) {
   const login = async (username, password, grade, class_num, student_number) => {
     await apiLogin(username, password, grade, class_num, student_number)
     const u = getCurrentUser()
-    setUser({ username: u.username, role: u.role })
+    setUser({
+      username: u.username, role: u.role,
+      managed_grade: u.managed_grade, is_superuser: u.is_superuser,
+    })
   }
 
-  const logout = () => {
-    apiLogout()
-    setUser(null)
+  const logout = async () => {
+    try {
+      await apiLogout()
+    } finally {
+      setUser(null)
+    }
   }
 
   return (
