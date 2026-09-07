@@ -1,0 +1,425 @@
+[
+{
+  "model": "ai_courses.problem",
+  "pk": 10,
+  "fields": {
+    "problem_id": "problem1",
+    "title": "problem1",
+    "description": "用print()函数打印以下三行文本：\n提示：注意大小写，注意使用英文标点符号\n\n\nHello\nHow are you?\nI am fine, thank you, and you?\n\n将文件命名为“班级+姓名.py”上传到学习平台",
+    "difficulty": "",
+    "grade_tag": "八年级",
+    "course": "ai",
+    "template_code": "",
+    "created_by": null,
+    "publishing_suspended": false,
+    "management_version": 4,
+    "archived_at": null,
+    "created_at": "2026-04-22T02:29:49.780Z",
+    "updated_at": "2026-09-06T10:31:43.123Z"
+  }
+},
+{
+  "model": "ai_courses.problem",
+  "pk": 11,
+  "fields": {
+    "problem_id": "problem6",
+    "title": "problem6",
+    "description": "请编写一个程序，使用while循环计算从1开始的累加和，直到累加和超过指定的数值n。\n\n要求：\n1. 输入一个正整数n（目标和）\n2. 使用while循环从1开始累加：1+2+3+4+...\n3. 当累加和超过n时停止循环\n4. 输出最后累加的那个数字（使累加和超过n的那个数）\n5. input() 函数中请不要输入任何提示语句\n\n示例1：\n输入：100\n输出：14\n解释：1+2+...+13=91，1+2+...+14=105，所以是14\n\n示例2：\n输入：50\n输出：10\n解释：1+2+...+9=45，1+2+...+10=55，所以是10\n\n将文件命名为\"班级+姓名英文缩写.py\"，并将程序上传到学习平台。",
+    "difficulty": "",
+    "grade_tag": "八年级",
+    "course": "ai",
+    "template_code": "",
+    "created_by": null,
+    "publishing_suspended": false,
+    "management_version": 4,
+    "archived_at": null,
+    "created_at": "2026-04-22T02:29:49.781Z",
+    "updated_at": "2026-09-07T00:38:31.773Z"
+  }
+},
+{
+  "model": "ai_courses.problem",
+  "pk": 12,
+  "fields": {
+    "problem_id": "problem8",
+    "title": "problem8",
+    "description": "题目名称：打印直角三角形\n\n题目描述：\n编写一个程序，首先读取一个整数 n，然后使用嵌套循环打印一个 n 行的直角三角形。\n第 1 行打印 1 个 *，第 2 行打印 2 个 *，...，第 n 行打印 n 个 *。\n\n输入格式：\n一个整数 n（1 ≤ n ≤ 9）\n\n输出格式：\nn 行文本，每行包含相应数量的 * 号，形成左对齐的直角三角形。\n\n样例输入：\n5\n\n样例输出：\n*\n**\n***\n****\n*****\n\n样例解释：\n输入5后，打印5行三角形\n第1行：1个星号\n第2行：2个星号\n第3行：3个星号\n第4行：4个星号\n第5行：5个星号",
+    "difficulty": "",
+    "grade_tag": "八年级",
+    "course": "ai",
+    "template_code": "'''\n注意事项：仅需填写标有①②③④⑤的部分，其他代码请勿修改。\n提示：\n- 使用 input() 读取输入，并转换为整数。\n- 外层循环控制行数（1 到 n）。\n- 内层循环控制每行打印的 * 数量。\n- 使用 end='' 取消换行，使 * 在同一行输出。\n'''\n\n# 读取行数 n\nn = int(input())\n\n# 外层循环：控制行数\nfor i in range(1, ①):\n    # 内层循环：控制每行的 * 数量\n    for j in range(1, ②):\n        # 打印 *，不换行\n        print('*', end=③)\n    # 每行结束后换行\n    ④",
+    "created_by": null,
+    "publishing_suspended": false,
+    "management_version": 3,
+    "archived_at": null,
+    "created_at": "2026-04-22T02:29:49.782Z",
+    "updated_at": "2026-09-07T00:38:44.616Z"
+  }
+},
+{
+  "model": "ai_courses.problem",
+  "pk": 13,
+  "fields": {
+    "problem_id": "problem9",
+    "title": "problem9",
+    "description": "题目名称：计算矩形面积\n\n题目描述：\n编写一个程序，定义一个函数 calculate_area(width, height)，用于计算矩形的面积（宽 × 高）。\n程序读取两个整数作为宽和高，然后调用该函数并输出结果。\n\n输入格式：\n两行，每行一个整数。\n第一行是矩形的宽，第二行是矩形的高。\n\n输出格式：\n一个整数，表示矩形的面积。\n\n样例输入：\n3\n4\n\n样例输出：\n12\n\n样例解释：\n宽为3，高为4，面积 = 3 × 4 = 12\n",
+    "difficulty": "",
+    "grade_tag": "八年级",
+    "course": "ai",
+    "template_code": "'''\n注意事项：仅需填写标有①②③④⑤的部分，其他代码请勿修改。\n提示：\n- 使用 def 定义函数，函数名是 calculate_area\n- 参数分别是 width 和 height\n- 返回宽和高的乘积\n- 使用 input() 读取输入，并转换为整数\n'''\n\n# 定义计算面积的函数\ndef calculate_area(pass, pass):\n    \"\"\"计算矩形面积\"\"\"\n    area = pass\n    return pass\n\n# 读取输入\nwidth = int(input())\nheight = int(input())\n\n# 调用函数并输出结果\nprint(calculate_area(pass))\n",
+    "created_by": null,
+    "publishing_suspended": false,
+    "management_version": 3,
+    "archived_at": null,
+    "created_at": "2026-04-22T02:29:49.783Z",
+    "updated_at": "2026-09-07T00:38:55.000Z"
+  }
+},
+{
+  "model": "ai_courses.problem",
+  "pk": 14,
+  "fields": {
+    "problem_id": "problem7",
+    "title": "problem7",
+    "description": "题目名称：偶数累加器\n\n题目描述：\n编写一个程序，可以不断地接收用户输入的整数。\n如果输入的数字是偶数，就把它加入到总和中。\n如果输入的数字是奇数，则忽略它。\n当输入的数字是 -1 时，停止接收输入，并输出最终的总和。\n\n输入格式：\n多行输入，每一行是一个整数。\n最后一行一定是 -1，表示输入结束。\n\n输出格式：\n一个整数，表示所有输入偶数的和。\n\n样例输入：\n2\n4\n-1\n\n样例输出：\n6\n\n样例解释：\n输入了2，是偶数，加入总和（总和=2）\n输入了4，是偶数，加入总和（总和=6）\n输入了-1，结束循环\n输出6",
+    "difficulty": "",
+    "grade_tag": "八年级",
+    "course": "ai",
+    "template_code": "",
+    "created_by": null,
+    "publishing_suspended": false,
+    "management_version": 3,
+    "archived_at": null,
+    "created_at": "2026-04-22T02:29:49.784Z",
+    "updated_at": "2026-09-07T00:38:21.722Z"
+  }
+},
+{
+  "model": "ai_courses.problem",
+  "pk": 15,
+  "fields": {
+    "problem_id": "problem5",
+    "title": "problem5",
+    "description": "请编写一个程序，输入一个正整数n，计算并输出1到n的累加和。\n\n要求：\n1. 输入一个正整数n\n2. 使用for循环计算1+2+3+...+n的和\n3. input() 函数中请不要输入任何提示语句\n\n示例：\n输入：5\n输出：15\n\n将文件命名为\"班级+姓名英文缩写.py\"，并将程序上传到学习平台。",
+    "difficulty": "",
+    "grade_tag": "八年级",
+    "course": "ai",
+    "template_code": "",
+    "created_by": null,
+    "publishing_suspended": false,
+    "management_version": 4,
+    "archived_at": null,
+    "created_at": "2026-04-22T02:29:49.784Z",
+    "updated_at": "2026-09-06T10:52:39.339Z"
+  }
+},
+{
+  "model": "ai_courses.problem",
+  "pk": 16,
+  "fields": {
+    "problem_id": "problem2",
+    "title": "problem2",
+    "description": "请编写一个程序，输入一个人的姓名（字符串）和年龄（整数），然后按照如下格式输出：\n\n\n\n姓名：<name>\n年龄：<age>\n\n\n其中 <name> 和 <age> 分别为输入的姓名和年龄。\n\n！！！提示！！！\n1、input()函数中请不要输入任何提示语句\n2、姓名与<name>中的“冒号”是中文冒号",
+    "difficulty": "",
+    "grade_tag": "八年级",
+    "course": "ai",
+    "template_code": "",
+    "created_by": null,
+    "publishing_suspended": false,
+    "management_version": 4,
+    "archived_at": null,
+    "created_at": "2026-04-22T02:29:49.785Z",
+    "updated_at": "2026-09-06T10:32:24.035Z"
+  }
+},
+{
+  "model": "ai_courses.problem",
+  "pk": 17,
+  "fields": {
+    "problem_id": "problem3",
+    "title": "problem3",
+    "description": "请编写一个程序，先后输入身高（米，浮点数）和体重（千克，整数或浮点数），计算并输出BMI值。\n\n\n\n计算公式：\n\nBMI = 体重 / (身高 * 身高)\n\n\n\n要求：\n\n1. 输入顺序：先输入身高，再输入体重（每项单独一行）。\n\n2. 输出仅输出数值并保留2位小数（例如：22.86）。\n\n3. input() 函数中请不要输入任何提示语句。\n\n\n\n将文件命名为“班级+姓名英文缩写.py”，并将程序上传到学习平台。",
+    "difficulty": "",
+    "grade_tag": "八年级",
+    "course": "ai",
+    "template_code": "",
+    "created_by": null,
+    "publishing_suspended": false,
+    "management_version": 4,
+    "archived_at": null,
+    "created_at": "2026-04-22T02:29:49.786Z",
+    "updated_at": "2026-09-07T00:38:06.075Z"
+  }
+},
+{
+  "model": "ai_courses.problem",
+  "pk": 18,
+  "fields": {
+    "problem_id": "problem4",
+    "title": "problem4",
+    "description": "请编写一个程序，输入学生的考试成绩x，根据成绩输出对应的等级。\n\n评定规则：\n- 85 <= x <= 100：优秀\n- 70 <= x < 85：良好  \n- 60 <= x < 70：及格\n- 0-59分：不及格\n\n要求：\n1. 输入一个数字表示成绩（可以是整数或小数）\n2. 输出对应的等级文字（如：优秀、良好、及格、不及格）\n3. input() 函数中请不要输入任何提示语句\n\n将文件命名为\"班级+姓名英文缩写.py\"，并将程序上传到学习平台。",
+    "difficulty": "",
+    "grade_tag": "八年级",
+    "course": "ai",
+    "template_code": "",
+    "created_by": null,
+    "publishing_suspended": false,
+    "management_version": 4,
+    "archived_at": null,
+    "created_at": "2026-04-22T02:29:49.787Z",
+    "updated_at": "2026-09-06T10:33:26.230Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 1,
+  "fields": {
+    "problem": 10,
+    "scope_type": "all_school",
+    "grade": "",
+    "class_num": "",
+    "is_active": false,
+    "configured_by": null,
+    "created_at": "2026-09-04T08:43:06.718Z",
+    "updated_at": "2026-09-06T10:31:43.114Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 2,
+  "fields": {
+    "problem": 16,
+    "scope_type": "all_school",
+    "grade": "",
+    "class_num": "",
+    "is_active": false,
+    "configured_by": null,
+    "created_at": "2026-09-04T08:43:06.718Z",
+    "updated_at": "2026-09-06T10:32:24.033Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 3,
+  "fields": {
+    "problem": 17,
+    "scope_type": "all_school",
+    "grade": "",
+    "class_num": "",
+    "is_active": false,
+    "configured_by": null,
+    "created_at": "2026-09-04T08:43:06.718Z",
+    "updated_at": "2026-09-07T00:38:06.069Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 4,
+  "fields": {
+    "problem": 18,
+    "scope_type": "all_school",
+    "grade": "",
+    "class_num": "",
+    "is_active": false,
+    "configured_by": null,
+    "created_at": "2026-09-04T08:43:06.718Z",
+    "updated_at": "2026-09-06T10:33:26.228Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 5,
+  "fields": {
+    "problem": 15,
+    "scope_type": "all_school",
+    "grade": "",
+    "class_num": "",
+    "is_active": false,
+    "configured_by": null,
+    "created_at": "2026-09-04T08:43:06.719Z",
+    "updated_at": "2026-09-06T10:52:39.335Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 6,
+  "fields": {
+    "problem": 11,
+    "scope_type": "all_school",
+    "grade": "",
+    "class_num": "",
+    "is_active": false,
+    "configured_by": null,
+    "created_at": "2026-09-04T08:43:06.719Z",
+    "updated_at": "2026-09-07T00:38:31.770Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 7,
+  "fields": {
+    "problem": 14,
+    "scope_type": "all_school",
+    "grade": "",
+    "class_num": "",
+    "is_active": false,
+    "configured_by": null,
+    "created_at": "2026-09-04T08:43:06.719Z",
+    "updated_at": "2026-09-07T00:38:21.719Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 8,
+  "fields": {
+    "problem": 12,
+    "scope_type": "all_school",
+    "grade": "",
+    "class_num": "",
+    "is_active": false,
+    "configured_by": null,
+    "created_at": "2026-09-04T08:43:06.719Z",
+    "updated_at": "2026-09-07T00:38:44.612Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 9,
+  "fields": {
+    "problem": 13,
+    "scope_type": "all_school",
+    "grade": "",
+    "class_num": "",
+    "is_active": false,
+    "configured_by": null,
+    "created_at": "2026-09-04T08:43:06.719Z",
+    "updated_at": "2026-09-07T00:38:54.996Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 10,
+  "fields": {
+    "problem": 10,
+    "scope_type": "grade_all",
+    "grade": "八年级",
+    "class_num": "",
+    "is_active": true,
+    "configured_by": null,
+    "created_at": "2026-09-06T10:31:43.120Z",
+    "updated_at": "2026-09-06T10:31:43.120Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 11,
+  "fields": {
+    "problem": 16,
+    "scope_type": "grade_all",
+    "grade": "八年级",
+    "class_num": "",
+    "is_active": true,
+    "configured_by": null,
+    "created_at": "2026-09-06T10:32:24.034Z",
+    "updated_at": "2026-09-06T10:32:24.034Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 12,
+  "fields": {
+    "problem": 17,
+    "scope_type": "grade_all",
+    "grade": "八年级",
+    "class_num": "",
+    "is_active": true,
+    "configured_by": null,
+    "created_at": "2026-09-06T10:32:35.484Z",
+    "updated_at": "2026-09-07T00:38:06.072Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 13,
+  "fields": {
+    "problem": 18,
+    "scope_type": "grade_all",
+    "grade": "八年级",
+    "class_num": "",
+    "is_active": true,
+    "configured_by": null,
+    "created_at": "2026-09-06T10:33:26.229Z",
+    "updated_at": "2026-09-06T10:33:26.229Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 14,
+  "fields": {
+    "problem": 15,
+    "scope_type": "grade_all",
+    "grade": "八年级",
+    "class_num": "",
+    "is_active": true,
+    "configured_by": null,
+    "created_at": "2026-09-06T10:33:37.753Z",
+    "updated_at": "2026-09-06T10:52:39.338Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 15,
+  "fields": {
+    "problem": 14,
+    "scope_type": "grade_all",
+    "grade": "八年级",
+    "class_num": "",
+    "is_active": true,
+    "configured_by": null,
+    "created_at": "2026-09-07T00:38:21.721Z",
+    "updated_at": "2026-09-07T00:38:21.721Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 16,
+  "fields": {
+    "problem": 11,
+    "scope_type": "grade_all",
+    "grade": "八年级",
+    "class_num": "",
+    "is_active": true,
+    "configured_by": null,
+    "created_at": "2026-09-07T00:38:31.771Z",
+    "updated_at": "2026-09-07T00:38:31.771Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 17,
+  "fields": {
+    "problem": 12,
+    "scope_type": "grade_all",
+    "grade": "八年级",
+    "class_num": "",
+    "is_active": true,
+    "configured_by": null,
+    "created_at": "2026-09-07T00:38:44.614Z",
+    "updated_at": "2026-09-07T00:38:44.614Z"
+  }
+},
+{
+  "model": "ai_courses.problemaudience",
+  "pk": 18,
+  "fields": {
+    "problem": 13,
+    "scope_type": "grade_all",
+    "grade": "八年级",
+    "class_num": "",
+    "is_active": true,
+    "configured_by": null,
+    "created_at": "2026-09-07T00:38:54.998Z",
+    "updated_at": "2026-09-07T00:38:54.998Z"
+  }
+}
+]

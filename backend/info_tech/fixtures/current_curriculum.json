@@ -1,0 +1,946 @@
+[
+{
+  "model": "info_tech.unit",
+  "pk": 8,
+  "fields": {
+    "grade": "七年级",
+    "parent": null,
+    "name": "unit_1",
+    "display_name": "第一单元 “互联网博物馆”策展——互联网及其影响",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 9,
+  "fields": {
+    "grade": "七年级",
+    "parent": 8,
+    "name": "1.1",
+    "display_name": "第一节 互联网“历史长廊”展区策划——互联网的诞生与发展",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 10,
+  "fields": {
+    "grade": "七年级",
+    "parent": 8,
+    "name": "1.2",
+    "display_name": "第二节 互联网“社会影响”展区策划——互联网的影响与使用",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 11,
+  "fields": {
+    "grade": "七年级",
+    "parent": 8,
+    "name": "1.3",
+    "display_name": "第三节 互联网“中国贡献”展区策划——互联网发展中的中国力量",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 13,
+  "fields": {
+    "grade": "七年级",
+    "parent": null,
+    "name": "unit_2",
+    "display_name": "第二单元 中华优秀传统文化数字传播——互联网信息处理",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 14,
+  "fields": {
+    "grade": "七年级",
+    "parent": 13,
+    "name": "2.1",
+    "display_name": "第一节 探寻文化瑰宝——互联网信息搜索",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 15,
+  "fields": {
+    "grade": "七年级",
+    "parent": 13,
+    "name": "2.2",
+    "display_name": "第二节 构建数字藏馆——互联网信息管理",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 16,
+  "fields": {
+    "grade": "七年级",
+    "parent": 13,
+    "name": "2.3",
+    "display_name": "第三节 创作数字作品——互联网信息加工",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 17,
+  "fields": {
+    "grade": "七年级",
+    "parent": 13,
+    "name": "2.4",
+    "display_name": "第四节 传播文化之声——互联网信息交流",
+    "order": 4
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 19,
+  "fields": {
+    "grade": "七年级",
+    "parent": null,
+    "name": "unit_3",
+    "display_name": "第三单元 利用互联网推广中国非遗文化——网站制作",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 20,
+  "fields": {
+    "grade": "七年级",
+    "parent": 19,
+    "name": "3.1",
+    "display_name": "第一节 开启非遗文化推广之旅——网站的规划",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 21,
+  "fields": {
+    "grade": "七年级",
+    "parent": 19,
+    "name": "3.2",
+    "display_name": "第二节 构建非遗文化网络空间——网站开发前的准备",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 22,
+  "fields": {
+    "grade": "七年级",
+    "parent": 19,
+    "name": "3.3",
+    "display_name": "第三节 打造非遗文化视觉盛宴——网站的制作与美化",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 23,
+  "fields": {
+    "grade": "七年级",
+    "parent": 19,
+    "name": "3.4",
+    "display_name": "第四节 让非遗文化走向世界——网站的发布",
+    "order": 4
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 25,
+  "fields": {
+    "grade": "七年级",
+    "parent": null,
+    "name": "unit_4",
+    "display_name": "第四单元 搭建校园网络系统——互联网的基本原理",
+    "order": 4
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 26,
+  "fields": {
+    "grade": "七年级",
+    "parent": 25,
+    "name": "4.1",
+    "display_name": "第一节 解锁校园网络“连接密码”——互联网互联与互通",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 27,
+  "fields": {
+    "grade": "七年级",
+    "parent": 25,
+    "name": "4.2",
+    "display_name": "第二节 开启网页探秘之旅——互联网 HTTP 协议",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 28,
+  "fields": {
+    "grade": "七年级",
+    "parent": 25,
+    "name": "4.3",
+    "display_name": "第三节 揭秘邮件“快递”行程——互联网 SMTP/POP3 协议",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 29,
+  "fields": {
+    "grade": "七年级",
+    "parent": 25,
+    "name": "4.4",
+    "display_name": "第四节 探索即时消息“高速路”——互联网 TCP/IP 协议",
+    "order": 4
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 31,
+  "fields": {
+    "grade": "七年级",
+    "parent": null,
+    "name": "unit_5",
+    "display_name": "第五单元 社区志愿服务行动——互联网创新应用",
+    "order": 5
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 32,
+  "fields": {
+    "grade": "七年级",
+    "parent": 31,
+    "name": "5.1",
+    "display_name": "第一节 在线学习志愿服务知识——互联网学习新模式",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 33,
+  "fields": {
+    "grade": "七年级",
+    "parent": 31,
+    "name": "5.2",
+    "display_name": "第二节 网络共商志愿活动——互联网工作新模式",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 34,
+  "fields": {
+    "grade": "七年级",
+    "parent": 31,
+    "name": "5.3",
+    "display_name": "第三节 规划志愿活动出行——互联网出行新模式",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 36,
+  "fields": {
+    "grade": "七年级",
+    "parent": null,
+    "name": "unit_6",
+    "display_name": "第六单元 共同守护在线生活——互联网安全与防范",
+    "order": 6
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 37,
+  "fields": {
+    "grade": "七年级",
+    "parent": 36,
+    "name": "6.1",
+    "display_name": "第一节 筑牢防护之盾——互联网安全意识",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 38,
+  "fields": {
+    "grade": "七年级",
+    "parent": 36,
+    "name": "6.2",
+    "display_name": "第二节 严守身份之门——互联网身份验证",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 39,
+  "fields": {
+    "grade": "七年级",
+    "parent": 36,
+    "name": "6.3",
+    "display_name": "第三节 守护数据之钥——互联网信息加密",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 41,
+  "fields": {
+    "grade": "七年级",
+    "parent": null,
+    "name": "unit_7",
+    "display_name": "第七单元 智能学习助手——生成式人工智能赋能互联网创新",
+    "order": 7
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 42,
+  "fields": {
+    "grade": "七年级",
+    "parent": 41,
+    "name": "7.1",
+    "display_name": "第一节 “智能学习助手”作品设计——代码生成",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 43,
+  "fields": {
+    "grade": "七年级",
+    "parent": 41,
+    "name": "7.2",
+    "display_name": "第二节 “智能学习助手”展板设计——文本生成图像",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 44,
+  "fields": {
+    "grade": "七年级",
+    "parent": 41,
+    "name": "7.3",
+    "display_name": "第三节 “智能学习助手”作品介绍——演示文稿生成",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 46,
+  "fields": {
+    "grade": "八年级",
+    "parent": null,
+    "name": "unit_1",
+    "display_name": "第一单元 校园“物联化”改造 —— 初识物联网",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 47,
+  "fields": {
+    "grade": "八年级",
+    "parent": 46,
+    "name": "1.1",
+    "display_name": "第一节 物联网调研报告 —— 物联网的发展与应用",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 48,
+  "fields": {
+    "grade": "八年级",
+    "parent": 46,
+    "name": "1.2",
+    "display_name": "第二节 校园“物联化”改造方案 —— 物联网的架构",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 49,
+  "fields": {
+    "grade": "八年级",
+    "parent": null,
+    "name": "unit_2",
+    "display_name": "第二单元 景区智能管理系统 —— 感知层初体验",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 50,
+  "fields": {
+    "grade": "八年级",
+    "parent": 49,
+    "name": "2.1",
+    "display_name": "第一节 智能门票验证系统 —— 二维码识别技术应用",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 51,
+  "fields": {
+    "grade": "八年级",
+    "parent": 49,
+    "name": "2.2",
+    "display_name": "第二节 游客定位与引导系统 ——RFID 技术应用",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 52,
+  "fields": {
+    "grade": "八年级",
+    "parent": 49,
+    "name": "2.3",
+    "display_name": "第三节 人流量监测系统 —— 红外传感技术应用",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 53,
+  "fields": {
+    "grade": "八年级",
+    "parent": 49,
+    "name": "2.4",
+    "display_name": "第四节 环境质量监测系统 —— 多传感器融合技术应用",
+    "order": 4
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 54,
+  "fields": {
+    "grade": "八年级",
+    "parent": null,
+    "name": "unit_3",
+    "display_name": "第三单元 智慧校园系统 —— 网络层初体验",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 55,
+  "fields": {
+    "grade": "八年级",
+    "parent": 54,
+    "name": "3.1",
+    "display_name": "第一节 智慧校园安防系统 —— 数据通信方式和协议",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 56,
+  "fields": {
+    "grade": "八年级",
+    "parent": 54,
+    "name": "3.2",
+    "display_name": "第二节 智慧教室灯控系统 —— 蓝牙技术应用",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 57,
+  "fields": {
+    "grade": "八年级",
+    "parent": 54,
+    "name": "3.3",
+    "display_name": "第三节 智慧校园无线网 ——Wi-Fi 技术应用",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 58,
+  "fields": {
+    "grade": "八年级",
+    "parent": 54,
+    "name": "3.4",
+    "display_name": "第四节 智慧校园环境监测系统 ——MQTT 技术应用",
+    "order": 4
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 59,
+  "fields": {
+    "grade": "八年级",
+    "parent": null,
+    "name": "unit_4",
+    "display_name": "第四单元 智能家居系统 —— 物联网系统实践",
+    "order": 4
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 60,
+  "fields": {
+    "grade": "八年级",
+    "parent": 59,
+    "name": "4.1",
+    "display_name": "第一节 温度超限本地报警系统 —— 物联网系统本地应用",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 61,
+  "fields": {
+    "grade": "八年级",
+    "parent": 59,
+    "name": "4.2",
+    "display_name": "第二节 温度超限远程警示通知系统 —— 物联网系统远程反馈应用",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 62,
+  "fields": {
+    "grade": "八年级",
+    "parent": 59,
+    "name": "4.3",
+    "display_name": "第三节 远程开窗系统 —— 物联网系统远程控制应用",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 63,
+  "fields": {
+    "grade": "八年级",
+    "parent": 59,
+    "name": "4.4",
+    "display_name": "第四节 智能窗系统 —— 物联网系统综合应用",
+    "order": 4
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 64,
+  "fields": {
+    "grade": "八年级",
+    "parent": null,
+    "name": "unit_5",
+    "display_name": "第五单元 智慧城市物联网设计 —— 物联网创新应用",
+    "order": 5
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 65,
+  "fields": {
+    "grade": "八年级",
+    "parent": 64,
+    "name": "5.1",
+    "display_name": "第一节 健康监测物联网系统 —— 健康领域物联网应用",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 66,
+  "fields": {
+    "grade": "八年级",
+    "parent": 64,
+    "name": "5.2",
+    "display_name": "第二节 智能交通物联网系统 —— 交通领域物联网应用",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 67,
+  "fields": {
+    "grade": "八年级",
+    "parent": 64,
+    "name": "5.3",
+    "display_name": "第三节 智能大棚物联网系统 —— 农业领域物联网应用",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 68,
+  "fields": {
+    "grade": "八年级",
+    "parent": 64,
+    "name": "5.4",
+    "display_name": "第四节 智能药柜物联网系统 —— 医疗领域物联网应用",
+    "order": 4
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 69,
+  "fields": {
+    "grade": "八年级",
+    "parent": null,
+    "name": "unit_6",
+    "display_name": "第六单元 物联网安全保卫战 —— 物联网安全与发展",
+    "order": 6
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 70,
+  "fields": {
+    "grade": "八年级",
+    "parent": 69,
+    "name": "6.1",
+    "display_name": "第一节 筑牢物联安全防线 —— 物联网安全风险探究",
+    "order": 1
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 71,
+  "fields": {
+    "grade": "八年级",
+    "parent": 69,
+    "name": "6.2",
+    "display_name": "第二节 守护设备安全 —— 物联网中的虚拟身份",
+    "order": 2
+  }
+},
+{
+  "model": "info_tech.unit",
+  "pk": 72,
+  "fields": {
+    "grade": "八年级",
+    "parent": 69,
+    "name": "6.3",
+    "display_name": "第三节 物联网发展的命脉 —— 物联网的自主可控技术",
+    "order": 3
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 114,
+  "fields": {
+    "unit": 9,
+    "difficulty": "easy",
+    "category": "互联网的诞生与发展",
+    "text": "互联网的雏形是（ ）",
+    "answer": "A",
+    "explanation": "1969年，美国国防部高级研究计划署创建了ARPANET（阿帕网），这是互联网的前身和雏形。万维网（WWW）是1990年蒂姆·伯纳斯-李发明的；TCP/IP协议是1983年ARPANET采用的通信协议；DNS系统是域名系统，用于将域名转换为IP地址，三者都是在ARPANET之后才出现的技术。",
+    "option_a": "ARPANET",
+    "option_b": "万维网",
+    "option_c": "TCP/IP协议",
+    "option_d": "DNS系统",
+    "created_at": "2026-04-24T01:17:22.758Z",
+    "updated_at": "2026-04-24T01:17:22.759Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 115,
+  "fields": {
+    "unit": 9,
+    "difficulty": "easy",
+    "category": "互联网的应用",
+    "text": "小明使用手机APP购买电影票，这体现了互联网应用的哪种功能？（ ）",
+    "answer": "C",
+    "explanation": "使用手机APP购买电影票属于电子商务的应用范畴。电子商务是指通过互联网进行商品或服务的交易活动，包括网上购物、在线支付等功能。信息检索对应搜索引擎，社交互动对应微信、微博等平台，在线教育对应网课平台。",
+    "option_a": "信息检索",
+    "option_b": "社交互动",
+    "option_c": "电子商务",
+    "option_d": "在线教育",
+    "created_at": "2026-04-24T01:17:22.765Z",
+    "updated_at": "2026-04-24T01:17:22.765Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 116,
+  "fields": {
+    "unit": 9,
+    "difficulty": "medium",
+    "category": "互联网的应用",
+    "text": "互联网应用从功能单一趋于融合，以下哪项是融合的体现？（ ）",
+    "answer": "A",
+    "explanation": "微信集成了社交聊天、微信支付、小程序、生活服务等多种功能，体现了互联网应用从功能单一走向融合的趋势。选项B、C、D都是描述功能单一的应用，不符合'融合'的特征。",
+    "option_a": "微信集成了社交、支付、小程序等多种功能",
+    "option_b": "电子邮件只能用于发送文本信息",
+    "option_c": "FTP只能用于文件传输",
+    "option_d": "搜索引擎只能用于查找信息",
+    "created_at": "2026-04-24T01:17:22.766Z",
+    "updated_at": "2026-04-24T01:17:22.766Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 117,
+  "fields": {
+    "unit": 9,
+    "difficulty": "easy",
+    "category": "互联网的发展",
+    "text": "互联网应用从功能单一逐渐趋于融合的重要前提条件是（ ）",
+    "answer": "B",
+    "explanation": "技术进步是互联网应用从功能单一走向融合的根本前提。随着开发技术的提升、应用编程接口（API）的开放以及平台化发展，不同功能可以被整合到同一个应用中。用户的喜好、市场竞争等因素都是技术进步带来的结果或外部推动力。",
+    "option_a": "用户不喜欢功能单一的应用",
+    "option_b": "技术的进步",
+    "option_c": "市场竞争的需要",
+    "option_d": "应用开发者的个人喜好",
+    "created_at": "2026-04-24T01:17:22.767Z",
+    "updated_at": "2026-04-24T01:17:22.767Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 118,
+  "fields": {
+    "unit": 9,
+    "difficulty": "medium",
+    "category": "互联网的发展历程",
+    "text": "关于互联网的发展历程，以下说法正确的是（ ）",
+    "answer": "D",
+    "explanation": "5G技术的高速率、低延迟、大连接特性，使得海量设备的互联成为可能，标志着互联网真正进入万物互联时代。选项A错误：万维网商业化发生在20世纪90年代；选项B错误：移动互联网兴起于21世纪初；选项C明显错误：生成式人工智能是近年才发展起来的技术。",
+    "option_a": "万维网的商业化发生在20世纪70年代",
+    "option_b": "移动互联网的兴起是在20世纪90年代",
+    "option_c": "生成式人工智能在互联网诞生初期就已广泛应用",
+    "option_d": "5G应用标志着互联网进入万物互联时代",
+    "created_at": "2026-04-24T01:17:22.768Z",
+    "updated_at": "2026-04-24T01:17:22.768Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 119,
+  "fields": {
+    "unit": 9,
+    "difficulty": "medium",
+    "category": "互联网的诞生与发展",
+    "text": "20世纪60年代，为阿帕网建立奠定基础的是（ ）技术的突破。",
+    "answer": "A",
+    "explanation": "包交换（分组交换）技术的突破为阿帕网的建立奠定了基础。包交换将数据分割成独立的包进行传输，相比电路交换更加灵活高效，是互联网数据传输的核心技术。TCP/IP协议是1983年才被ARPANET采用的；万维网是1990年发明的；移动互联是后来的技术。",
+    "option_a": "包交换",
+    "option_b": "TCP/IP协议",
+    "option_c": "万维网",
+    "option_d": "移动互联",
+    "created_at": "2026-04-24T01:17:22.769Z",
+    "updated_at": "2026-04-24T01:17:22.769Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 120,
+  "fields": {
+    "unit": 9,
+    "difficulty": "easy",
+    "category": "互联网的诞生与发展",
+    "text": "推动互联网走向大众的是（ ）的出现及商业化应用。",
+    "answer": "B",
+    "explanation": "万维网（WWW）的出现及商业化应用是推动互联网走向大众的关键。1990年蒂姆·伯纳斯-李发明万维网后，1991年开始向公众开放，使得普通人也能方便地使用互联网浏览网页、获取信息。阿帕网是互联网前身，主要用于军事和学术研究。",
+    "option_a": "阿帕网",
+    "option_b": "万维网（www）",
+    "option_c": "智能手机",
+    "option_d": "5G技术",
+    "created_at": "2026-04-24T01:17:22.770Z",
+    "updated_at": "2026-04-24T01:17:22.770Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 121,
+  "fields": {
+    "unit": 9,
+    "difficulty": "easy",
+    "category": "互联网的发展",
+    "text": "催生互联网，深刻改变人们生活方式的是（ ）的普及。",
+    "answer": "C",
+    "explanation": "智能手机的普及催生了移动互联网，深刻改变了人们的生活方式。智能手机将互联网装入口袋，让人们可以随时随地进行社交、购物、支付、信息获取等活动，是移动互联网时代最具代表性的设备。相比之下，台式电脑和笔记本电脑的便携性较差。",
+    "option_a": "台式电脑",
+    "option_b": "笔记本电脑",
+    "option_c": "智能手机",
+    "option_d": "平板设备",
+    "created_at": "2026-04-24T01:17:22.772Z",
+    "updated_at": "2026-04-24T01:17:22.772Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 122,
+  "fields": {
+    "unit": 9,
+    "difficulty": "easy",
+    "category": "互联网的发展",
+    "text": "引领全球进入万物互联时代的是（ ）技术的广泛应用。",
+    "answer": "B",
+    "explanation": "5G技术的广泛应用引领全球进入万物互联时代。5G具有高速率、低延迟、大连接数三大特点，能够支持海量智能设备的同时连接，为智能家居、车联网、工业互联网等万物互联应用提供了技术基础。4G是移动互联网时代的技术；6G目前仍在研发中。",
+    "option_a": "4G",
+    "option_b": "5G",
+    "option_c": "6G",
+    "option_d": "光纤",
+    "created_at": "2026-04-24T01:17:22.774Z",
+    "updated_at": "2026-04-24T01:17:22.774Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 123,
+  "fields": {
+    "unit": 9,
+    "difficulty": "easy",
+    "category": "互联网的应用",
+    "text": "搜索引擎的功能是（ ）",
+    "answer": "A",
+    "explanation": "搜索引擎的核心功能是实现信息的高效筛选与精准推送。搜索引擎通过索引海量网页内容，建立复杂的排序算法，帮助用户快速找到所需信息，是互联网时代信息获取的重要工具。选项B描述的是社交媒体的功能；选项C描述的是在线教育平台的功能。",
+    "option_a": "实现信息的高效筛选与精准推送",
+    "option_b": "构建虚拟社交场景",
+    "option_c": "打破时空限制汇聚教育资源",
+    "option_d": "提升生活便利性",
+    "created_at": "2026-04-24T01:17:22.774Z",
+    "updated_at": "2026-04-24T01:17:22.774Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 124,
+  "fields": {
+    "unit": 9,
+    "difficulty": "easy",
+    "category": "互联网的应用",
+    "text": "在线课程平台的优势是（ ）",
+    "answer": "A",
+    "explanation": "在线课程平台的核心优势是打破时空限制，让学习者可以随时随地访问来自全球的优质教育资源。相比传统课堂，在线学习不受地理位置和时间安排的限制，学生可以根据自己的节奏学习。选项B是搜索引擎的功能；选项C是社交媒体的功能。",
+    "option_a": "打破时空限制，汇聚全球优质教育资源",
+    "option_b": "实现信息筛选推送",
+    "option_c": "构建虚拟社交场景",
+    "option_d": "提升技术便利性",
+    "created_at": "2026-04-24T01:17:22.775Z",
+    "updated_at": "2026-04-24T01:17:22.775Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 125,
+  "fields": {
+    "unit": 9,
+    "difficulty": "medium",
+    "category": "互联网的应用",
+    "text": "互联网应用的功能类别（ ）。",
+    "answer": "A",
+    "explanation": "当前互联网应用的功能类别呈现相互渗透、协同创新的特点。不同类型的应用（如社交、支付、购物、娱乐）之间相互融合，一个应用往往集成多种功能。例如微信不仅有社交功能，还有支付、小程序等。这种融合创新是互联网应用发展的重要趋势。",
+    "option_a": "相互渗透、协同创新",
+    "option_b": "相互独立、互不影响",
+    "option_c": "仅单一发展",
+    "option_d": "逐渐减少",
+    "created_at": "2026-04-24T01:17:22.776Z",
+    "updated_at": "2026-04-24T01:17:22.776Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 126,
+  "fields": {
+    "unit": 9,
+    "difficulty": "medium",
+    "category": "互联网的发展",
+    "text": "互联网应用发展早期主要聚焦于（ ）。",
+    "answer": "C",
+    "explanation": "互联网应用发展早期主要聚焦于基础工具类应用，如电子邮件（Email）、FTP文件传输、新闻浏览等。这些应用解决的是最基本的互联网信息交换需求，功能相对单一。随着技术进步和用户需求的发展，才逐渐出现社交、电商、智能交互等更复杂的应用类型。",
+    "option_a": "复杂社交类",
+    "option_b": "多元服务类",
+    "option_c": "基础工具类",
+    "option_d": "智能交互类",
+    "created_at": "2026-04-24T01:17:22.776Z",
+    "updated_at": "2026-04-24T01:17:22.776Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 127,
+  "fields": {
+    "unit": 9,
+    "difficulty": "easy",
+    "category": "互联网的应用",
+    "text": "互联网应用图形界面的特点是（ ）。",
+    "answer": "C",
+    "explanation": "图形界面的特点是应用广泛，用户能直观地与设备软件进行交互。相比命令行界面，图形界面更直观易用，降低了计算机的使用门槛，推动了互联网应用的大众化普及。图形界面具有可视化的图标、窗口、菜单等元素，用户通过鼠标或触摸操作即可完成各种任务。",
+    "option_a": "应用面窄",
+    "option_b": "仅支持文本交互",
+    "option_c": "应用广泛，用户能直观与设备软件交互",
+    "option_d": "交互性差",
+    "created_at": "2026-04-24T01:17:22.777Z",
+    "updated_at": "2026-04-24T01:17:22.777Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 128,
+  "fields": {
+    "unit": 9,
+    "difficulty": "easy",
+    "category": "互联网的发展",
+    "text": "未来互联网发展将朝着更加（ ）的方向加速迈进。",
+    "answer": "A",
+    "explanation": "未来互联网发展将朝着智能化、个性化和全球化的方向加速迈进。智能化体现在人工智能技术的广泛应用，个性化体现在根据用户需求定制服务，全球化体现在打破地域界限实现互联互通。这三个方向代表了互联网发展的主要趋势。",
+    "option_a": "智能化、个性化和全球化",
+    "option_b": "单一化、本地化",
+    "option_c": "传统化、局限化",
+    "option_d": "手动化、区域化",
+    "created_at": "2026-04-24T01:17:22.778Z",
+    "updated_at": "2026-04-24T01:17:22.778Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 129,
+  "fields": {
+    "unit": 9,
+    "difficulty": "medium",
+    "category": "前沿技术拓展",
+    "text": "量子通信凭借高度的（），未来有望在金融、军事、政务等领域广泛应用。",
+    "answer": "A",
+    "explanation": "量子通信凭借高度的安全性与保密性，未来有望在金融、军事、政务等领域广泛应用。量子通信利用量子力学原理进行信息传输，具有不可克隆、不可窃听的特性，能够实现绝对安全的信息传输，为信息安全筑牢坚实屏障。",
+    "option_a": "安全性与保密性",
+    "option_b": "开放性与共享性",
+    "option_c": "单一性与局限性",
+    "option_d": "传统性与滞后性",
+    "created_at": "2026-04-24T01:17:22.779Z",
+    "updated_at": "2026-04-24T01:17:22.780Z"
+  }
+},
+{
+  "model": "info_tech.question",
+  "pk": 130,
+  "fields": {
+    "unit": 9,
+    "difficulty": "medium",
+    "category": "前沿技术拓展",
+    "text": "元宇宙融合了（）、增强现实（AR）和人工智能（AI）等前沿技术。",
+    "answer": "A",
+    "explanation": "元宇宙融合了虚拟现实（VR）、增强现实（AR）和人工智能（AI）等前沿技术。元宇宙是一个持久沉浸式的数字空间，通过VR提供沉浸式体验，通过AR实现现实与虚拟的融合，通过AI实现智能交互，三者结合构建了一个全新的数字世界。",
+    "option_a": "虚拟现实（VR）",
+    "option_b": "普通文本",
+    "option_c": "单一音频",
+    "option_d": "传统图像",
+    "created_at": "2026-04-24T01:17:22.781Z",
+    "updated_at": "2026-04-24T01:17:22.781Z"
+  }
+}
+]

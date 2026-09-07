@@ -16,7 +16,8 @@ build/
 # Django
 media/
 submissions/
-problems/              # AI课题目文件已迁移到 Django，保留目录仅作本地备份
+# problems/ 是可公开且需随部署恢复的教学题库，保持纳入 Git；仅忽略其中的系统文件。
+problems/**/.DS_Store
 staticfiles/
 backend/.local/
 backend/.env.mysql.local
