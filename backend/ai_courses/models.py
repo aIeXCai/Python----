@@ -1,7 +1,44 @@
 import os
 import glob
+from dataclasses import dataclass, field
 from django.db import models
+from django.db import transaction
 from django.conf import settings
+from django.core.exceptions import ValidationError
+
+from users.grade_levels import CANONICAL_GRADES, GRADE_CHOICES, normalize_grade, normalize_student_identifier
+
+
+AUDIENCE_ALL_SCHOOL = 'all_school'
+AUDIENCE_GRADE_ALL = 'grade_all'
+AUDIENCE_CLASS = 'class'
+AUDIENCE_SCOPE_CHOICES = (
+    (AUDIENCE_ALL_SCHOOL, '全校'),
+    (AUDIENCE_GRADE_ALL, '全年级'),
+    (AUDIENCE_CLASS, '指定班级'),
+)
+
+
+@dataclass
+class ProblemSyncResult:
+    """Detailed sync result that remains compatible with legacy two-value unpacking."""
+
+    created: list = field(default_factory=list)
+    updated: list = field(default_factory=list)
+    skipped: list = field(default_factory=list)
+    failed: list = field(default_factory=list)
+
+    def __iter__(self):
+        yield self.created
+        yield self.updated
+
+    def as_dict(self):
+        return {
+            'created': self.created,
+            'updated': self.updated,
+            'skipped': self.skipped,
+            'failed': self.failed,
+        }
 
 
 class Problem(models.Model):
@@ -14,9 +51,25 @@ class Problem(models.Model):
     title = models.CharField('标题', max_length=200, blank=True)
     description = models.TextField('题目描述', blank=True)
     difficulty = models.CharField('难度', max_length=20, blank=True)
+    grade_tag = models.CharField(
+        '适用年级标签', max_length=10, choices=GRADE_CHOICES,
+        blank=True, default='', db_index=True,
+    )
     course = models.CharField('所属课程', max_length=10, choices=[('ai', '人工智能课'), ('info', '信息科技课')], default='ai')
     template_code = models.TextField('模板代码', blank=True, default='')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_ai_problems',
+        verbose_name='创建教师',
+    )
+    publishing_suspended = models.BooleanField('全局暂停发布', default=False)
+    management_version = models.PositiveIntegerField('管理版本', default=1)
+    archived_at = models.DateTimeField('归档时间', null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'AI课题目'
@@ -113,18 +166,17 @@ class Problem(models.Model):
         return len(self.get_test_cases())
 
     @classmethod
-    def sync_from_disk(cls):
+    def sync_from_disk(cls, actor=None):
         """
         从 problems/ai/ 和 problems/ 目录同步题目列表到数据库。
         problems/ai/  → course='ai'
         problems/根目录 → course='info'
         """
         problems_dir = settings.PROBLEMS_DIR
-        created_ids = []
-        updated_ids = []
+        result = ProblemSyncResult()
 
         if not os.path.exists(problems_dir):
-            return created_ids, updated_ids
+            return result
 
         # 定义扫描规则：(子目录名或None表示根目录, 课程名)
         scans = [
@@ -142,62 +194,194 @@ class Problem(models.Model):
                 if not os.path.isdir(item_path) or not item.startswith('problem'):
                     continue
 
-                description_path = os.path.join(item_path, 'description.txt')
-                description = ''
-                if os.path.exists(description_path):
-                    try:
-                        with open(description_path, 'r', encoding='utf-8') as f:
-                            description = f.read()
-                    except UnicodeDecodeError:
+                try:
+                    def read_text(filename):
+                        path = os.path.join(item_path, filename)
+                        if not os.path.exists(path):
+                            return ''
                         try:
-                            with open(description_path, 'r', encoding='gbk') as f:
-                                description = f.read()
-                        except Exception:
-                            pass
+                            with open(path, 'r', encoding='utf-8') as file:
+                                return file.read()
+                        except UnicodeDecodeError:
+                            with open(path, 'r', encoding='gbk') as file:
+                                return file.read()
 
-                # 读取难度（可选，从单独的 metadata 文件或 description 第一行）
-                difficulty = ''
-                metadata_path = os.path.join(item_path, 'metadata.txt')
-                if os.path.exists(metadata_path):
-                    try:
-                        with open(metadata_path, 'r', encoding='utf-8') as f:
-                            for line in f:
-                                if line.startswith('difficulty:'):
-                                    difficulty = line.split(':', 1)[1].strip()
-                                    break
-                    except Exception:
-                        pass
+                    description = read_text('description.txt')
+                    template_code = read_text('template.py')
+                    difficulty = ''
+                    for line in read_text('metadata.txt').splitlines():
+                        if line.startswith('difficulty:'):
+                            difficulty = line.split(':', 1)[1].strip()
+                            break
 
-                # Read template.py if exists
-                template_code = ''
-                template_path = os.path.join(item_path, 'template.py')
-                if os.path.exists(template_path):
-                    try:
-                        with open(template_path, 'r', encoding='utf-8') as f:
-                            template_code = f.read()
-                    except UnicodeDecodeError:
-                        try:
-                            with open(template_path, 'r', encoding='gbk') as f:
-                                template_code = f.read()
-                        except Exception:
-                            pass
-
-                obj, created = cls.objects.update_or_create(
-                    problem_id=item,
-                    defaults={
+                    defaults = {
                         'title': item,
                         'description': description,
                         'course': course,
                         'difficulty': difficulty,
                         'template_code': template_code,
                     }
-                )
-                if created:
-                    created_ids.append(item)
-                else:
-                    updated_ids.append(item)
+                    with transaction.atomic():
+                        obj, created = cls.objects.get_or_create(
+                            problem_id=item,
+                            defaults={**defaults, 'created_by': actor},
+                        )
+                        if created:
+                            result.created.append(item)
+                            continue
+                        if (
+                            actor is not None
+                            and not getattr(actor, 'is_superuser', False)
+                            and obj.created_by_id != getattr(actor, 'pk', None)
+                        ):
+                            result.skipped.append({
+                                'problem_id': item,
+                                'reason': '题目属于其他教师或历史共享题，未覆盖内容',
+                            })
+                            continue
+                        changed_fields = []
+                        for model_field, value in defaults.items():
+                            if getattr(obj, model_field) != value:
+                                setattr(obj, model_field, value)
+                                changed_fields.append(model_field)
+                        if not changed_fields:
+                            result.skipped.append({
+                                'problem_id': item, 'reason': '内容无变化',
+                            })
+                            continue
+                        obj.management_version += 1
+                        obj.save(update_fields=[
+                            *changed_fields, 'management_version', 'updated_at',
+                        ])
+                        result.updated.append(item)
+                except Exception as exc:
+                    result.failed.append({
+                        'problem_id': item,
+                        'reason': str(exc) or '读取或写入题目失败',
+                    })
 
-        return created_ids, updated_ids
+        return result
+
+
+class ProblemAudience(models.Model):
+    """A durable publication rule for one AI problem."""
+
+    problem = models.ForeignKey(
+        Problem,
+        on_delete=models.CASCADE,
+        related_name='audience_rules',
+        verbose_name='题目',
+    )
+    scope_type = models.CharField('范围类型', max_length=16, choices=AUDIENCE_SCOPE_CHOICES)
+    grade = models.CharField('年级', max_length=10, choices=GRADE_CHOICES, blank=True, default='')
+    class_num = models.CharField('班级', max_length=20, blank=True, default='')
+    is_active = models.BooleanField('是否生效', default=True)
+    configured_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='configured_ai_problem_audiences',
+        verbose_name='最近配置人',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'AI题目发布范围'
+        verbose_name_plural = 'AI题目发布范围'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['problem', 'scope_type', 'grade', 'class_num'],
+                name='ai_problem_audience_unique_scope',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(scope_type=AUDIENCE_ALL_SCHOOL, grade='', class_num='')
+                    | models.Q(scope_type=AUDIENCE_GRADE_ALL, grade__in=CANONICAL_GRADES, class_num='')
+                    | (
+                        models.Q(scope_type=AUDIENCE_CLASS, grade__in=CANONICAL_GRADES)
+                        & ~models.Q(class_num='')
+                    )
+                ),
+                name='ai_problem_audience_valid_shape',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['problem', 'is_active', 'scope_type'], name='ai_audience_problem_idx'),
+            models.Index(fields=['grade', 'class_num', 'is_active'], name='ai_audience_identity_idx'),
+        ]
+
+    def clean(self):
+        errors = {}
+        if self.scope_type == AUDIENCE_ALL_SCHOOL:
+            if self.grade or self.class_num:
+                errors['scope_type'] = '全校规则不能指定年级或班级。'
+        elif self.scope_type == AUDIENCE_GRADE_ALL:
+            try:
+                self.grade = normalize_grade(self.grade)
+            except ValidationError as exc:
+                errors['grade'] = exc.messages
+            if self.class_num:
+                errors['class_num'] = '全年级规则不能指定班级。'
+        elif self.scope_type == AUDIENCE_CLASS:
+            try:
+                self.grade = normalize_grade(self.grade)
+            except ValidationError as exc:
+                errors['grade'] = exc.messages
+            try:
+                self.class_num = normalize_student_identifier(self.class_num, label='班级')
+            except ValidationError as exc:
+                errors['class_num'] = exc.messages
+        else:
+            errors['scope_type'] = '范围类型无效。'
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        if self.scope_type == AUDIENCE_ALL_SCHOOL:
+            label = '全校'
+        elif self.scope_type == AUDIENCE_GRADE_ALL:
+            label = f'{self.grade}全年级'
+        else:
+            label = f'{self.grade}{self.class_num}班'
+        return f'{self.problem.problem_id} - {label}'
+
+
+class ProblemManagementAudit(models.Model):
+    EVENT_CHOICES = (
+        ('content_edit', '编辑内容'),
+        ('scope_update', '修改范围'),
+        ('global_suspend', '全局暂停'),
+        ('global_resume', '全局恢复'),
+        ('archive', '归档'),
+        ('restore', '恢复'),
+        ('disk_sync', '磁盘同步'),
+    )
+    OUTCOME_CHOICES = (
+        ('success', '成功'),
+        ('denied', '拒绝'),
+        ('conflict', '冲突'),
+        ('failed', '失败'),
+    )
+
+    event_type = models.CharField(max_length=24, choices=EVENT_CHOICES)
+    outcome = models.CharField(max_length=16, choices=OUTCOME_CHOICES)
+    actor_user_id = models.BigIntegerField(null=True, blank=True)
+    problem_id = models.CharField(max_length=50, blank=True)
+    reason_code = models.CharField(max_length=80, blank=True)
+    before_summary = models.JSONField(default=dict, blank=True)
+    after_summary = models.JSONField(default=dict, blank=True)
+    source_ip = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'AI题目管理审计'
+        verbose_name_plural = 'AI题目管理审计'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.event_type}/{self.outcome} - {self.problem_id}'
 
 
 class Submission(models.Model):
@@ -219,7 +403,7 @@ class Submission(models.Model):
     )
     problem = models.ForeignKey(
         Problem,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='submissions'
     )
     code = models.TextField('提交代码')

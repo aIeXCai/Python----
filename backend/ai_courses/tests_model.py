@@ -5,6 +5,7 @@ ai_courses Model + Serializer 单元测试
 import os
 import tempfile
 from unittest.mock import patch, MagicMock
+from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from ai_courses.models import Problem, Submission
 from ai_courses.serializers import SubmissionCreateSerializer
@@ -57,6 +58,17 @@ class ProblemModelTest(TestCase):
         """默认 template_code 为空字符串"""
         p = Problem.objects.create(problem_id='test_template_default')
         self.assertEqual(p.template_code, '')
+
+    def test_grade_tag_defaults_to_unclassified_and_accepts_school_grades(self):
+        unclassified = Problem.objects.create(problem_id='tag_default')
+        tagged = Problem.objects.create(problem_id='tag_grade7', grade_tag='七年级')
+        self.assertEqual(unclassified.grade_tag, '')
+        self.assertEqual(tagged.grade_tag, '七年级')
+
+    def test_grade_tag_rejects_unknown_grade_during_validation(self):
+        problem = Problem(problem_id='tag_invalid', grade_tag='大学')
+        with self.assertRaises(ValidationError):
+            problem.full_clean()
 
     def test_template_code_set_explicitly(self):
         """可以显式设置 template_code"""
@@ -277,6 +289,38 @@ class ProblemSyncFromDiskTest(TestCase):
             p = Problem.objects.get(problem_id='problem_re_sync')
             self.assertEqual(p.template_code, 'NEW CODE')
 
+    def test_sync_reports_unchanged_problem_as_skipped(self):
+        """无变化题目在详细结果中说明跳过原因。"""
+        Problem.objects.create(problem_id='problem_unchanged', title='problem_unchanged', course='ai')
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.makedirs(os.path.join(tmpdir, 'ai', 'problem_unchanged'))
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                result = Problem.sync_from_disk()
+
+        self.assertEqual(result.created, [])
+        self.assertEqual(result.updated, [])
+        self.assertEqual(result.skipped, [
+            {'problem_id': 'problem_unchanged', 'reason': '内容无变化'},
+        ])
+
+    def test_sync_isolates_and_reports_invalid_problem_file(self):
+        """单题文件解码失败不会中断整批同步。"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            invalid_dir = os.path.join(tmpdir, 'ai', 'problem_invalid_encoding')
+            valid_dir = os.path.join(tmpdir, 'ai', 'problem_valid_after_failure')
+            os.makedirs(invalid_dir)
+            os.makedirs(valid_dir)
+            with open(os.path.join(invalid_dir, 'description.txt'), 'wb') as file:
+                file.write(b'\x81')
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                result = Problem.sync_from_disk()
+
+        self.assertEqual(result.created, ['problem_valid_after_failure'])
+        self.assertEqual(result.failed[0]['problem_id'], 'problem_invalid_encoding')
+        self.assertFalse(Problem.objects.filter(problem_id='problem_invalid_encoding').exists())
+
 
 class SubmissionModelTest(TestCase):
     """Submission 模型"""
@@ -402,6 +446,6 @@ class ProblemDetailSerializerTest(TestCase):
     def test_serializer_includes_all_expected_fields(self):
         """ProblemDetailSerializer 包含完整字段列表"""
         from ai_courses.serializers import ProblemDetailSerializer
-        expected_fields = {'problem_id', 'title', 'description', 'difficulty',
+        expected_fields = {'problem_id', 'title', 'description', 'difficulty', 'grade_tag',
                            'template_code', 'test_cases', 'created_at'}
         self.assertEqual(set(ProblemDetailSerializer.Meta.fields), expected_fields)

@@ -6,7 +6,7 @@ from django.test import override_settings
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from ai_courses.models import Problem, Submission
+from ai_courses.models import AUDIENCE_ALL_SCHOOL, Problem, ProblemAudience, Submission
 from execution.constants import STATUS_RUNNING, STATUS_SUCCEEDED, TASK_TYPE_GRADE, TASK_TYPE_RUN
 from execution.models import ExecutionTask
 from users.models import CustomUser
@@ -26,6 +26,10 @@ class PublicExecutionApiTest(APITestCase):
         token = Token.objects.create(user=self.student)
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
         self.problem = Problem.objects.create(problem_id='queue_problem', course='ai')
+        ProblemAudience.objects.create(
+            problem=self.problem, scope_type=AUDIENCE_ALL_SCHOOL,
+            grade='', class_num='', is_active=True,
+        )
         self.cases = [{'number': 7, 'input': '1\n', 'output': '2'}]
 
     def post_run(self, *, code='print(1)', stdin='', key=None):

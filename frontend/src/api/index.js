@@ -213,3 +213,54 @@ export async function getAdminScores(params = {}) {
   const qs = new URLSearchParams(params).toString()
   return request(`/ai/admin/scores/${qs ? '?' + qs : ''}`)
 }
+
+export async function getAdminProblems({ includeArchived = false } = {}) {
+  const params = new URLSearchParams({ course: 'ai' })
+  if (includeArchived) params.set('include_archived', '1')
+  return request(`/ai/admin/problems/?${params.toString()}`)
+}
+
+export async function syncAdminProblems() {
+  return request('/ai/admin/problems/', { method: 'POST' })
+}
+
+export async function getAdminProblem(problemId) {
+  return request(`/ai/admin/problems/${encodeURIComponent(problemId)}/`)
+}
+
+export async function updateAdminProblem(problemId, values) {
+  return request(`/ai/admin/problems/${encodeURIComponent(problemId)}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(values),
+  })
+}
+
+export async function getProblemPublication(problemId) {
+  return request(`/ai/admin/problems/${encodeURIComponent(problemId)}/publication/`)
+}
+
+export async function updateProblemPublication(problemId, values) {
+  return request(`/ai/admin/problems/${encodeURIComponent(problemId)}/publication/`, {
+    method: 'PATCH',
+    body: JSON.stringify(values),
+  })
+}
+
+export async function getProblemClassOptions(grade) {
+  const params = new URLSearchParams({ grade })
+  return request(`/ai/admin/problem-classes/?${params.toString()}`)
+}
+
+export async function archiveAdminProblem(problemId, expectedVersion) {
+  return request(`/ai/admin/problems/${encodeURIComponent(problemId)}/`, {
+    method: 'DELETE',
+    body: JSON.stringify({ expected_version: expectedVersion }),
+  })
+}
+
+export async function restoreAdminProblem(problemId, expectedVersion) {
+  return request(`/ai/admin/problems/${encodeURIComponent(problemId)}/restore/`, {
+    method: 'POST',
+    body: JSON.stringify({ expected_version: expectedVersion }),
+  })
+}

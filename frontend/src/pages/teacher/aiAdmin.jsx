@@ -1,14 +1,46 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, Bot, BookOpen, BarChart3, RefreshCw, Eye, Trash2,
-  Upload, X, Plus, Edit2, CheckCircle
+  Archive, ArrowLeft, Bot, BookOpen, BarChart3, RefreshCw, Eye,
+  Upload, Edit2, EyeOff, RotateCcw, Tag
 } from 'lucide-react'
 import { API_BASE_URL } from '../../api/config.js'
+import {
+  archiveAdminProblem,
+  getAdminProblems,
+  getCurrentUser,
+  restoreAdminProblem,
+  syncAdminProblems,
+  updateProblemPublication,
+} from '../../api/index.js'
 import { GRADES } from '../../constants/grades.js'
+import ProblemEditModal from './components/ProblemEditModal.jsx'
 
 const API = API_BASE_URL
 const DIFFICULTY_COLORS = { '简单': '#38ef7d', '中等': '#f59e0b', '困难': '#ef4444', '入门': '#38ef7d', '进阶': '#f59e0b', '高级': '#ef4444' }
+const GRADE_TAG_COLORS = {
+  '七年级': ['#eef1ff', '#5369d8'],
+  '八年级': ['#e8f8ef', '#18794e'],
+  '九年级': ['#fff4dc', '#a15c00'],
+  '高一': ['#f2eaff', '#7048b8'],
+  '高二': ['#e6f6fb', '#15728a'],
+  '高三': ['#ffeaec', '#b3313d'],
+}
+
+const iconButtonStyle = (color, background) => ({
+  width: 30,
+  height: 30,
+  padding: 0,
+  border: 'none',
+  borderRadius: 8,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  color,
+  background,
+  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+})
 
 function MsgBanner({ msg }) {
   if (!msg.text) return null
@@ -25,66 +57,126 @@ function MsgBanner({ msg }) {
 export default function AiAdmin() {
   const navigate = useNavigate()
   const [tab, setTab] = useState('problems')
+  const [currentUser] = useState(() => getCurrentUser())
   const token = localStorage.getItem('token')
-  const headers = { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' }
+  const headers = useMemo(() => ({
+    'Authorization': `Token ${token}`,
+    'Content-Type': 'application/json',
+  }), [token])
 
   // ─── Tab0: 题库管理 ─────────────────────────────────────────────────────────
   const [problems, setProblems] = useState([])
   const [pLoading, setPLoading] = useState(true)
   const [pSyncing, setPSyncing] = useState(false)
   const [pMsg, setPMsg] = useState({ type: '', text: '' })
-  const [detailModal, setDetailModal] = useState({ open: false, problem: null })
-  const [detailLoading, setDetailLoading] = useState(false)
+  const [editProblem, setEditProblem] = useState(null)
+  const [includeArchived, setIncludeArchived] = useState(false)
+  const [gradeTagFilter, setGradeTagFilter] = useState('all')
 
-  const loadProblems = async () => {
+  const filteredProblems = useMemo(() => {
+    if (gradeTagFilter === 'all') return problems
+    if (gradeTagFilter === 'unclassified') return problems.filter(problem => !problem.grade_tag)
+    return problems.filter(problem => problem.grade_tag === gradeTagFilter)
+  }, [gradeTagFilter, problems])
+
+  const gradeTagCounts = useMemo(() => {
+    const counts = Object.fromEntries(GRADES.map(grade => [grade, 0]))
+    counts.unclassified = 0
+    problems.forEach(problem => {
+      if (problem.grade_tag && Object.hasOwn(counts, problem.grade_tag)) counts[problem.grade_tag] += 1
+      else counts.unclassified += 1
+    })
+    return counts
+  }, [problems])
+
+  const loadProblems = useCallback(async () => {
     setPLoading(true)
     try {
-      const res = await fetch(`${API}/ai/admin/problems/`, { headers })
-      if (res.ok) setProblems(await res.json())
+      setProblems(await getAdminProblems({ includeArchived }))
     } catch (e) { console.error(e) }
     setPLoading(false)
-  }
+  }, [includeArchived])
 
-  useEffect(() => { loadProblems() }, [])
+  useEffect(() => { loadProblems() }, [loadProblems])
 
   const syncFromDisk = async () => {
     setPSyncing(true)
     try {
-      const res = await fetch(`${API}/ai/admin/problems/`, { method: 'POST', headers })
-      if (res.ok) {
-        const data = await res.json()
-        setPMsg({ type: 'success', text: `同步完成！新增 ${data.created} 题，更新 ${data.updated} 题` })
-        loadProblems()
-      } else {
-        const data = await res.json()
-        setPMsg({ type: 'error', text: JSON.stringify(data) })
-      }
+      const data = await syncAdminProblems()
+      const failedText = data.failed.length
+        ? `；失败：${data.failed.map(item => `${item.problem_id}（${item.reason}）`).join('、')}`
+        : ''
+      setPMsg({
+        type: data.failed.length ? 'error' : 'success',
+        text: `同步完成：新增 ${data.created.length} 题，更新 ${data.updated.length} 题，跳过 ${data.skipped.length} 题${failedText}。新题默认不发布。`,
+      })
+      loadProblems()
     } catch (e) { setPMsg({ type: 'error', text: '同步失败：' + e.message }) }
     setPSyncing(false)
     setTimeout(() => setPMsg({ type: '', text: '' }), 5000)
   }
 
-  const viewProblem = async (problemId) => {
-    setDetailLoading(true)
-    setDetailModal({ open: true, problem: null })
-    try {
-      const res = await fetch(`${API}/ai/admin/problems/${problemId}/`, { headers })
-      if (res.ok) setDetailModal({ open: true, problem: await res.json() })
-    } catch (e) { console.error(e) }
-    setDetailLoading(false)
+  const replaceProblem = (updated) => {
+    setProblems(current => current.map(problem => (
+      problem.problem_id === updated.problem_id ? { ...problem, ...updated } : problem
+    )))
   }
 
-  const deleteProblem = (problem) => {
-    if (!window.confirm(`确定删除题目「${problem.title}」吗？此操作不可撤销。`)) return
-    fetch(`${API}/ai/admin/problems/${problem.problem_id}/`, { method: 'DELETE', headers })
-      .then(res => {
-        if (res.ok || res.status === 204) {
-          setProblems(prev => prev.filter(p => p.problem_id !== problem.problem_id))
-          setPMsg({ type: 'success', text: `题目「${problem.title}」已删除` })
-          setTimeout(() => setPMsg({ type: '', text: '' }), 3000)
-        } else { alert('删除失败') }
+  const saveAndClose = (updated, close) => {
+    replaceProblem(updated)
+    close(null)
+    setPMsg({ type: 'success', text: `题目「${updated.title || updated.problem_id}」已保存` })
+  }
+
+  const toggleProblemVisibility = async (problem) => {
+    const publication = problem.publication || { scopes: [] }
+    const teacherScope = publication.scopes?.[0]
+    const teacherTargetVisible = !teacherScope?.visible
+    const rememberedClasses = teacherScope?.classes || []
+    const values = currentUser.is_superuser ? {
+      expected_version: problem.management_version,
+      publishing_suspended: !problem.publishing_suspended,
+      all_school: publication.all_school,
+      scopes: publication.scopes || [],
+    } : {
+      expected_version: problem.management_version,
+      visible: teacherTargetVisible,
+      all_classes: Boolean(teacherScope?.all_classes) || (teacherTargetVisible && rememberedClasses.length === 0),
+      classes: rememberedClasses,
+    }
+    try {
+      const nextPublication = await updateProblemPublication(problem.problem_id, values)
+      replaceProblem({
+        ...problem,
+        publication: nextPublication,
+        publishing_suspended: nextPublication.publishing_suspended,
+        management_version: nextPublication.management_version,
       })
-      .catch(e => alert('删除失败：' + e.message))
+      setPMsg({ type: 'success', text: '题目可见状态已更新' })
+    } catch (error) {
+      setPMsg({ type: 'error', text: error.message })
+    }
+  }
+
+  const archiveProblem = async (problem) => {
+    if (!window.confirm(`确定归档题目「${problem.title || problem.problem_id}」吗？学生将看不到它，但历史成绩会保留。`)) return
+    try {
+      await archiveAdminProblem(problem.problem_id, problem.management_version)
+      setPMsg({ type: 'success', text: `题目「${problem.title || problem.problem_id}」已归档，历史成绩已保留` })
+      loadProblems()
+    } catch (error) {
+      setPMsg({ type: 'error', text: error.message })
+    }
+  }
+
+  const restoreProblem = async (problem) => {
+    try {
+      await restoreAdminProblem(problem.problem_id, problem.management_version)
+      setPMsg({ type: 'success', text: `题目「${problem.title || problem.problem_id}」已恢复，当前仍为暂停发布` })
+      loadProblems()
+    } catch (error) {
+      setPMsg({ type: 'error', text: error.message })
+    }
   }
 
   // ─── Tab1: 成绩统计 ─────────────────────────────────────────────────────────
@@ -98,7 +190,7 @@ export default function AiAdmin() {
   const grades = GRADES
   const classOptions = Array.from({ length: 20 }, (_, i) => i + 1)
 
-  const loadScores = async () => {
+  const loadScores = useCallback(async () => {
     setSLoading(true)
     try {
       const params = {}
@@ -130,11 +222,10 @@ export default function AiAdmin() {
       }
     } catch (e) { console.error(e) }
     setSLoading(false)
-  }
+  }, [headers, sFilters])
 
-  useEffect(() => { loadScores() }, [sFilters])
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { const id = setInterval(loadScores, 5000); return () => clearInterval(id) }, [sFilters])
+  useEffect(() => { loadScores() }, [loadScores])
+  useEffect(() => { const id = setInterval(loadScores, 5000); return () => clearInterval(id) }, [loadScores])
 
   const scoreColor = (score) => {
     if (score == null) return { bg: '#f8f9fa', color: '#6c757d', text: '—' }
@@ -204,6 +295,12 @@ export default function AiAdmin() {
               <span style={{ fontSize: 15, fontWeight: 700, color: '#333' }}>AI课题库</span>
               <span style={{ marginLeft: 4, fontSize: 12, color: '#888' }}>共 {problems.length} 题</span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                {currentUser.is_superuser && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#666', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={includeArchived} onChange={e => setIncludeArchived(e.target.checked)} />
+                    显示已归档
+                  </label>
+                )}
                 <button onClick={syncFromDisk} disabled={pSyncing} style={{
                   padding: '8px 18px', borderRadius: 8, border: 'none', cursor: pSyncing ? 'not-allowed' : 'pointer',
                   background: pSyncing ? '#ccc' : '#45b7d1', color: 'white', fontWeight: 700, fontSize: 13,
@@ -217,6 +314,42 @@ export default function AiAdmin() {
 
             <MsgBanner msg={pMsg} />
 
+            <div style={{
+              background: 'white', borderRadius: 14, padding: '14px 18px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'flex',
+              alignItems: 'center', gap: 8, flexWrap: 'wrap',
+            }}>
+              <Tag size={16} style={{ color: '#667eea' }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#444', marginRight: 4 }}>适用年级</span>
+              {[
+                { value: 'all', label: '全部', count: problems.length },
+                ...GRADES.map(grade => ({ value: grade, label: grade, count: gradeTagCounts[grade] })),
+                { value: 'unclassified', label: '未分类', count: gradeTagCounts.unclassified },
+              ].map(option => {
+                const active = gradeTagFilter === option.value
+                return (
+                  <button
+                    type="button"
+                    key={option.value}
+                    aria-pressed={active}
+                    onClick={() => setGradeTagFilter(option.value)}
+                    style={{
+                      border: `1px solid ${active ? '#667eea' : '#e2e5ed'}`,
+                      background: active ? '#667eea' : '#fff',
+                      color: active ? '#fff' : '#5d6472',
+                      borderRadius: 18, padding: '6px 11px', fontSize: 12,
+                      fontWeight: active ? 700 : 500, cursor: 'pointer',
+                    }}
+                  >{option.label} <span style={{ opacity: active ? 0.82 : 0.58 }}>{option.count}</span></button>
+                )
+              })}
+              {gradeTagFilter !== 'all' && (
+                <span style={{ marginLeft: 'auto', color: '#8a909d', fontSize: 12 }}>
+                  已筛选 {filteredProblems.length} / {problems.length} 题
+                </span>
+              )}
+            </div>
+
             {/* 题目卡片网格 */}
             <div style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               {pLoading ? (
@@ -226,46 +359,85 @@ export default function AiAdmin() {
                   <BookOpen size={48} style={{ marginBottom: 16, opacity: 0.3 }} />
                   <p>暂无题目，点击「从磁盘同步」导入</p>
                 </div>
+              ) : filteredProblems.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 52, color: '#888' }}>
+                  <Tag size={38} style={{ marginBottom: 12, opacity: 0.3 }} />
+                  <p style={{ margin: 0 }}>当前年级标签下暂无题目</p>
+                </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, padding: 20 }}>
-                  {problems.map((p, i) => (
-                    <div key={p.problem_id || i} style={{
-                      border: '2px solid #e9ecef', borderRadius: 12, padding: 14,
-                      transition: 'all 0.2s', background: 'white',
+                  {filteredProblems.map(p => {
+                    const teacherScope = p.publication?.scopes?.[0]
+                    const visible = currentUser.is_superuser
+                      ? !p.publishing_suspended && (p.publication?.all_school || p.publication?.scopes?.some(scope => scope.visible))
+                      : !p.publishing_suspended && (p.publication?.all_school || teacherScope?.visible)
+                    const canToggleVisibility = currentUser.is_superuser
+                      || (currentUser.managed_grade && !p.publication?.all_school)
+                    const [gradeTagBackground, gradeTagColor] = GRADE_TAG_COLORS[p.grade_tag] || ['#f1f2f5', '#6d7480']
+                    return (
+                    <div key={p.problem_id} style={{
+                      position: 'relative', border: '2px solid #e9ecef', borderRadius: 12, padding: 14, minHeight: 112,
+                      transition: 'all 0.2s', background: p.archived_at ? '#f7f7f7' : 'white', opacity: p.archived_at ? 0.78 : 1,
                     }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = '#667eea'; e.currentTarget.style.background = '#f8f9ff' }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#e9ecef'; e.currentTarget.style.background = 'white' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                        <div style={{ flex: 1 }}>
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#e9ecef'; e.currentTarget.style.background = p.archived_at ? '#f7f7f7' : 'white' }}>
+                      <div style={{ paddingRight: p.archived_at ? 40 : 112 }}>
+                        <div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: '#333', marginBottom: 3 }}>
                             {p.title || `题目${p.problem_id}`}
                           </div>
                           <div style={{ fontSize: 11, color: '#888' }}>编号：{p.problem_id} · 测试点：{p.test_count}</div>
+                          <div style={{ marginTop: 7, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                            <span style={{ padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: gradeTagBackground, color: gradeTagColor }}>{p.grade_tag || '未分类'}</span>
+                            <span style={{
+                              padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700,
+                              background: visible ? '#e6f7ed' : '#f1f2f5', color: visible ? '#18794e' : '#6d7480',
+                            }}>{p.archived_at ? '已归档' : (visible ? '可见' : '不可见')}</span>
+                            <span title={p.publication_label} style={{
+                              padding: '2px 7px', borderRadius: 8, fontSize: 10, color: '#5b67a8',
+                              background: '#eef0ff', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>{p.publication_label}</span>
+                          </div>
                         </div>
                         <span style={{
+                          display: 'inline-block', marginTop: 9,
                           padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap',
                           background: `${DIFFICULTY_COLORS[p.difficulty] || '#888'}18`,
                           color: DIFFICULTY_COLORS[p.difficulty] || '#888',
                         }}>{p.difficulty || '—'}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => viewProblem(p.problem_id)} style={{
-                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                          padding: '6px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
-                          background: '#17a2b8', color: 'white', fontSize: 12, fontWeight: 600,
-                        }}>
-                          <Eye size={12} /> 查看
-                        </button>
-                        <button onClick={() => deleteProblem(p)} style={{
-                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                          padding: '6px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
-                          background: '#dc3545', color: 'white', fontSize: 12, fontWeight: 600,
-                        }}>
-                          <Trash2 size={12} /> 删除
-                        </button>
+                      <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 5 }}>
+                        {!p.archived_at && <button
+                          type="button"
+                          aria-label={`编辑${p.title || p.problem_id}`}
+                          title="编辑题目与可见范围"
+                          onClick={() => setEditProblem(p)}
+                          style={iconButtonStyle('#5369d8', '#eef1ff')}
+                        ><Edit2 size={15} /></button>}
+                        {!p.archived_at && canToggleVisibility && <button
+                          type="button"
+                          aria-label={`${visible ? '隐藏' : '显示'}${p.title || p.problem_id}`}
+                          title={visible ? '设为不可见' : '设为可见'}
+                          onClick={() => toggleProblemVisibility(p)}
+                          style={iconButtonStyle(visible ? '#c27700' : '#18794e', visible ? '#fff4d8' : '#e6f7ed')}
+                        >{visible ? <EyeOff size={15} /> : <Eye size={15} />}</button>}
+                        {p.can_archive && !p.archived_at && <button
+                          type="button"
+                          aria-label={`归档${p.title || p.problem_id}`}
+                          title="归档题目（保留历史成绩）"
+                          onClick={() => archiveProblem(p)}
+                          style={iconButtonStyle('#c23843', '#ffeaec')}
+                        ><Archive size={15} /></button>}
+                        {p.can_archive && p.archived_at && <button
+                          type="button"
+                          aria-label={`恢复${p.title || p.problem_id}`}
+                          title="恢复题目"
+                          onClick={() => restoreProblem(p)}
+                          style={iconButtonStyle('#18794e', '#e6f7ed')}
+                        ><RotateCcw size={15} /></button>}
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>
@@ -479,38 +651,14 @@ export default function AiAdmin() {
         )}
       </main>
 
-      {/* 题目详情弹窗 */}
-      {detailModal.open && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
-        }} onClick={() => setDetailModal({ open: false, problem: null })}>
-          <div style={{
-            background: 'white', borderRadius: 16, padding: '28px', maxWidth: 600, width: '100%',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '80vh', overflowY: 'auto',
-          }} onClick={e => e.stopPropagation()}>
-            {detailLoading ? (
-              <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>加载中...</div>
-            ) : detailModal.problem ? (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                  <div>
-                    <h2 style={{ fontSize: 17, fontWeight: 700, color: '#333', margin: 0 }}>{detailModal.problem.title}</h2>
-                    <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                      编号 {detailModal.problem.problem_id} · {detailModal.problem.difficulty}
-                    </div>
-                  </div>
-                  <button onClick={() => setDetailModal({ open: false, problem: null })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}>
-                    <X size={20} />
-                  </button>
-                </div>
-                <div style={{ background: '#f8f9fa', borderRadius: 10, padding: '14px 16px', fontSize: 14, color: '#333', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-                  {detailModal.problem.description || '（无描述）'}
-                </div>
-              </>
-            ) : null}
-          </div>
-        </div>
+      {editProblem && (
+        <ProblemEditModal
+          key={`${editProblem.problem_id}-${editProblem.management_version}`}
+          problem={editProblem}
+          user={currentUser}
+          onClose={() => setEditProblem(null)}
+          onSaved={updated => saveAndClose(updated, setEditProblem)}
+        />
       )}
     </div>
   )

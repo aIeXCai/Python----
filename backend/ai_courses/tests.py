@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 from rest_framework.test import APITestCase
 from rest_framework.authtoken.models import Token
 from users.models import CustomUser
-from .models import Problem, Submission
+from .models import AUDIENCE_ALL_SCHOOL, Problem, ProblemAudience, Submission
 from info_tech.models import QuizSession, QuizSubmission
 
 
@@ -38,6 +38,14 @@ def make_student(grade='七年级', class_num='1', student_number='01', display_
 def get_token(user):
     return Token.objects.get_or_create(user=user)[0].key
 
+def make_problem(**kwargs):
+    problem = Problem.objects.create(**kwargs)
+    ProblemAudience.objects.create(
+        problem=problem, scope_type=AUDIENCE_ALL_SCHOOL,
+        grade='', class_num='', is_active=True,
+    )
+    return problem
+
 
 # ─── 学生端：题目列表 ─────────────────────────────────────────────────────
 
@@ -47,13 +55,13 @@ class ProblemListViewTest(APITestCase):
     def setUp(self):
         self.student = make_student()
         self.token = get_token(self.student)
-        self.prob1 = Problem.objects.create(
+        self.prob1 = make_problem(
             problem_id='p1', title='题目1', difficulty='easy', course='ai'
         )
-        self.prob2 = Problem.objects.create(
+        self.prob2 = make_problem(
             problem_id='p2', title='题目2', difficulty='hard', course='ai'
         )
-        self.prob3 = Problem.objects.create(
+        self.prob3 = make_problem(
             problem_id='p3', title='信息课题目', difficulty='medium', course='info'
         )
 
@@ -95,7 +103,7 @@ class ProblemDetailViewTest(APITestCase):
     def setUp(self):
         self.student = make_student()
         self.token = get_token(self.student)
-        self.prob = Problem.objects.create(
+        self.prob = make_problem(
             problem_id='detail_test', title='详情测试', difficulty='medium',
             description='这是描述', course='ai'
         )
@@ -177,7 +185,7 @@ class SubmissionViewTest(APITestCase):
     def setUp(self):
         self.student = make_student()
         self.token = get_token(self.student)
-        self.prob = Problem.objects.create(
+        self.prob = make_problem(
             problem_id='submit_test', title='提交测试', course='ai'
         )
         self.test_cases_patcher = patch.object(
@@ -358,7 +366,7 @@ class SubmissionHistoryViewTest(APITestCase):
     def setUp(self):
         self.student = make_student()
         self.token = get_token(self.student)
-        self.prob = Problem.objects.create(
+        self.prob = make_problem(
             problem_id='history_test', title='历史测试', course='ai'
         )
         self.sub1 = Submission.objects.create(
@@ -405,7 +413,7 @@ class SubmissionHistoryViewTest(APITestCase):
     def test_history_limited_to_20(self):
         """最多返回20条"""
         # 创建21条
-        prob2 = Problem.objects.create(problem_id='p_many', title='多题', course='ai')
+        prob2 = make_problem(problem_id='p_many', title='多题', course='ai')
         for i in range(21):
             Submission.objects.create(
                 user=self.student, problem=prob2, code=f'code{i}',
@@ -431,9 +439,9 @@ class StudentScoresViewTest(APITestCase):
     def setUp(self):
         self.student = make_student()
         self.token = get_token(self.student)
-        self.prob1 = Problem.objects.create(problem_id='s1', title='得分题1', course='ai')
-        self.prob2 = Problem.objects.create(problem_id='s2', title='得分题2', course='ai')
-        self.prob3 = Problem.objects.create(problem_id='s3', title='信息课题', course='info')
+        self.prob1 = make_problem(problem_id='s1', title='得分题1', course='ai')
+        self.prob2 = make_problem(problem_id='s2', title='得分题2', course='ai')
+        self.prob3 = make_problem(problem_id='s3', title='信息课题', course='info')
 
         # 学生对 prob1 提交了3次：60, 80, 100 → 最高100
         Submission.objects.create(user=self.student, problem=self.prob1, code='v1', score=60.0, status='wrong')
@@ -499,8 +507,8 @@ class StudentStatsViewTest(APITestCase):
     def setUp(self):
         self.student = make_student()
         self.token = get_token(self.student)
-        self.prob1 = Problem.objects.create(problem_id='stat1', course='ai')
-        self.prob2 = Problem.objects.create(problem_id='stat2', course='ai')
+        self.prob1 = make_problem(problem_id='stat1', course='ai')
+        self.prob2 = make_problem(problem_id='stat2', course='ai')
         Submission.objects.create(user=self.student, problem=self.prob1, score=100.0, code='c')
         Submission.objects.create(user=self.student, problem=self.prob1, score=80.0, code='c')  # 第二次不改变
         Submission.objects.create(user=self.student, problem=self.prob2, score=50.0, code='c')
@@ -591,7 +599,7 @@ class AdminDashboardViewTest(APITestCase):
         self.teacher = make_teacher()
         self.teacher_token = get_token(self.teacher)
         self.student = make_student()
-        problem = Problem.objects.create(problem_id='dash1', course='ai')
+        problem = make_problem(problem_id='dash1', course='ai')
         Submission.objects.create(user=self.student, problem=problem, score=85.0, code='c')
 
     def test_dashboard_returns_stats(self):
@@ -629,8 +637,8 @@ class AdminProblemListViewTest(APITestCase):
         self.teacher = make_teacher()
         self.teacher_token = get_token(self.teacher)
         self.student = make_student()
-        Problem.objects.create(problem_id='admin_p1', course='ai')
-        Problem.objects.create(problem_id='admin_p2', course='info')
+        make_problem(problem_id='admin_p1', course='ai')
+        make_problem(problem_id='admin_p2', course='info')
 
     def test_list_all_problems(self):
         """GET 默认列出 ai 课题目"""
@@ -687,8 +695,12 @@ class AdminProblemDetailViewTest(APITestCase):
     def setUp(self):
         self.teacher = make_teacher()
         self.teacher_token = get_token(self.teacher)
+        self.admin = CustomUser.objects.create_superuser(
+            username='ai_problem_admin', password='test123', role='teacher',
+        )
+        self.admin_token = get_token(self.admin)
         self.student = make_student()
-        self.prob = Problem.objects.create(
+        self.prob = make_problem(
             problem_id='detail_admin', title='管理详情', course='ai'
         )
 
@@ -703,13 +715,15 @@ class AdminProblemDetailViewTest(APITestCase):
         self.assertEqual(resp.data['title'], '管理详情')
 
     def test_delete_problem(self):
-        """DELETE 删除题目"""
+        """DELETE 由超级管理员软归档题目"""
         resp = self.client.delete(
             '/api/ai/admin/problems/detail_admin/',
-            HTTP_AUTHORIZATION=f'Token {self.teacher_token}'
+            {'expected_version': self.prob.management_version}, format='json',
+            HTTP_AUTHORIZATION=f'Token {self.admin_token}'
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertFalse(Problem.objects.filter(problem_id='detail_admin').exists())
+        self.prob.refresh_from_db()
+        self.assertIsNotNone(self.prob.archived_at)
 
     def test_get_nonexistent(self):
         """GET 不存在的题目"""
@@ -723,7 +737,8 @@ class AdminProblemDetailViewTest(APITestCase):
         """DELETE 不存在的题目"""
         resp = self.client.delete(
             '/api/ai/admin/problems/no_such/',
-            HTTP_AUTHORIZATION=f'Token {self.teacher_token}'
+            {'expected_version': 1}, format='json',
+            HTTP_AUTHORIZATION=f'Token {self.admin_token}'
         )
         self.assertEqual(resp.status_code, 404)
 
@@ -816,8 +831,8 @@ class AdminStudentScoresViewTest(APITestCase):
         self.stu1 = make_student(grade='七年级', class_num='1', student_number='01', display_name='甲')
         self.stu2 = make_student(grade='七年级', class_num='1', student_number='02', display_name='乙')
 
-        self.prob1 = Problem.objects.create(problem_id='score_p1', title='题1', course='ai')
-        self.prob2 = Problem.objects.create(problem_id='score_p2', title='题2', course='ai')
+        self.prob1 = make_problem(problem_id='score_p1', title='题1', course='ai')
+        self.prob2 = make_problem(problem_id='score_p2', title='题2', course='ai')
 
         # 甲: p1得80, p2得100
         Submission.objects.create(user=self.stu1, problem=self.prob1, score=60.0, code='c')

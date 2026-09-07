@@ -1,12 +1,13 @@
 import datetime
 from django.conf import settings
 from django.db.models import Max, Avg, Count, OuterRef, Subquery, Q
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from .models import Problem, Submission
+from .models import Problem, ProblemManagementAudit, Submission
 from .serializers import (
     ProblemListSerializer,
     ProblemDetailSerializer,
@@ -15,13 +16,34 @@ from .serializers import (
     ScoreSerializer,
     StudentStatsSerializer,
     AdminStatsSerializer,
+    AdminProblemListSerializer,
+    AdminProblemDetailSerializer,
+    ProblemContentUpdateSerializer,
+    TeacherProblemAudienceUpdateSerializer,
+    AdminProblemAudienceUpdateSerializer,
+    ProblemVersionSerializer,
 )
 from execution.serializers import CodeRunCreateSerializer, public_task_data
 from execution.services import ExecutionRequestError, enqueue_grade, enqueue_run
 from execution.snapshots import InvalidTestSnapshot
 from users.permissions import IsStudent, IsTeacher
-from users.scopes import scope_students
+from users.grade_levels import normalize_grade
+from users.scopes import (
+    TeacherScopeError,
+    is_platform_admin,
+    require_teacher_grade,
+    scope_students,
+)
 from users.models import CustomUser
+from .problem_management import (
+    ProblemManagementError,
+    archive_problem,
+    edit_problem_content,
+    publication_data,
+    restore_problem,
+    update_problem_audience,
+)
+from .problem_scopes import get_visible_problem_or_404, visible_problems_for_student
 
 
 def _code_execution_unavailable_response():
@@ -41,6 +63,18 @@ def _execution_error_response(exc):
     )
 
 
+def _source_ip(request):
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    return (forwarded.split(',', 1)[0].strip() if forwarded else request.META.get('REMOTE_ADDR')) or None
+
+
+def _management_error_response(exc):
+    data = {'error': exc.message, 'code': exc.code}
+    if exc.current_version is not None:
+        data['management_version'] = exc.current_version
+    return Response(data, status=exc.status_code)
+
+
 # ============================================================
 # 学生端 API
 # ============================================================
@@ -54,7 +88,9 @@ class ProblemListView(APIView):
 
     def get(self, request):
         course = request.query_params.get('course', 'ai')
-        problems = Problem.objects.filter(course=course)
+        problems = visible_problems_for_student(
+            Problem.objects.filter(course=course), request.user,
+        )
         serializer = ProblemListSerializer(problems, many=True)
         return Response(serializer.data)
 
@@ -68,13 +104,9 @@ class ProblemDetailView(APIView):
 
     def get(self, request, problem_id):
         course = request.query_params.get('course', 'ai')
-        try:
-            problem = Problem.objects.get(problem_id=problem_id, course=course)
-        except Problem.DoesNotExist:
-            return Response(
-                {'error': '题目不存在'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        problem = get_visible_problem_or_404(
+            request.user, problem_id, course=course,
+        )
         serializer = ProblemDetailSerializer(problem)
         return Response(serializer.data)
 
@@ -124,13 +156,9 @@ class SubmissionView(APIView):
         code = serializer.validated_data['code']
 
         # 查找题目
-        try:
-            problem = Problem.objects.get(problem_id=problem_id)
-        except Problem.DoesNotExist:
-            return Response(
-                {'error': '题目不存在'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        problem = get_visible_problem_or_404(
+            request.user, problem_id, course='ai',
+        )
 
         try:
             task, submission, created = enqueue_grade(
@@ -161,7 +189,10 @@ class SubmissionHistoryView(APIView):
 
     def get(self, request):
         problem_id = request.query_params.get('problem_id')
-        submissions = Submission.objects.filter(user=request.user)
+        visible = visible_problems_for_student(
+            Problem.objects.filter(course='ai'), request.user,
+        )
+        submissions = Submission.objects.filter(user=request.user, problem__in=visible)
         if problem_id:
             submissions = submissions.filter(problem__problem_id=problem_id)
         submissions = submissions.order_by('-submitted_at')[:20]
@@ -181,14 +212,13 @@ class StudentScoresView(APIView):
         course = request.query_params.get('course', 'ai')
         problem_id = request.query_params.get('problem_id')
 
-        # 过滤指定课程的题目
-        course_problem_ids = list(
-            Problem.objects.filter(course=course).values_list('problem_id', flat=True)
+        visible = visible_problems_for_student(
+            Problem.objects.filter(course=course), user,
         )
 
         # 每道题的最好成绩（只取当前课程）
         scores = (
-            Submission.objects.filter(user=user, problem__course=course, score__isnull=False)
+            Submission.objects.filter(user=user, problem__in=visible, score__isnull=False)
             .values('problem__problem_id')
             .annotate(
                 best_score=Max('score'),
@@ -273,17 +303,20 @@ class StudentStatsView(APIView):
             rank = 1
         else:
             # AI课：统计 Problem / Submission（原有逻辑）
-            total_problems = Problem.objects.filter(course=course).count()
+            visible = visible_problems_for_student(
+                Problem.objects.filter(course=course), user,
+            )
+            total_problems = visible.count()
 
             completed_problems = (
-                Submission.objects.filter(user=user, score__gte=80, problem__course=course)
+                Submission.objects.filter(user=user, score__gte=80, problem__in=visible)
                 .values('problem')
                 .distinct()
                 .count()
             )
 
             avg_result = (
-                Submission.objects.filter(user=user, problem__course=course)
+                Submission.objects.filter(user=user, problem__in=visible)
                 .values('problem__problem_id')
                 .annotate(best=Max('score'))
                 .aggregate(avg=Avg('best'))
@@ -301,7 +334,7 @@ class StudentStatsView(APIView):
                 mate_scores = []
                 for mate in classmates:
                     m_avg = (
-                        Submission.objects.filter(user=mate, problem__course=course)
+                        Submission.objects.filter(user=mate, problem__in=visible)
                         .values('problem__problem_id')
                         .annotate(best=Max('score'))
                         .aggregate(avg=Avg('best'))
@@ -349,7 +382,7 @@ class AdminDashboardView(APIView):
 
         students = scope_students(CustomUser.objects.filter(role='student'), request.user)
         total_students = students.count()
-        total_problems = Problem.objects.count()
+        total_problems = Problem.objects.filter(archived_at__isnull=True).count()
 
         today = datetime.datetime.now().date()
         today_submissions = Submission.objects.filter(
@@ -383,17 +416,36 @@ class AdminProblemListView(APIView):
 
     def get(self, request):
         course = request.query_params.get('course', 'ai')
-        problems = Problem.objects.filter(course=course)
-        serializer = ProblemListSerializer(problems, many=True)
+        problems = Problem.objects.filter(course=course).prefetch_related('audience_rules')
+        include_archived = request.query_params.get('include_archived') == '1'
+        if not (include_archived and is_platform_admin(request.user)):
+            problems = problems.filter(archived_at__isnull=True)
+        serializer = AdminProblemListSerializer(
+            problems, many=True, context={'request': request},
+        )
         return Response(serializer.data)
 
     def post(self, request):
         # 手动同步题目
-        created, updated = Problem.sync_from_disk()
-        return Response({
-            'created': created,
-            'updated': updated,
-        })
+        sync_result = Problem.sync_from_disk(actor=request.user)
+        if hasattr(sync_result, 'as_dict'):
+            result_data = sync_result.as_dict()
+        else:
+            # Keep test doubles and older integrations compatible during rollout.
+            created, updated = sync_result
+            result_data = {
+                'created': created, 'updated': updated,
+                'skipped': [], 'failed': [],
+            }
+        ProblemManagementAudit.objects.create(
+            event_type='disk_sync',
+            outcome='success',
+            actor_user_id=request.user.pk,
+            before_summary={},
+            after_summary=result_data,
+            source_ip=_source_ip(request),
+        )
+        return Response(result_data)
 
 
 class AdminProblemDetailView(APIView):
@@ -405,28 +457,161 @@ class AdminProblemDetailView(APIView):
     """
     permission_classes = [IsTeacher]
 
+    def _get_problem(self, request, problem_id):
+        queryset = Problem.objects.filter(course='ai').prefetch_related('audience_rules')
+        if not is_platform_admin(request.user):
+            queryset = queryset.filter(archived_at__isnull=True)
+        return get_object_or_404(queryset, problem_id=problem_id)
+
     def get(self, request, problem_id):
+        problem = self._get_problem(request, problem_id)
+        return Response(AdminProblemDetailSerializer(
+            problem, context={'request': request},
+        ).data)
+
+    def patch(self, request, problem_id):
+        serializer = ProblemContentUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        values = dict(serializer.validated_data)
+        expected_version = values.pop('expected_version')
         try:
-            problem = Problem.objects.get(problem_id=problem_id)
-        except Problem.DoesNotExist:
-            return Response({'error': '题目不存在'}, status=status.HTTP_404_NOT_FOUND)
-        return Response({
-            'problem_id': problem.problem_id,
-            'title': problem.title,
-            'description': problem.description,
-            'difficulty': problem.difficulty,
-            'course': problem.course,
-            'created_at': problem.created_at,
-        })
+            problem = edit_problem_content(
+                actor=request.user,
+                problem_id=problem_id,
+                values=values,
+                expected_version=expected_version,
+                source_ip=_source_ip(request),
+            )
+        except ProblemManagementError as exc:
+            return _management_error_response(exc)
+        return Response(AdminProblemDetailSerializer(
+            problem, context={'request': request},
+        ).data)
 
     def delete(self, request, problem_id):
+        serializer = ProblemVersionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         try:
-            problem = Problem.objects.get(problem_id=problem_id)
-        except Problem.DoesNotExist:
-            return Response({'error': '题目不存在'}, status=status.HTTP_404_NOT_FOUND)
-        title = problem.title
-        problem.delete()
-        return Response({'message': f'题目 {title} 已删除'})
+            problem = archive_problem(
+                actor=request.user,
+                problem_id=problem_id,
+                expected_version=serializer.validated_data['expected_version'],
+                source_ip=_source_ip(request),
+            )
+        except ProblemManagementError as exc:
+            return _management_error_response(exc)
+        return Response({
+            'message': f'题目 {problem.title or problem.problem_id} 已归档，历史成绩已保留',
+            'management_version': problem.management_version,
+        })
+
+
+class AdminProblemPublicationView(APIView):
+    permission_classes = [IsTeacher]
+
+    def get(self, request, problem_id):
+        problem = get_object_or_404(
+            Problem.objects.filter(course='ai', archived_at__isnull=True).prefetch_related('audience_rules'),
+            problem_id=problem_id,
+        )
+        try:
+            data = publication_data(problem, request.user)
+        except TeacherScopeError as exc:
+            return Response({'error': exc.message, 'code': exc.code}, status=403)
+        return Response(data)
+
+    def patch(self, request, problem_id):
+        if not is_platform_admin(request.user):
+            forbidden_fields = {'all_school', 'publishing_suspended', 'scopes'} & set(request.data.keys())
+            if forbidden_fields:
+                ProblemManagementAudit.objects.create(
+                    event_type='scope_update', outcome='denied',
+                    actor_user_id=request.user.pk, problem_id=problem_id,
+                    reason_code='admin_scope_forbidden', source_ip=_source_ip(request),
+                )
+                return Response(
+                    {'error': '普通教师不能设置全校、跨年级或全局暂停', 'code': 'admin_scope_forbidden'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if request.data.get('grade') not in (None, ''):
+                try:
+                    require_teacher_grade(request.user, request.data.get('grade'))
+                except TeacherScopeError as exc:
+                    ProblemManagementAudit.objects.create(
+                        event_type='scope_update', outcome='denied',
+                        actor_user_id=request.user.pk, problem_id=problem_id,
+                        reason_code=exc.code, source_ip=_source_ip(request),
+                    )
+                    return Response({'error': exc.message, 'code': exc.code}, status=403)
+        serializer_class = (
+            AdminProblemAudienceUpdateSerializer
+            if is_platform_admin(request.user)
+            else TeacherProblemAudienceUpdateSerializer
+        )
+        serializer = serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        values = dict(serializer.validated_data)
+        expected_version = values.pop('expected_version')
+        try:
+            problem = update_problem_audience(
+                actor=request.user,
+                problem_id=problem_id,
+                values=values,
+                expected_version=expected_version,
+                source_ip=_source_ip(request),
+            )
+            problem = Problem.objects.prefetch_related('audience_rules').get(pk=problem.pk)
+            return Response(publication_data(problem, request.user))
+        except (ProblemManagementError, TeacherScopeError) as exc:
+            if isinstance(exc, TeacherScopeError):
+                return Response({'error': exc.message, 'code': exc.code}, status=403)
+            return _management_error_response(exc)
+
+
+class AdminProblemRestoreView(APIView):
+    permission_classes = [IsTeacher]
+
+    def post(self, request, problem_id):
+        serializer = ProblemVersionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            problem = restore_problem(
+                actor=request.user,
+                problem_id=problem_id,
+                expected_version=serializer.validated_data['expected_version'],
+                source_ip=_source_ip(request),
+            )
+        except ProblemManagementError as exc:
+            return _management_error_response(exc)
+        return Response({
+            'message': f'题目 {problem.title or problem.problem_id} 已恢复，请确认范围后重新发布',
+            'management_version': problem.management_version,
+        })
+
+
+class AdminProblemClassOptionsView(APIView):
+    permission_classes = [IsTeacher]
+
+    def get(self, request):
+        requested_grade = request.query_params.get('grade')
+        try:
+            grade = require_teacher_grade(request.user, requested_grade)
+            grade = normalize_grade(grade or requested_grade)
+        except TeacherScopeError as exc:
+            return Response({'error': exc.message, 'code': exc.code}, status=403)
+        except Exception:
+            return Response({'error': '年级不在允许范围内', 'code': 'invalid_grade'}, status=400)
+        classes = list(
+            CustomUser.objects.filter(role='student', grade=grade)
+            .exclude(class_num__isnull=True).exclude(class_num='')
+            .values_list('class_num', flat=True).distinct()
+        )
+
+        def natural_key(value):
+            text = str(value)
+            return (0, int(text)) if text.isdigit() else (1, text)
+
+        return Response({'grade': grade, 'classes': sorted(classes, key=natural_key)})
 
 
 class AdminStudentListView(APIView):
@@ -478,6 +663,10 @@ class AdminStudentScoresView(APIView):
         grade = request.query_params.get('grade')
         class_num = request.query_params.get('class_num')
         problem_id = request.query_params.get('problem_id')
+        include_archived = (
+            request.query_params.get('include_archived') == '1'
+            and is_platform_admin(request.user)
+        )
 
         # 只看学生（不含教师账号）
         scoped_students = scope_students(
@@ -486,6 +675,8 @@ class AdminStudentScoresView(APIView):
         submissions = Submission.objects.filter(
             user__in=scoped_students, score__isnull=False,
         )
+        if not include_archived:
+            submissions = submissions.filter(problem__archived_at__isnull=True)
 
         if grade:
             submissions = submissions.filter(user__grade=grade)
@@ -517,10 +708,14 @@ class AdminStudentScoresView(APIView):
             }
 
         # 获取所有题目（如果有 problem_id 过滤则只返回该题）
+        problems = Problem.objects.all()
+        if course_type:
+            problems = problems.filter(course=course_type)
         if problem_id:
-            problems = Problem.objects.filter(course=course_type, problem_id=problem_id).order_by('problem_id')
-        else:
-            problems = Problem.objects.filter(course=course_type).order_by('problem_id') if course_type else Problem.objects.all().order_by('problem_id')
+            problems = problems.filter(problem_id=problem_id)
+        if not include_archived:
+            problems = problems.filter(archived_at__isnull=True)
+        problems = problems.order_by('problem_id')
         problem_ids = [p.problem_id for p in problems]
 
         # 每学生每题取最高分
