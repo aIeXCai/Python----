@@ -7,3 +7,5 @@ class UsersConfig(AppConfig):
 
     def ready(self):
         from . import checks  # noqa: F401
+        from .db_signals import connect_sqlite_pragmas
+        connect_sqlite_pragmas()

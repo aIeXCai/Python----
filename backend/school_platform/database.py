@@ -69,6 +69,12 @@ def build_database_settings(base_dir, environment, environ=None):
         config = {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': Path(configured_name).expanduser() if configured_name else base_dir / 'db.sqlite3',
+            'OPTIONS': {
+                # 等待 SQLite 写锁的超时时间（秒）。
+                # Django 默认 5 秒太短：上课时全班学生并发作答/自动保存，
+                # 写锁竞争一多就抛 "database is locked"。放大后显著缓解。
+                'timeout': 30,
+            },
         }
         validate_database_settings(environment=environment, engine=engine, config=config)
         return config

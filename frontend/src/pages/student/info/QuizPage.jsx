@@ -9,7 +9,9 @@ import {
 import { useChat } from '../../../contexts/ChatContext.jsx'
 import { Loader, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 
-const SAVE_DELAY_MS = 400
+// 作答保存去抖时间：从 400ms 调大到 1500ms，把快速连续作答合并成一次写入，
+// 显著降低全班并发作答时的 SQLite 写锁压力（页面切换/离开时有兜底强制保存）
+const SAVE_DELAY_MS = 1500
 
 export default function QuizPage() {
   const { sessionId } = useParams()
