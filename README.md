@@ -171,7 +171,7 @@ python manage.py createsuperuser
 创建完成后，把该账号设置为教师角色。将下面的 `你的用户名` 替换为刚才创建的用户名：
 
 ```bash
-python manage.py shell -c "from users.models import CustomUser; u=CustomUser.objects.get(username='你的用户名'); u.role='teacher'; u.is_staff=True; u.is_superuser=True; u.save(update_fields=['role','is_staff','is_superuser']); print('教师管理员已配置')"
+python manage.py shell -c "from users.models import CustomUser; u=CustomUser.objects.get(username='alex'); u.role='teacher'; u.is_staff=True; u.is_superuser=True; u.save(update_fields=['role','is_staff','is_superuser']); print('教师管理员已配置')"
 ```
 
 Windows PowerShell 也可以执行同一条命令。
