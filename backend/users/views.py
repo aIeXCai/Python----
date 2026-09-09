@@ -222,6 +222,15 @@ class UserDetailView(APIView):
                 user.display_name = str(request.data.get('display_name') or '').strip()
             user.full_clean()
             user.save()
+            # 学生年级/班级/学号变更后，同步其历史作答的身份快照，
+            # 使成绩统计显示当前档案身份（info 课作答按提交时快照展示）
+            if {'grade', 'class_num', 'student_number'}.intersection(request.data):
+                from info_tech.models import QuizSubmission
+                QuizSubmission.objects.filter(user=user).update(
+                    grade=user.grade,
+                    class_num_snapshot=user.class_num,
+                    student_number_snapshot=user.student_number,
+                )
         except TeacherScopeError as exc:
             return Response(
                 {'error': exc.message, 'code': exc.code},

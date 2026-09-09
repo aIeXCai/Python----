@@ -1,7 +1,7 @@
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from info_tech.models import Unit
+from info_tech.models import Unit, QuizSession, QuizSubmission
 from users.models import CustomUser, PasswordSecurityAudit
 from users.services import set_student_password
 
@@ -104,3 +104,39 @@ class Stage6BusinessPermissionTests(APITestCase):
     def test_teacher_cannot_use_student_submission_history(self):
         response = self.client.get('/api/ai/submissions/history/', **auth(self.teacher7))
         self.assertEqual(response.status_code, 403)
+
+    def test_edit_student_number_syncs_submission_identity_snapshots(self):
+        """改学生学号/班级后，历史作答的身份快照同步为当前档案值"""
+        session = QuizSession.objects.create(
+            title='快照同步测试', created_by=self.teacher7,
+            num_questions=3, difficulty_ratio={'easy': 3},
+            status=QuizSession.STATUS_OPEN, visible_grades=['七年级'],
+        )
+        session.units.add(self.unit7)
+        QuizSubmission.objects.create(
+            user=self.grade7, session=session,
+            status=QuizSubmission.STATUS_SUBMITTED,
+            score=80, correct_count=2, total_count=3, answers_json='{}',
+            grade='七年级', class_num_snapshot='1', student_number_snapshot='01',
+        )
+
+        # 只改学号：学号快照同步，班级快照保持
+        resp = self.client.put(
+            f'/api/auth/{self.grade7.id}/', {'student_number': '05'},
+            format='json', **auth(self.teacher7),
+        )
+        self.assertEqual(resp.status_code, 200)
+        sub = QuizSubmission.objects.get(user=self.grade7, session=session)
+        self.assertEqual(sub.student_number_snapshot, '05')
+        self.assertEqual(sub.class_num_snapshot, '1')
+        self.assertEqual(sub.grade, '七年级')
+
+        # 改班级：班级快照一并同步
+        resp2 = self.client.put(
+            f'/api/auth/{self.grade7.id}/', {'class_num': '2'},
+            format='json', **auth(self.teacher7),
+        )
+        self.assertEqual(resp2.status_code, 200)
+        sub.refresh_from_db()
+        self.assertEqual(sub.class_num_snapshot, '2')
+        self.assertEqual(sub.student_number_snapshot, '05')
