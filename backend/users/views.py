@@ -157,8 +157,10 @@ class RegisterView(APIView):
         )
         try:
             with transaction.atomic():
+                # 学生自主注册：不强制密码强度/长度下限（课堂场景便于记忆）
+                # 教师端重置/设置学生密码仍走强校验（set_student_password 默认 validate=True）
                 set_student_password(
-                    user, password, validate=True, invalidate_tokens=False
+                    user, password, validate=False, invalidate_tokens=False
                 )
                 token = get_or_create_valid_token(user)
         except IntegrityError:

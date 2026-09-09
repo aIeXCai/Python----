@@ -83,9 +83,13 @@ def set_student_password(
 ):
     if student.role != 'student':
         raise ValidationError('只能为学生账号设置可恢复密码。')
-    if not isinstance(plaintext, str) or len(plaintext) > 128:
-        raise ValidationError('密码长度必须在 8 到 128 位之间。')
+    if not isinstance(plaintext, str) or not plaintext:
+        raise ValidationError('密码不能为空。')
+    if len(plaintext) > 128:
+        raise ValidationError('密码长度不能超过 128 位。')
     if validate:
+        if len(plaintext) < 8:
+            raise ValidationError('密码长度必须在 8 到 128 位之间。')
         validate_password(plaintext, user=student)
 
     cipher = StudentPasswordCipher(settings.STUDENT_PASSWORD_KEY_CONFIG)
