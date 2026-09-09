@@ -11,12 +11,12 @@ export default function Tab3Stats({
   loadStats,
   gradeDisplay, scoreColor,
 }) {
-  // 自动刷新
+  // 自动刷新：依赖 loadStats，保证筛选/所选小测变化后定时器使用最新的筛选条件
   useEffect(() => {
     if (!autoRefresh) return
     const timer = setInterval(loadStats, 5000)
     return () => clearInterval(timer)
-  }, [autoRefresh])
+  }, [autoRefresh, loadStats])
 
   // 选定小测变化时重新加载
   useEffect(() => {
@@ -24,6 +24,8 @@ export default function Tab3Stats({
   }, [selectedQuiz])
 
   const ROWS = 5, COLS = 10
+  // 班级范围与全平台一致（注册/学生管理/AI成绩均为 1-20）
+  const CLASS_OPTIONS = Array.from({ length: 20 }, (_, i) => String(i + 1))
 
   // 从 statsData 构建学号→分数映射
   const scoreMapByNum = {}
@@ -35,7 +37,8 @@ export default function Tab3Stats({
       if (sc != null) scoreMapByNum[num] = sc
     }
   })
-  const perfectCount = Object.values(scoreMapByNum).filter(v => v === 100).length
+  // 达标（≥80）人数统计
+  const passCount = Object.values(scoreMapByNum).filter(v => v >= 80).length
 
   const handleReset = async (student) => {
     if (!selectedQuiz) return
@@ -83,7 +86,7 @@ export default function Tab3Stats({
           <select value={statsFilter.class_num} onChange={e => setStatsFilter(p => ({ ...p, class_num: e.target.value }))}
             style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid #ddd', fontSize: 13, minWidth: 80 }}>
             <option value="">全部班级</option>
-            {['1','2','3','4','5','6','7','8','9','10'].map(c => <option key={c} value={c}>{c}班</option>)}
+            {CLASS_OPTIONS.map(c => <option key={c} value={c}>{c}班</option>)}
           </select>
 
           <select value={selectedQuiz} onChange={e => setSelectedQuiz(e.target.value)}
@@ -194,28 +197,28 @@ export default function Tab3Stats({
         </div>
       </div>
 
-      {/* 右侧：满分灯矩阵 */}
+      {/* 右侧：达标灯矩阵（≥80 亮灯） */}
       <div style={{
         minWidth: 360, maxWidth: 440,
         background: 'white', borderRadius: 14, padding: '18px 20px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', gap: 10,
         height: 'fit-content', maxHeight: '100%', overflow: 'hidden'
       }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#333', textAlign: 'center' }}>满分监控 · 学号1-50</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#333', textAlign: 'center' }}>达标监控 · 学号1-50（≥80 亮灯）</div>
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)`, gap: 5 }}>
           {Array.from({ length: ROWS * COLS }, (_, idx) => {
             const lampNum = idx + 1
-            const is100 = (scoreMapByNum[lampNum] || 0) === 100
+            const isLit = (scoreMapByNum[lampNum] || 0) >= 80
             return (
-              <div key={idx} title={`学号${lampNum} ${is100 ? '✓ 满分' : '未满分'}`}
+              <div key={idx} title={`学号${lampNum} ${isLit ? '✓ ≥80 达标' : '未达标（<80）'}`}
                 style={{
                   width: 28, height: 28, borderRadius: 5,
-                  background: is100 ? '#4caf50' : '#2a2a2a',
-                  boxShadow: is100 ? '0 0 8px #4caf50' : 'inset 0 1px 3px rgba(0,0,0,0.5)',
-                  border: `1px solid ${is100 ? '#81c784' : '#444'}`,
+                  background: isLit ? '#4caf50' : '#2a2a2a',
+                  boxShadow: isLit ? '0 0 8px #4caf50' : 'inset 0 1px 3px rgba(0,0,0,0.5)',
+                  border: `1px solid ${isLit ? '#81c784' : '#444'}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 10, fontWeight: 700,
-                  color: is100 ? '#fff' : '#555',
+                  color: isLit ? '#fff' : '#555',
                   transition: 'background 0.3s, box-shadow 0.3s',
                 }}>
                 {lampNum}
@@ -224,7 +227,7 @@ export default function Tab3Stats({
           })}
         </div>
         <div style={{ fontSize: 11, color: '#888', textAlign: 'center' }}>
-          {perfectCount}/{ROWS * COLS} 满分
+          {passCount}/{ROWS * COLS} 达标
         </div>
       </div>
     </div>

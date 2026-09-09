@@ -17,7 +17,7 @@ const mockStatsData = {
   students: [
     { user_id: 1, username: '7-1-01', display_name: '张三', grade: '七年级', class_num: '1', student_number: '01', scores: [80, 95] },
     { user_id: 2, username: '7-1-02', display_name: '李四', grade: '七年级', class_num: '1', student_number: '02', scores: [100, null] },
-    { user_id: 3, username: '8-1-01', display_name: '王五', grade: '八年级', class_num: '1', student_number: '01', scores: [75] },
+    { user_id: 3, username: '8-1-03', display_name: '王五', grade: '八年级', class_num: '1', student_number: '03', scores: [75] },
   ],
   sessions: [
     { id: 1, title: '第一章小测', is_visible: true },
@@ -58,7 +58,8 @@ function SimplifiedTab3Stats(props) {
       if (sc != null) scoreMapByNum[num] = sc
     }
   })
-  const perfectCount = Object.values(scoreMapByNum).filter(v => v === 100).length
+  // 达标（≥80）人数
+  const passCount = Object.values(scoreMapByNum).filter(v => v >= 80).length
 
   return (
     <div data-testid="tab3-stats">
@@ -120,16 +121,16 @@ function SimplifiedTab3Stats(props) {
         </table>
       )}
 
-      {/* 满分灯矩阵 */}
+      {/* 达标灯矩阵 */}
       <div data-testid="lamp-matrix">
-        <div data-testid="perfect-count">{perfectCount}/{ROWS * COLS} 满分</div>
+        <div data-testid="perfect-count">{passCount}/{ROWS * COLS} 达标</div>
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)`, gap: 5 }}>
           {Array.from({ length: ROWS * COLS }, (_, idx) => {
             const lampNum = idx + 1
-            const is100 = (scoreMapByNum[lampNum] || 0) === 100
+            const isLit = (scoreMapByNum[lampNum] || 0) >= 80
             return (
               <div key={idx} data-testid={`lamp-${lampNum}`} style={{
-                background: is100 ? '#4caf50' : '#2a2a2a',
+                background: isLit ? '#4caf50' : '#2a2a2a',
               }}>
                 {lampNum}
               </div>
@@ -200,23 +201,26 @@ describe('Tab3Stats', () => {
     expect(screen.getByText('李四')).toBeInTheDocument()
   })
 
-  it('满分学生灯矩阵为绿色', () => {
+  it('≥80 分学生灯矩阵为绿色', () => {
     render(<SimplifiedTab3Stats {...defaultProps} />)
-    // 李四学号02，第一场小测100分
+    // 李四学号02，第一场小测100分 → 亮
     const lamp2 = screen.getByTestId('lamp-2')
     expect(lamp2.style.background).toBe('rgb(76, 175, 80)')
-  })
-
-  it('未满分学生灯矩阵为暗色', () => {
-    render(<SimplifiedTab3Stats {...defaultProps} />)
-    // 张三学号01，第一场小测80分
+    // 张三学号01，第一场小测80分 → 达标也亮
     const lamp1 = screen.getByTestId('lamp-1')
-    expect(lamp1.style.background).toBe('rgb(42, 42, 42)')
+    expect(lamp1.style.background).toBe('rgb(76, 175, 80)')
   })
 
-  it('满分计数正确', () => {
+  it('低于80分学生灯矩阵为暗色', () => {
     render(<SimplifiedTab3Stats {...defaultProps} />)
-    expect(screen.getByTestId('perfect-count').textContent).toBe('1/50 满分')
+    // 王五学号03，第一场小测75分 → 不亮
+    const lamp3 = screen.getByTestId('lamp-3')
+    expect(lamp3.style.background).toBe('rgb(42, 42, 42)')
+  })
+
+  it('达标计数正确', () => {
+    render(<SimplifiedTab3Stats {...defaultProps} />)
+    expect(screen.getByTestId('perfect-count').textContent).toBe('2/50 达标')
   })
 
   it('切换到具体小测时只显示一列成绩', async () => {
