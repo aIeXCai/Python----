@@ -11,11 +11,10 @@ export default function Tab3Stats({
   loadStats,
   gradeDisplay, scoreColor,
 }) {
-  // 自动刷新：依赖 loadStats，保证筛选/所选小测变化后定时器使用最新的筛选条件。
-  // 间隔 15 秒：该统计接口会触发后端"超时作答结算"写库，5 秒一次在并发上课时加剧 SQLite 写锁压力
+  // 自动刷新：依赖 loadStats，保证筛选/所选小测变化后定时器使用最新的筛选条件
   useEffect(() => {
     if (!autoRefresh) return
-    const timer = setInterval(loadStats, 15000)
+    const timer = setInterval(loadStats, 5000)
     return () => clearInterval(timer)
   }, [autoRefresh, loadStats])
 
@@ -104,7 +103,7 @@ export default function Tab3Stats({
               if (e.target.checked) loadStats()
             }} />
             <RefreshCw size={13} style={{ color: autoRefresh ? '#667eea' : '#ccc' }} />
-            15秒刷新
+            5秒刷新
           </label>
 
           <button onClick={loadStats} style={{
