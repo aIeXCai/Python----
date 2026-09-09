@@ -1,86 +1,104 @@
 @echo off
-chcp 65001 >nul
+chcp 936 >nul
 REM ============================================================
-REM Python å­¦ä¹ å¹³å° â€” ä¸€é”®å¯åŠ¨æ‰€æœ‰æœåŠ¡ï¼ˆWindowsï¼‰
-REM ============================================================
-REM ç«¯å£ï¼š8080=Djangoï¼Œ5173=Viteï¼Œ5000=server.py
+REM Python Ñ§Ï°Æ½Ì¨ - Ò»¼üÆô¶¯ËùÓÐ·þÎñ£¨Windows£©
+REM ¶Ë¿Ú£º8080=Django£¬5173=Vite£¬5000=server.py(¿ÉÑ¡)
 REM ============================================================
 
 setlocal enabledelayedexpansion
 
 set "SCRIPT_DIR=%~dp0"
-set "PYTHON=python"
 set "LOG_DIR=%SCRIPT_DIR%logs"
-set "DJANGO_PID="
-set "VITE_PID="
-set "SERVER_PID="
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
 echo.
 echo ========================================
-echo   Python å­¦ä¹ å¹³å° â€” å¯åŠ¨è„šæœ¬
+echo   Python Ñ§Ï°Æ½Ì¨ - Æô¶¯½Å±¾
 echo ========================================
 echo.
 
-REM æ¸…ç†æ—§è¿›ç¨‹
-echo [åœæ­¢] æ­£åœ¨åœæ­¢å·²æœ‰æœåŠ¡...
-for %%P in (8080 5173 5000) do (
-    for /f "tokens=5" %%I in ('netstat -ano 2^>nul ^| findstr :%%P') do (
-        taskkill /PID %%I /F >nul 2>&1
-    )
-)
-timeout /t 2 >nul
+REM --- ÇåÀí¾É½ø³Ì ---
+REM runserver ÊÇ reloader¸¸½ø³Ì + server×Ó½ø³ÌµÄ½á¹¹£¬×Ó½ø³Ì±»É±ºó¸¸½ø³Ì
+REM »á×Ô¶¯°ÑËüÖØÐÂÀ­Æð£»Òò´Ë±ØÐë°´ÃüÁîÐÐÆ¥Åä°ÑÕû¿Ã½ø³ÌÊ÷Ò»ÆðÍ£µô¡£
+echo [Í£Ö¹] ÕýÔÚÍ£Ö¹ÒÑÓÐ·þÎñ...
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'manage\.py runserver 8080' -or $_.CommandLine -match 'vite[\\/]bin[\\/]vite\.js' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" >nul 2>&1
+timeout /t 1 >nul
 
-REM æ£€æŸ¥ Python
-%PYTHON% -c "import django" 2>nul
+REM --- Ñ¡Ôñ Python£ºÓÅÏÈÏîÄ¿ .venv£¬Æä´Î conda pylearn£¬×îºóÏµÍ³ python ---
+set "PYTHON="
+if exist "%SCRIPT_DIR%.venv\Scripts\python.exe" set "PYTHON=%SCRIPT_DIR%.venv\Scripts\python.exe"
+if not defined PYTHON if exist "E:\Anaconda\envs\pylearn\python.exe" set "PYTHON=E:\Anaconda\envs\pylearn\python.exe"
+if not defined PYTHON set "PYTHON=python"
+
+REM --- ¼ì²é Python / Django ---
+"%PYTHON%" -c "import django" 2>nul
 if errorlevel 1 (
-    echo [é”™è¯¯] Django æœªå®‰è£…ï¼Œè¯·å…ˆè¿è¡Œï¼špip install django djangorestframework django-cors-headers
+    echo [´íÎó] µ±Ç°Ñ¡ÖÐµÄ Python ÀïÃ»ÓÐ Django£º
+    echo        %PYTHON%
+    echo ÇëÏÈÔËÐÐ£ºpip install django djangorestframework django-cors-headers python-dotenv cryptography openai requests
     pause
     exit /b 1
 )
-echo [ OK ] Python çŽ¯å¢ƒæ£€æŸ¥é€šè¿‡
+echo [ OK ] Python »·¾³¼ì²éÍ¨¹ý£º%PYTHON%
 
-REM æ£€æŸ¥ npm
+REM --- ¼ì²é±¾µØÑ§ÉúÃÜÂëÃÜÔ¿ÎÄ¼þ£¨README µÚ 4 ½ÚÉú³É£©---
+if not exist "%SCRIPT_DIR%backend\.env.security.local" (
+    echo [¾¯¸æ] Î´ÕÒµ½ backend\.env.security.local
+    echo        ½ÌÊ¦¶Ë¡°´´½¨Ñ§Éú / ²é¿´ÃÜÂë¡±¹¦ÄÜ½«²»¿ÉÓÃ£¬Çë°´ README µÚ 4 ½ÚÉú³É¡£
+)
+
+REM --- ¼ì²é npm ---
 where npm >nul 2>&1
 if errorlevel 1 (
-    echo [é”™è¯¯] npm æœªå®‰è£…ï¼Œè¯·å…ˆå®‰è£… Node.js
+    echo [´íÎó] npm Î´°²×°£¬ÇëÏÈ°²×° Node.js
     pause
     exit /b 1
 )
-echo [ OK ] npm æ£€æŸ¥é€šè¿‡
+echo [ OK ] npm ¼ì²éÍ¨¹ý
 
-REM 1. å¯åŠ¨ Django
+REM --- 1. Æô¶¯ Django£¨SQLite ¿ª·¢»·¾³£©---
 echo.
-echo [å¯åŠ¨] Django åŽç«¯ (ç«¯å£ 8080)...
+echo [Æô¶¯] Django ºó¶Ë£¨¶Ë¿Ú 8080£©...
 cd /d "%SCRIPT_DIR%backend"
-start /min "Django" cmd /c "%PYTHON% manage.py runserver 8080 >> ..\logs\django.log 2>&1"
+set "DJANGO_ENV=development"
+set "DJANGO_DB_ENGINE=sqlite"
+start /min "Django" cmd /c ""%PYTHON%" manage.py runserver 8080 >> ..\logs\django.log 2>&1"
+cd /d "%SCRIPT_DIR%"
 
-REM 2. å¯åŠ¨ Vite
-echo [å¯åŠ¨] Vite å‰ç«¯ (ç«¯å£ 5173)...
+REM --- 2. Æô¶¯ Vite ---
+echo [Æô¶¯] Vite Ç°¶Ë£¨¶Ë¿Ú 5173£©...
 cd /d "%SCRIPT_DIR%frontend"
 start /min "Vite" cmd /c "npm run dev >> ..\logs\vite.log 2>&1"
+cd /d "%SCRIPT_DIR%"
 
-REM 3. å¯åŠ¨ server.py
+REM --- 3. Æô¶¯ server.py£¨¿ÉÑ¡£¬¸ùÄ¿Â¼Ã»ÓÐÔò×Ô¶¯Ìø¹ý£©---
 if exist "%SCRIPT_DIR%server.py" (
-    echo [å¯åŠ¨] server.py (ç«¯å£ 5000ï¼Œå¯é€‰)...
+    echo [Æô¶¯] server.py£¨¶Ë¿Ú 5000£¬¿ÉÑ¡£©...
     cd /d "%SCRIPT_DIR%"
-    start /min "server" cmd /c "%PYTHON% server.py >> logs\server.log 2>&1"
+    start /min "server" cmd /c ""%PYTHON%" server.py >> logs\server.log 2>&1"
+    cd /d "%SCRIPT_DIR%"
 )
 
+REM --- µÈ¼¸Ãëºó¼ì²é¶Ë¿ÚÊÇ·ñÕæµÄÆðÀ´ ---
+echo.
+echo [¼ì²é] µÈ´ý·þÎñÆô¶¯...
+timeout /t 5 >nul
+netstat -ano | findstr ":8080" | findstr "LISTENING" >nul
+if errorlevel 1 echo [¾¯¸æ] Django Î´ÄÜÔÚ 8080 ¶Ë¿Ú¼àÌý£¬Çë²é¿´ logs\django.log
+netstat -ano | findstr ":5173" | findstr "LISTENING" >nul
+if errorlevel 1 echo [¾¯¸æ] Vite Î´ÄÜÔÚ 5173 ¶Ë¿Ú¼àÌý£¬Çë²é¿´ logs\vite.log
+
 echo.
 echo ========================================
-echo   å…¨éƒ¨æœåŠ¡å·²å¯åŠ¨ï¼
+echo   È«²¿·þÎñÒÑÆô¶¯£¡
 echo ========================================
 echo.
-echo   å‰ç«¯é¡µé¢ï¼š  http://localhost:5173
-echo   å­¦ç”Ÿç™»å½•ï¼š  http://localhost:5173/login
-echo   è€å¸ˆç™»å½•ï¼š  http://localhost:5173/teacher-login
-echo   Django APIï¼šhttp://localhost:8080
+echo   Ç°¶ËÒ³Ãæ£º  http://localhost:5173
+echo   Ñ§ÉúµÇÂ¼£º  http://localhost:5173/login
+echo   ÀÏÊ¦µÇÂ¼£º  http://localhost:5173/teacher-login
+echo   Django API£ºhttp://localhost:8080
 echo.
-echo   è€å¸ˆè´¦å·ï¼š  alex / teacher123
-echo   å­¦ç”Ÿè´¦å·ï¼š  å¼µå°è¯ / pass123ï¼ˆå…«å¹´ç´š/7ç­ï¼‰
-echo.
-echo   åœæ­¢æœåŠ¡è¯·è¿è¡Œ stop_all.bat
+echo   Í£Ö¹·þÎñÇëÔËÐÐ stop_all.bat
 echo ========================================
 pause
