@@ -139,6 +139,25 @@ describe('StudentManagement (学生管理)', () => {
     await screen.findByText('王五') // 八年级，唯一学生名
   })
 
+  it('默认按学号排序（数字序，同学号按年级/班级兜底）', async () => {
+    mockFetchStudents()
+    render(<StudentManagement />)
+    await screen.findByText('张三')
+    const names = () => Array.from(document.querySelectorAll('tbody tr')).map(tr => tr.children[4].textContent)
+    // 学号 01(张三/七年级)、01(王五/八年级)、02(李四) → 张三、王五、李四
+    expect(names()).toEqual(['张三', '王五', '李四'])
+  })
+
+  it('切换降序后按学号倒序显示', async () => {
+    mockFetchStudents()
+    const user = userEvent.setup()
+    render(<StudentManagement />)
+    await screen.findByText('张三')
+    await user.selectOptions(screen.getByDisplayValue('升序 ↑'), 'desc')
+    const names = () => Array.from(document.querySelectorAll('tbody tr')).map(tr => tr.children[4].textContent)
+    expect(names()).toEqual(['李四', '张三', '王五'])
+  })
+
   it('刷新按钮重新加载数据', async () => {
     mockFetchStudents()
     const user = userEvent.setup()

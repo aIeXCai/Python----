@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { BarChart2, Users, CheckCircle, RefreshCw, X } from 'lucide-react'
 import { API_BASE_URL } from '../../../api/config.js'
 import { GRADES } from '../../../constants/grades.js'
+import { sortStudentsByNumber } from '../../../utils/studentSort.js'
 
 export default function Tab3Stats({
   statsData, statsLoading, statsFilter,
@@ -26,6 +27,16 @@ export default function Tab3Stats({
   const ROWS = 5, COLS = 10
   // 班级范围与全平台一致（注册/学生管理/AI成绩均为 1-20）
   const CLASS_OPTIONS = Array.from({ length: 20 }, (_, i) => String(i + 1))
+
+  // 学号排序：null=默认顺序，'asc' 升序，'desc' 降序（点击"学号"表头循环切换）
+  const [numberSort, setNumberSort] = useState(null)
+  const toggleNumberSort = () => {
+    setNumberSort(prev => (prev === null ? 'asc' : prev === 'asc' ? 'desc' : null))
+  }
+  const rawStudents = statsData?.students || []
+  const displayStudents = numberSort
+    ? sortStudentsByNumber(rawStudents, numberSort)
+    : rawStudents
 
   // 从 statsData 构建学号→分数映射
   const scoreMapByNum = {}
@@ -130,7 +141,11 @@ export default function Tab3Stats({
                   <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>年级</th>
                   <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>班级</th>
                   <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>姓名</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>学号</th>
+                  <th onClick={toggleNumberSort} data-testid="sort-number"
+                    title="点击按学号排序（升序 → 降序 → 默认）"
+                    style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0', cursor: 'pointer', userSelect: 'none' }}>
+                    学号 {numberSort === 'asc' ? '↑' : numberSort === 'desc' ? '↓' : '↕'}
+                  </th>
                   {selectedQuiz ? (
                     <>
                       <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#667eea', whiteSpace: 'nowrap', borderBottom: '2px solid #e0e0e0' }}>成绩</th>
@@ -150,7 +165,7 @@ export default function Tab3Stats({
                 </tr>
               </thead>
               <tbody>
-                {(statsData?.students || []).map(stu => {
+                {displayStudents.map(stu => {
                   const selectedIdx = selectedQuiz ? (statsData?.sessions?.findIndex(ss => String(ss.id) === String(selectedQuiz)) ?? -1) : -1
                   const selectedScore = selectedIdx >= 0 ? (stu.scores?.[selectedIdx] ?? null) : null
                   return (
