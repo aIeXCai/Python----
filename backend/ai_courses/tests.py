@@ -487,11 +487,17 @@ class StudentScoresViewTest(APITestCase):
         self.assertNotIn('s1', pids)
 
     def test_scores_status_completed_threshold(self):
-        """>=80 分为 completed，否则 attempted"""
+        """旧题库练习保持满分才显示已通过。"""
+        prob80 = make_problem(problem_id='s80', title='八十分题', course='ai')
+        Submission.objects.create(
+            user=self.student, problem=prob80, code='partial',
+            score=80.0, status='wrong_answer',
+        )
         resp = self.client.get('/api/ai/scores/', HTTP_AUTHORIZATION=f'Token {self.token}')
         scores = {s['problem_id']: s['status'] for s in resp.data}
-        self.assertEqual(scores['s1'], 'completed')   # 100 >= 80
-        self.assertEqual(scores['s2'], 'attempted')   # 50 < 80
+        self.assertEqual(scores['s1'], 'completed')
+        self.assertEqual(scores['s80'], 'attempted')
+        self.assertEqual(scores['s2'], 'attempted')
 
     def test_unauthenticated_rejected(self):
         """未登录返回 401"""
@@ -520,9 +526,18 @@ class StudentStatsViewTest(APITestCase):
         self.assertEqual(resp.data['total_problems'], 2)
 
     def test_stats_completed_problems(self):
-        """>=80分的已完成题目数（按题去重）"""
+        """满分题目的已完成数量按题去重。"""
         resp = self.client.get('/api/ai/stats/', HTTP_AUTHORIZATION=f'Token {self.token}')
-        # prob1 最高分100(>=80) completed, prob2 最高分50(<80) attempted
+        # prob1 最高分 100，prob2 最高分 50。
+        self.assertEqual(resp.data['completed_problems'], 1)
+
+    def test_stats_does_not_count_partial_score_as_completed(self):
+        partial = make_problem(problem_id='stat80', course='ai')
+        Submission.objects.create(
+            user=self.student, problem=partial, score=80.0,
+            code='partial', status='wrong_answer',
+        )
+        resp = self.client.get('/api/ai/stats/', HTTP_AUTHORIZATION=f'Token {self.token}')
         self.assertEqual(resp.data['completed_problems'], 1)
 
     def test_stats_average_score(self):

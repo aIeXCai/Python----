@@ -25,6 +25,9 @@ const baseProblem = {
   title: '范围界面测试',
   difficulty: '入门',
   grade_tag: '',
+  unit: null,
+  unit_name: '',
+  big_unit_name: '',
   description: '题目描述',
   template_code: 'print("hello")',
   management_version: 3,
@@ -32,6 +35,13 @@ const baseProblem = {
   can_edit_content: true,
   publication: { all_school: false, scopes: [] },
 }
+
+const aiUnits = [{
+  id: 10,
+  grade: '七年级',
+  display_name: 'AI 基础',
+  sections: [{ id: 11, grade: '七年级', display_name: '认识人工智能' }],
+}]
 
 describe('ProblemEditModal', () => {
   beforeEach(() => {
@@ -117,6 +127,28 @@ describe('ProblemEditModal', () => {
     expect(updateAdminProblem).toHaveBeenCalledWith('scope-ui', expect.objectContaining({
       expected_version: 3,
       grade_tag: '九年级',
+    }))
+  })
+
+  it('选择 AI 小节后自动同步年级并保存单元 ID', async () => {
+    const user = userEvent.setup()
+    render(
+      <ProblemEditModal
+        problem={baseProblem}
+        user={{ is_superuser: true, managed_grade: '' }}
+        units={aiUnits}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    )
+    await user.selectOptions(screen.getByLabelText('所属 AI 小节'), '11')
+    expect(screen.getByLabelText('适用年级标签')).toHaveValue('七年级')
+    expect(screen.getByLabelText('适用年级标签')).toBeDisabled()
+    await user.click(screen.getByRole('checkbox', { name: /^全校可见/ }))
+    await user.click(screen.getByRole('button', { name: '保存修改' }))
+    expect(updateAdminProblem).toHaveBeenCalledWith('scope-ui', expect.objectContaining({
+      unit: 11,
+      grade_tag: '七年级',
     }))
   })
 

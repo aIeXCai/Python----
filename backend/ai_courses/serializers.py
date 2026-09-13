@@ -4,15 +4,18 @@ from users.grade_levels import GRADE_CHOICES, normalize_grade, normalize_student
 from users.scopes import is_platform_admin
 
 from .problem_management import publication_data, publication_label
+from .problem_eligibility import cached_test_count, programming_quiz_eligibility
 
 
 class ProblemListSerializer(serializers.ModelSerializer):
     """题目列表序列化器（不含题目描述和测试点详情）"""
     test_count = serializers.IntegerField(source='get_test_count', read_only=True)
+    unit_name = serializers.CharField(source='unit.display_name', read_only=True, default='')
+    big_unit_name = serializers.CharField(source='unit.parent.display_name', read_only=True, default='')
 
     class Meta:
         model = Problem
-        fields = ['problem_id', 'title', 'difficulty', 'grade_tag', 'test_count', 'created_at']
+        fields = ['problem_id', 'title', 'difficulty', 'grade_tag', 'unit_name', 'big_unit_name', 'test_count', 'created_at']
 
 
 class TestCaseSerializer(serializers.Serializer):
@@ -94,7 +97,13 @@ class AdminStatsSerializer(serializers.Serializer):
 
 
 class AdminProblemListSerializer(serializers.ModelSerializer):
-    test_count = serializers.IntegerField(source='get_test_count', read_only=True)
+    test_count = serializers.SerializerMethodField()
+    unit_name = serializers.SerializerMethodField()
+    big_unit_id = serializers.SerializerMethodField()
+    big_unit_name = serializers.SerializerMethodField()
+    unit_grade = serializers.SerializerMethodField()
+    quiz_usable = serializers.SerializerMethodField()
+    quiz_unusable_reasons = serializers.SerializerMethodField()
     publication_label = serializers.SerializerMethodField()
     publication = serializers.SerializerMethodField()
     can_edit_content = serializers.SerializerMethodField()
@@ -104,7 +113,9 @@ class AdminProblemListSerializer(serializers.ModelSerializer):
         model = Problem
         fields = [
             'problem_id', 'title', 'description', 'difficulty', 'grade_tag', 'course',
-            'template_code', 'test_count', 'created_by', 'publishing_suspended',
+            'unit', 'unit_name', 'big_unit_id', 'big_unit_name', 'unit_grade',
+            'template_code', 'test_count', 'quiz_usable', 'quiz_unusable_reasons',
+            'created_by', 'publishing_suspended',
             'management_version', 'archived_at', 'created_at', 'updated_at',
             'publication_label', 'publication', 'can_edit_content', 'can_archive',
         ]
@@ -112,6 +123,27 @@ class AdminProblemListSerializer(serializers.ModelSerializer):
     def _actor(self):
         request = self.context.get('request')
         return getattr(request, 'user', None)
+
+    def get_test_count(self, obj):
+        return cached_test_count(obj)
+
+    def get_unit_name(self, obj):
+        return obj.unit.display_name if obj.unit_id else ''
+
+    def get_big_unit_id(self, obj):
+        return obj.unit.parent_id if obj.unit_id else None
+
+    def get_big_unit_name(self, obj):
+        return obj.unit.parent.display_name if obj.unit_id and obj.unit.parent_id else ''
+
+    def get_unit_grade(self, obj):
+        return obj.unit.grade if obj.unit_id else ''
+
+    def get_quiz_usable(self, obj):
+        return programming_quiz_eligibility(obj)['usable']
+
+    def get_quiz_unusable_reasons(self, obj):
+        return programming_quiz_eligibility(obj)['reasons']
 
     def get_publication_label(self, obj):
         try:
@@ -151,10 +183,13 @@ class ProblemContentUpdateSerializer(serializers.Serializer):
     grade_tag = serializers.ChoiceField(
         choices=GRADE_CHOICES, required=False, allow_blank=True,
     )
+    unit = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     template_code = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
 
     def validate(self, attrs):
-        if not any(field in attrs for field in ('title', 'description', 'difficulty', 'grade_tag', 'template_code')):
+        if not any(field in attrs for field in (
+            'title', 'description', 'difficulty', 'grade_tag', 'template_code', 'unit',
+        )):
             raise serializers.ValidationError('至少需要提交一个可编辑字段')
         return attrs
 

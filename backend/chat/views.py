@@ -74,6 +74,21 @@ def _build_system_prompt(context):
             f'6. 如果存在最近一次评测结果，请优先结合测试点状态、实际输出和正确输出进行提示\n'
         )
 
+    if ctx_type == 'ai_quiz_programming':
+        code = context.get('code', '')
+        return (
+            f'{PERSONA}'
+            f'## 当前 AI 小测编程题\n'
+            f'**{title}**\n\n'
+            f'### 题目描述\n{description}\n\n'
+            f'### 学生当前代码\n```python\n{code}\n```\n\n'
+            f'### 最近评测信息\n{last_error if last_error else "暂无评测错误信息。"}\n\n'
+            '## 辅导策略\n'
+            '1. 只提供思路、拆解步骤和小提示，不给完整答案代码\n'
+            '2. 优先根据学生当前代码和最近错误定位一个最关键问题\n'
+            '3. 不推测、索要或泄露隐藏测试点\n'
+        )
+
     if ctx_type == 'info_quiz':
         return (
             f'{PERSONA}'
@@ -128,6 +143,41 @@ class ChatSendView(APIView):
 
         session_id = request.data.get('session_id')
         context = request.data.get('context')
+
+        # AI 混合小测：选择题阶段必须禁用助手；编程题上下文从
+        # 服务端 attempt 快照取题干，不信任客户端传来的题目内容。
+        from ai_courses.models import AIQuizAttempt
+        from ai_courses.quiz_execution_services import programming_item_payload
+        from ai_courses.quiz_services import AIQuizServiceError
+        active_ai_attempts = AIQuizAttempt.objects.filter(
+            user=user, current_marker=True, status=AIQuizAttempt.STATUS_IN_PROGRESS,
+        )
+        if context and context.get('type') == 'ai_quiz_choice':
+            return Response({'error': 'AI 小测选择题作答时不能使用助手', 'code': 'ai_quiz_choice_blocked'}, status=403)
+        if active_ai_attempts.exists():
+            if not context or context.get('type') != 'ai_quiz_programming':
+                return Response({'error': 'AI 小测选择题作答时不能使用助手', 'code': 'ai_quiz_choice_blocked'}, status=403)
+            try:
+                quiz_session_id = int(context.get('session_id'))
+                attempt_id = int(context.get('attempt_id'))
+                item_id = str(context.get('id') or '')
+            except (TypeError, ValueError):
+                return Response({'error': '小测编程题上下文无效', 'code': 'invalid_quiz_context'}, status=403)
+            active_ai_attempt = active_ai_attempts.filter(
+                pk=attempt_id, session_id=quiz_session_id,
+            ).first()
+            if active_ai_attempt is None:
+                return Response({'error': '小测编程题上下文无效', 'code': 'invalid_quiz_context'}, status=403)
+            try:
+                public_item = programming_item_payload(user, quiz_session_id, item_id)
+            except AIQuizServiceError:
+                return Response({'error': '小测编程题上下文无效', 'code': 'invalid_quiz_context'}, status=403)
+            context = {
+                'type': 'ai_quiz_programming', 'id': item_id,
+                'title': public_item['title'], 'description': public_item['description'],
+                'code': str(context.get('code') or '')[:20000],
+                'last_error': str(context.get('last_error') or '')[:4000],
+            }
 
         # 获取或创建会话
         if session_id:

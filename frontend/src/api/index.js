@@ -4,7 +4,7 @@ export function getToken() {
   return localStorage.getItem('token')
 }
 
-async function request(path, options = {}) {
+export async function request(path, options = {}) {
   const token = getToken()
   const headers = { 'Content-Type': 'application/json', ...options.headers }
   if (token) headers['Authorization'] = `Token ${token}`
@@ -16,11 +16,26 @@ async function request(path, options = {}) {
     window.location.href = '/login'
     throw new Error('Unauthorized')
   }
-  const data = res.status === 204 ? null : await res.json()
+  let data = null
+  if (res.status !== 204) {
+    if (typeof res.text === 'function') {
+      const raw = await res.text()
+      if (raw) {
+        try { data = JSON.parse(raw) }
+        catch { data = { error: raw } }
+      }
+    } else if (typeof res.json === 'function') {
+      // Keep compatibility with lightweight Response doubles used by the UI tests.
+      data = await res.json()
+    }
+  }
   if (!res.ok) {
-    const err = data.error || '请求失败'
-    if (data.details) throw new Error(`${err}：${JSON.stringify(data.details)}`)
-    throw new Error(err)
+    const message = data?.error || '请求失败'
+    const error = new Error(data?.details ? `${message}：${JSON.stringify(data.details)}` : message)
+    error.code = data?.code
+    error.status = res.status
+    error.data = data
+    throw error
   }
   return data
 }
@@ -84,7 +99,7 @@ export async function getProblemDetail(problemId, course = 'ai') {
 
 // ─── Submissions ───────────────────────────────────────────────────────────────
 
-function createIdempotencyKey() {
+export function createIdempotencyKey() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
   const bytes = new Uint8Array(16)
   if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes)
@@ -214,10 +229,30 @@ export async function getAdminScores(params = {}) {
   return request(`/ai/admin/scores/${qs ? '?' + qs : ''}`)
 }
 
-export async function getAdminProblems({ includeArchived = false } = {}) {
+export async function getAdminProblems({
+  includeArchived = false,
+  grade = '',
+  bigUnit = '',
+  unit = '',
+  usable = '',
+  q = '',
+} = {}) {
   const params = new URLSearchParams({ course: 'ai' })
   if (includeArchived) params.set('include_archived', '1')
+  if (grade) params.set('grade', grade)
+  if (bigUnit) params.set('big_unit', bigUnit)
+  if (unit) params.set('unit', unit)
+  if (usable !== '') params.set('usable', usable)
+  if (q) params.set('q', q)
   return request(`/ai/admin/problems/?${params.toString()}`)
+}
+
+export async function getAdminAIUnits({ grade = '', includeArchived = false } = {}) {
+  const params = new URLSearchParams()
+  if (grade) params.set('grade', grade)
+  if (includeArchived) params.set('include_archived', '1')
+  const query = params.toString()
+  return request(`/ai/admin/units/${query ? `?${query}` : ''}`)
 }
 
 export async function syncAdminProblems() {

@@ -46,6 +46,9 @@ from .problem_management import (
 from .problem_scopes import get_visible_problem_or_404, visible_problems_for_student
 
 
+PRACTICE_COMPLETION_SCORE = 100
+
+
 def _code_execution_unavailable_response():
     """Fail closed instead of falling back to local execution."""
     if not getattr(settings, 'CODE_EXECUTION_ENABLED', False):
@@ -235,7 +238,7 @@ class StudentScoresView(APIView):
                 'problem_id': pid,
                 'best_score': best,
                 'attempts': item['attempts'],
-                'status': 'completed' if best >= 80 else 'attempted',
+                'status': 'completed' if best >= PRACTICE_COMPLETION_SCORE else 'attempted',
             })
 
         if problem_id:
@@ -309,7 +312,11 @@ class StudentStatsView(APIView):
             total_problems = visible.count()
 
             completed_problems = (
-                Submission.objects.filter(user=user, score__gte=80, problem__in=visible)
+                Submission.objects.filter(
+                    user=user,
+                    score__gte=PRACTICE_COMPLETION_SCORE,
+                    problem__in=visible,
+                )
                 .values('problem')
                 .distinct()
                 .count()
@@ -416,10 +423,52 @@ class AdminProblemListView(APIView):
 
     def get(self, request):
         course = request.query_params.get('course', 'ai')
-        problems = Problem.objects.filter(course=course).prefetch_related('audience_rules')
+        problems = Problem.objects.filter(course=course).select_related(
+            'unit', 'unit__parent', 'created_by',
+        ).prefetch_related('audience_rules')
         include_archived = request.query_params.get('include_archived') == '1'
         if not (include_archived and is_platform_admin(request.user)):
             problems = problems.filter(archived_at__isnull=True)
+        grade = request.query_params.get('grade')
+        if grade:
+            try:
+                grade = require_teacher_grade(request.user, grade)
+            except TeacherScopeError as exc:
+                return Response({'error': exc.message, 'code': exc.code}, status=403)
+            problems = problems.filter(
+                Q(unit__grade=grade) | Q(unit__isnull=True, grade_tag=grade),
+            )
+        big_unit = request.query_params.get('big_unit')
+        unit = request.query_params.get('unit')
+        if big_unit:
+            if not big_unit.isdigit():
+                return Response({'error': '大单元筛选无效', 'code': 'invalid_big_unit'}, status=400)
+            problems = problems.filter(unit__parent_id=int(big_unit))
+        if unit:
+            if unit == 'unclassified':
+                problems = problems.filter(unit__isnull=True)
+            elif unit.isdigit():
+                problems = problems.filter(unit_id=int(unit))
+            else:
+                return Response({'error': '小节筛选无效', 'code': 'invalid_unit'}, status=400)
+        query = (request.query_params.get('q') or '').strip()
+        if query:
+            problems = problems.filter(
+                Q(problem_id__icontains=query)
+                | Q(title__icontains=query)
+                | Q(description__icontains=query),
+            )
+        problems = problems.order_by('problem_id')
+        usable = request.query_params.get('usable')
+        if usable not in (None, '', '0', '1'):
+            return Response({'error': '可组卷筛选无效', 'code': 'invalid_usable'}, status=400)
+        if usable in ('0', '1'):
+            from .problem_eligibility import programming_quiz_eligibility
+            expected = usable == '1'
+            problems = [
+                problem for problem in problems
+                if programming_quiz_eligibility(problem)['usable'] is expected
+            ]
         serializer = AdminProblemListSerializer(
             problems, many=True, context={'request': request},
         )
@@ -458,7 +507,9 @@ class AdminProblemDetailView(APIView):
     permission_classes = [IsTeacher]
 
     def _get_problem(self, request, problem_id):
-        queryset = Problem.objects.filter(course='ai').prefetch_related('audience_rules')
+        queryset = Problem.objects.filter(course='ai').select_related(
+            'unit', 'unit__parent', 'created_by',
+        ).prefetch_related('audience_rules')
         if not is_platform_admin(request.user):
             queryset = queryset.filter(archived_at__isnull=True)
         return get_object_or_404(queryset, problem_id=problem_id)

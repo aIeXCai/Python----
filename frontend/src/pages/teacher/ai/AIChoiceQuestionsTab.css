@@ -1,0 +1,117 @@
+.ai-choice-filters {
+  display: grid;
+  grid-template-columns:
+    minmax(112px, 0.65fr)
+    minmax(170px, 1.1fr)
+    minmax(170px, 1.1fr)
+    minmax(126px, 0.75fr)
+    minmax(280px, 2.35fr);
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+}
+
+.ai-choice-filter-control,
+.ai-choice-search {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  border: 1px solid #dfe4ee;
+  border-radius: 9px;
+  background: #fff;
+  color: #344054;
+  font: inherit;
+  font-size: 13px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.ai-choice-filter-control {
+  padding: 0 34px 0 11px;
+  cursor: pointer;
+}
+
+.ai-choice-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: #fbfcfe;
+}
+
+.ai-choice-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #344054;
+  font: inherit;
+  font-size: 13px;
+}
+
+.ai-choice-search input::placeholder {
+  color: #98a2b3;
+}
+
+.ai-choice-filter-control:hover,
+.ai-choice-search:hover {
+  border-color: #b7c1d4;
+  background: #fff;
+}
+
+.ai-choice-filter-control:focus,
+.ai-choice-search:focus-within {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.14);
+  outline: 0;
+}
+
+.ai-choice-table .ai-choice-select-col {
+  width: 72px;
+}
+
+.ai-choice-table .ai-choice-select-cell {
+  box-sizing: border-box;
+  width: 72px;
+  min-width: 72px;
+  padding: 11px 12px;
+  text-align: center;
+  white-space: nowrap;
+  color: #596172;
+  font-size: 12px;
+}
+
+.ai-choice-table td.ai-choice-select-cell {
+  padding-block: 12px;
+}
+
+.ai-choice-table .ai-choice-select-cell input {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0 auto;
+  accent-color: #667eea;
+  cursor: pointer;
+}
+
+@media (max-width: 1100px) {
+  .ai-choice-filters {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .ai-choice-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .ai-choice-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-choice-search {
+    grid-column: auto;
+  }
+}

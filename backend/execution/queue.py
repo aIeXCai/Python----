@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import secrets
 from datetime import timedelta
 
@@ -27,6 +28,9 @@ from .constants import (
     RUNNER_STATUS_ONLINE,
 )
 from .models import ExecutionTask, RunnerNode, RunnerRequestReceipt
+
+
+logger = logging.getLogger(__name__)
 
 
 class QueueError(Exception):
@@ -341,7 +345,17 @@ def complete_task(*, task_id, runner_id, lease_token, result):
                 score=score,
                 error_message='' if result_status == STATUS_SUCCEEDED else _submission_report(result_status, detail),
             )
+            if task.quiz_attempt_id:
+                transaction.on_commit(lambda task_pk=task.pk: _maybe_finalize_quiz(task_pk))
         return task, True
+
+
+def _maybe_finalize_quiz(task_id):
+    try:
+        from ai_courses.quiz_settlement_services import maybe_finalize_attempt
+        maybe_finalize_attempt(task_id)
+    except Exception:
+        logger.exception('AI quiz settlement hook failed', extra={'execution_task_id': task_id})
 
 
 def update_runner_node(*, runner_id, data):

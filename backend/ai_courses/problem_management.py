@@ -3,17 +3,21 @@
 import hashlib
 from functools import wraps
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
 from users.grade_levels import CANONICAL_GRADES, normalize_grade, normalize_student_identifier
 from users.models import CustomUser
-from users.scopes import TeacherScopeError, is_platform_admin, teacher_grade
+from users.scopes import (
+    TeacherScopeError, is_platform_admin, require_teacher_grade, teacher_grade,
+)
 
 from .models import (
     AUDIENCE_ALL_SCHOOL,
     AUDIENCE_CLASS,
     AUDIENCE_GRADE_ALL,
+    AIUnit,
     Problem,
     ProblemAudience,
     ProblemManagementAudit,
@@ -45,6 +49,7 @@ def _summary(problem):
         'template_hash': _content_hash(problem.template_code),
         'difficulty': problem.difficulty,
         'grade_tag': problem.grade_tag,
+        'unit_id': problem.unit_id,
         'publishing_suspended': problem.publishing_suspended,
         'archived': problem.archived_at is not None,
         'management_version': problem.management_version,
@@ -183,17 +188,59 @@ def edit_problem_content(*, actor, problem_id, values, expected_version, source_
         problem, expected_version, actor=actor,
         event_type='content_edit', source_ip=source_ip,
     )
+    values = dict(values)
+    if 'unit' in values:
+        raw_unit_id = values['unit']
+        unit = None
+        if raw_unit_id not in (None, ''):
+            try:
+                unit = AIUnit.objects.select_related('parent').get(
+                    pk=raw_unit_id,
+                    parent__isnull=False,
+                    archived_at__isnull=True,
+                    parent__archived_at__isnull=True,
+                )
+            except AIUnit.DoesNotExist as exc:
+                raise ProblemManagementError(
+                    '所属 AI 小节不存在或已归档',
+                    code='invalid_problem_unit', status_code=400,
+                ) from exc
+            try:
+                require_teacher_grade(actor, unit.grade)
+            except TeacherScopeError as exc:
+                raise ProblemManagementError(
+                    exc.message, code=exc.code, status_code=403,
+                ) from exc
+            requested_grade = values.get('grade_tag')
+            if requested_grade not in (None, '', unit.grade):
+                raise ProblemManagementError(
+                    '适用年级必须与所属小节年级一致',
+                    code='problem_unit_grade_conflict', status_code=400,
+                )
+            values['grade_tag'] = unit.grade
+        values['unit'] = unit
+    elif problem.unit_id and 'grade_tag' in values and values['grade_tag'] != problem.unit.grade:
+        raise ProblemManagementError(
+            '已归类题目的适用年级必须与所属小节一致',
+            code='problem_unit_grade_conflict', status_code=400,
+        )
     before = _summary(problem)
     changed = False
-    for field in ('title', 'description', 'difficulty', 'grade_tag', 'template_code'):
+    for field in ('title', 'description', 'difficulty', 'grade_tag', 'template_code', 'unit'):
         if field in values and getattr(problem, field) != values[field]:
             setattr(problem, field, values[field])
             changed = True
     if changed:
+        try:
+            problem.full_clean()
+        except ValidationError as exc:
+            raise ProblemManagementError(
+                '题目内容校验失败', code='problem_validation_error', status_code=400,
+            ) from exc
         problem.management_version += 1
         problem.save(update_fields=[
             'title', 'description', 'difficulty', 'grade_tag', 'template_code',
-            'management_version', 'updated_at',
+            'unit', 'management_version', 'updated_at',
         ])
     after = _summary(problem)
     _audit(
