@@ -44,6 +44,7 @@
 .aiq-grade-result.success { border-left: 4px solid #33a474; }
 .aiq-grade-result.failed { border-left: 4px solid #d95757; }
 .aiq-prev-next { display: flex; justify-content: space-between; margin-top: 15px; }
+.aiq-prev-next .btn { width: 112px; justify-content: center; }
 .aiq-alert { margin: 12px 0; padding: 12px 15px; border-radius: 9px; }
 .aiq-alert-error { border: 1px solid #ffcaca; background: #fff0f0; color: #b3313d; }
 .aiq-loading, .aiq-fatal { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 60px; color: #687083; }
@@ -74,6 +75,7 @@
 .aiq-explanation > strong { display: block; margin-bottom: 4px; }
 .aiq-alert-warning { display: flex; align-items: center; gap: 8px; border: 1px solid #ffd994; background: #fff6df; color: #8a5a00; }
 .aiq-result-actions { display: flex; justify-content: center; gap: 12px; }
+.aiq-result-actions .btn { flex: 1 1 0; width: auto; min-width: 0; white-space: nowrap; }
 .aiq-settling { margin-top: 80px; text-align: center; }
 .aiq-settling svg { color: #667eea; }
 .aiq-settling h1 { margin: 12px 0 6px; }

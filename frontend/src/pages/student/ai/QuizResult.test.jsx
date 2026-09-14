@@ -26,7 +26,11 @@ describe('AIQuizResult Step 9', () => {
     render(<AIQuizResult />)
     expect(await screen.findByText('代码阅读小测')).toBeInTheDocument()
     expect(screen.getByText('2 次有效提交')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /再做一次/ })).toHaveAttribute('href', '/student/ai-quiz/12')
+    const back = screen.getByRole('link', { name: '返回小测列表' })
+    const retry = screen.getByRole('link', { name: /再做一次/ })
+    expect(retry).toHaveAttribute('href', '/student/ai-quiz/12')
+    expect(back.parentElement).toHaveClass('aiq-result-actions')
+    expect(retry.parentElement).toBe(back.parentElement)
   })
 
   it('错题页的题干、选项和解析都正确渲染代码', async () => {

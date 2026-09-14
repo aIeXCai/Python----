@@ -332,6 +332,24 @@ class AIQuizSettlementStep6APITest(APITestCase):
         attempt.refresh_from_db()
         self.assertIsNone(attempt.current_marker)
 
+    def test_student_can_retry_completed_quiz_without_teacher_reset(self):
+        session = self._publish(choice_points='100.0', programming=False)
+        first = self._start(session)
+        self._submit(session, first, self._choice_answers(first))
+
+        second = self._start(session)
+
+        self.assertEqual(second.attempt_no, 2)
+        self.assertEqual(second.status, AIQuizAttempt.STATUS_IN_PROGRESS)
+        self.assertEqual(second.answers_json, {})
+        first.refresh_from_db()
+        self.assertEqual(first.status, AIQuizAttempt.STATUS_SUBMITTED)
+        self.assertIsNone(first.current_marker)
+        self.assertEqual(
+            AIQuizAttempt.objects.filter(user=self.student, session=session).count(),
+            2,
+        )
+
     def test_system_issue_regrade_recalculates_and_increments_revision(self):
         session = self._publish(choice_points='0.0')
         attempt = self._start(session)

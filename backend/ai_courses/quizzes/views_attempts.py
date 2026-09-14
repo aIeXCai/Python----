@@ -1,5 +1,8 @@
 """Student endpoints for visible AI quizzes and active choice-question attempts."""
 
+import logging
+
+from django.db import OperationalError
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,6 +26,9 @@ from .settlement_services import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 def _error(exc):
     data = {'error': exc.message, 'code': exc.code}
     if exc.current_version is not None:
@@ -31,6 +37,20 @@ def _error(exc):
         data['details'] = exc.details
     data.update(exc.extra)
     return Response(data, status=exc.status_code)
+
+
+def _database_busy_error(exc):
+    message = str(exc).lower()
+    if 'database is locked' not in message and 'database table is locked' not in message:
+        raise exc
+    logger.warning('SQLite was busy while starting an AI quiz attempt: %s', exc)
+    return Response(
+        {
+            'error': '系统正在处理其他同学的作答，请稍后重试',
+            'code': 'database_busy',
+        },
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
 
 
 class AIQuizListView(APIView):
@@ -55,6 +75,8 @@ class AIQuizAttemptView(APIView):
             )
         except AIQuizServiceError as exc:
             return _error(exc)
+        except OperationalError as exc:
+            return _database_busy_error(exc)
 
     def get(self, request, pk):
         try:

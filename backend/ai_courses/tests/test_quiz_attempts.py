@@ -5,7 +5,7 @@ from datetime import timedelta
 from unittest import skipUnless
 from unittest.mock import patch
 
-from django.db import IntegrityError, connection, connections, transaction
+from django.db import IntegrityError, OperationalError, connection, connections, transaction
 from django.test import TransactionTestCase
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
@@ -175,6 +175,18 @@ class AIQuizAttemptStep4APITest(APITestCase):
         self.assertEqual(first.data['deadline_at'], second.data['deadline_at'])
         self.assertEqual(first.data['items'], restored.data['items'])
         self.assertEqual(AIQuizAttempt.objects.count(), 1)
+
+    @patch(
+        'ai_courses.quizzes.views_attempts.start_or_resume_attempt',
+        side_effect=OperationalError('database is locked'),
+    )
+    def test_start_returns_json_when_sqlite_is_temporarily_busy(self, _start):
+        response = self.start()
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.data, {
+            'error': '系统正在处理其他同学的作答，请稍后重试',
+            'code': 'database_busy',
+        })
 
     def test_save_full_answers_resume_and_revision_conflict(self):
         started = self.start().data

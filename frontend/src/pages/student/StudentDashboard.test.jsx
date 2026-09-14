@@ -124,6 +124,19 @@ describe('StudentDashboard.jsx', () => {
     expect(screen.queryByText('人工智能单元测试')).not.toBeInTheDocument()
   })
 
+  it('AI 小测完成后同时提供查看结果和再次作答入口', async () => {
+    aiQuizApi.getStudentAIQuizzes.mockResolvedValue([{
+      id: 19, title: 'AI 已完成小测', choice_count: 4, programming_count: 1,
+      time_limit: 30, action: 'result', latest_score: 86, best_score: 92,
+    }])
+
+    renderDashboard()
+
+    expect(await screen.findByText('AI 已完成小测')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '查看结果' })).toHaveAttribute('href', '/student/ai-quiz-result/19')
+    expect(screen.getByRole('link', { name: '再做一次' })).toHaveAttribute('href', '/student/ai-quiz/19')
+  })
+
   it('在题库练习中按单元和难度筛选', async () => {
     apiIndex.getProblems.mockResolvedValue([
       { problem_id: 'p1', title: '顺序简单题', unit_name: '输入输出', difficulty: 'easy' },

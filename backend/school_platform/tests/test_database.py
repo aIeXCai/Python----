@@ -32,6 +32,8 @@ class DatabaseConfigurationTests(SimpleTestCase):
         config = build_database_settings(self.base_dir, 'development', {})
         self.assertEqual(config['ENGINE'], 'django.db.backends.sqlite3')
         self.assertEqual(config['NAME'], self.base_dir / 'db.sqlite3')
+        self.assertEqual(config['OPTIONS']['timeout'], 30)
+        self.assertEqual(config['OPTIONS']['transaction_mode'], 'IMMEDIATE')
 
     def test_sqlite_accepts_snapshot_path(self):
         config = build_database_settings(

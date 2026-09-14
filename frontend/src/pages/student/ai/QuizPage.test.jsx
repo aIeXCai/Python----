@@ -75,4 +75,14 @@ describe('AIQuizPage Step 9', () => {
     await waitFor(() => expect(mocks.submit).toHaveBeenCalled())
     expect(mocks.navigate).toHaveBeenCalledWith('/student/ai-quiz-result/12', { replace: true })
   })
+
+  it('上一题和下一题按钮使用相同宽度', async () => {
+    render(<AIQuizPage />)
+    await screen.findByText('代码阅读小测')
+
+    const previous = screen.getByRole('button', { name: '上一题' })
+    const next = screen.getByRole('button', { name: '下一题' })
+    expect(previous.parentElement).toHaveClass('aiq-prev-next')
+    expect(next.parentElement).toBe(previous.parentElement)
+  })
 })

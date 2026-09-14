@@ -247,7 +247,18 @@ export default function StudentDashboard() {
               return <div key={quiz.id} className="problem-card">
                 <div className="problem-header"><div className="problem-title"><FileText size={18} />{quiz.title}</div><span className={`problem-status status-${finished ? 'completed' : 'new'}`}>{settling ? '结算中' : inProgress ? '作答中' : finished ? '已完成' : '未开始'}</span></div>
                 <div style={{ padding: '12px 16px', color: '#666', fontSize: '.85rem', display: 'grid', gap: 5 }}><span><Clock size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />{quiz.choice_count} 道选择题 · {quiz.programming_count} 道编程题 · {quiz.time_limit ? `${quiz.time_limit}分钟` : '不限时'}</span>{(quiz.latest_score !== null || quiz.best_score !== null) && <span>最近成绩：<strong>{quiz.latest_score ?? '--'}</strong>{quiz.latest_score !== null && ' 分'}{quiz.best_score !== null && <> · 历史最好：<strong>{quiz.best_score}</strong> 分</>}</span>}</div>
-                <div className="problem-actions">{settling || finished ? <Link to={`/student/ai-quiz-result/${quiz.id}`} className="btn btn-secondary">{settling ? '查看结算' : '查看结果'}</Link> : <Link to={`/student/ai-quiz/${quiz.id}`} className="btn btn-primary">{inProgress ? '继续作答' : '开始小测'}</Link>}</div>
+                <div className="problem-actions">
+                  {settling ? (
+                    <Link to={`/student/ai-quiz-result/${quiz.id}`} className="btn btn-secondary">查看结算</Link>
+                  ) : finished ? (
+                    <>
+                      <Link to={`/student/ai-quiz-result/${quiz.id}`} className="btn btn-secondary">查看结果</Link>
+                      <Link to={`/student/ai-quiz/${quiz.id}`} className="btn btn-primary">再做一次</Link>
+                    </>
+                  ) : (
+                    <Link to={`/student/ai-quiz/${quiz.id}`} className="btn btn-primary">{inProgress ? '继续作答' : '开始小测'}</Link>
+                  )}
+                </div>
               </div>
             })}</div>}
           </div>
