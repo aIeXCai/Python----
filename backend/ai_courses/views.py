@@ -35,7 +35,7 @@ from users.scopes import (
     scope_students,
 )
 from users.models import CustomUser
-from .problem_management import (
+from .problems.management import (
     ProblemManagementError,
     archive_problem,
     edit_problem_content,
@@ -43,7 +43,7 @@ from .problem_management import (
     restore_problem,
     update_problem_audience,
 )
-from .problem_scopes import get_visible_problem_or_404, visible_problems_for_student
+from .problems.scopes import get_visible_problem_or_404, visible_problems_for_student
 
 
 PRACTICE_COMPLETION_SCORE = 100
@@ -463,7 +463,7 @@ class AdminProblemListView(APIView):
         if usable not in (None, '', '0', '1'):
             return Response({'error': '可组卷筛选无效', 'code': 'invalid_usable'}, status=400)
         if usable in ('0', '1'):
-            from .problem_eligibility import programming_quiz_eligibility
+            from .problems.eligibility import programming_quiz_eligibility
             expected = usable == '1'
             problems = [
                 problem for problem in problems

@@ -1,0 +1,522 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "MQTT基本概念",
+    "text": "MQTT是一种常用于物联网的（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "轻量级通信协议"
+      },
+      {
+        "key": "B",
+        "text": "图像编辑软件"
+      },
+      {
+        "key": "C",
+        "text": "有线传输介质"
+      },
+      {
+        "key": "D",
+        "text": "操作系统"
+      }
+    ],
+    "answer": "A",
+    "explanation": "MQTT是一种开放、轻量且易实现的消息传输协议，常用于物联网。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "发布订阅机制",
+    "text": "MQTT采用的核心通信机制是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "请求—打印"
+      },
+      {
+        "key": "B",
+        "text": "发布—订阅"
+      },
+      {
+        "key": "C",
+        "text": "点对点直连"
+      },
+      {
+        "key": "D",
+        "text": "文件复制"
+      }
+    ],
+    "answer": "B",
+    "explanation": "MQTT采用发布—订阅机制传递消息。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "MQTT角色",
+    "text": "下列属于MQTT核心角色的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "发布者"
+      },
+      {
+        "key": "B",
+        "text": "显示器"
+      },
+      {
+        "key": "C",
+        "text": "路由表"
+      },
+      {
+        "key": "D",
+        "text": "传输线"
+      }
+    ],
+    "answer": "A",
+    "explanation": "发布者、订阅者和MQTT服务器是发布—订阅模式中的三个核心角色。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "MQTT角色",
+    "text": "在MQTT中，接收自己所订阅主题消息的一方是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "发布者"
+      },
+      {
+        "key": "B",
+        "text": "订阅者"
+      },
+      {
+        "key": "C",
+        "text": "浏览器地址栏"
+      },
+      {
+        "key": "D",
+        "text": "传感器外壳"
+      }
+    ],
+    "answer": "B",
+    "explanation": "订阅者订阅感兴趣的主题，并接收服务器转发的相关消息。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "MQTT服务器",
+    "text": "MQTT服务器又称为（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "消息代理或中介"
+      },
+      {
+        "key": "B",
+        "text": "终端屏幕"
+      },
+      {
+        "key": "C",
+        "text": "无线频段"
+      },
+      {
+        "key": "D",
+        "text": "电源模块"
+      }
+    ],
+    "answer": "A",
+    "explanation": "MQTT服务器负责接收和转发消息，也称消息代理或中介。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "主题",
+    "text": "MQTT发布者发送消息时，需要指定（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "主题"
+      },
+      {
+        "key": "B",
+        "text": "显示分辨率"
+      },
+      {
+        "key": "C",
+        "text": "蓝牙名称"
+      },
+      {
+        "key": "D",
+        "text": "网线颜色"
+      }
+    ],
+    "answer": "A",
+    "explanation": "服务器依据消息的主题把消息转发给订阅该主题的客户端。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "MQTT服务器",
+    "text": "MQTT服务器转发消息时主要依据（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "订阅者订阅的主题"
+      },
+      {
+        "key": "B",
+        "text": "设备外壳颜色"
+      },
+      {
+        "key": "C",
+        "text": "客户端屏幕大小"
+      },
+      {
+        "key": "D",
+        "text": "发布者所在教室"
+      }
+    ],
+    "answer": "A",
+    "explanation": "服务器查找订阅了相应主题的客户端，并把消息转发给它们。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "通信关系",
+    "text": "在MQTT通信中，发布者与订阅者（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "必须直接连接"
+      },
+      {
+        "key": "B",
+        "text": "通过服务器间接通信"
+      },
+      {
+        "key": "C",
+        "text": "只能使用同一台设备"
+      },
+      {
+        "key": "D",
+        "text": "不能同时在线"
+      }
+    ],
+    "answer": "B",
+    "explanation": "消息由服务器中转，发送者和接收者无需建立直接连接。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "适用场景",
+    "text": "MQTT较适合的应用场景是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "数据量小、发送频繁、设备数量多"
+      },
+      {
+        "key": "B",
+        "text": "只传输超大视频文件"
+      },
+      {
+        "key": "C",
+        "text": "完全没有网络连接"
+      },
+      {
+        "key": "D",
+        "text": "仅有一台离线计算机"
+      }
+    ],
+    "answer": "A",
+    "explanation": "课堂将MQTT的典型场景概括为“说话少、频率高、设备多”。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "多客户端订阅",
+    "text": "多个客户端订阅同一主题时，一条消息可以（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "只由发布者自己看到"
+      },
+      {
+        "key": "B",
+        "text": "被多个订阅者接收"
+      },
+      {
+        "key": "C",
+        "text": "自动删除所有主题"
+      },
+      {
+        "key": "D",
+        "text": "绕过服务器直达打印机"
+      }
+    ],
+    "answer": "B",
+    "explanation": "MQTT支持多个客户端订阅同一主题，服务器可将一条消息转发给多个接收端。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "SIoT",
+    "text": "SIoT是一款面向校园场景的（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "开源免费的本地MQTT服务器软件"
+      },
+      {
+        "key": "B",
+        "text": "收费的视频编辑器"
+      },
+      {
+        "key": "C",
+        "text": "蓝牙驱动程序"
+      },
+      {
+        "key": "D",
+        "text": "无线网卡"
+      }
+    ],
+    "answer": "A",
+    "explanation": "SIoT可一键搭建本地MQTT服务器，适合教学和开发。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "SIoT",
+    "text": "课堂使用SIoT网页端访问服务器时，材料给出的端口号是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "21"
+      },
+      {
+        "key": "B",
+        "text": "80"
+      },
+      {
+        "key": "C",
+        "text": "8080"
+      },
+      {
+        "key": "D",
+        "text": "65535"
+      }
+    ],
+    "answer": "C",
+    "explanation": "导学案要求在服务器IP地址后加端口号8080访问SIoT。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "服务器部署",
+    "text": "适合局域网内测试开发、通常不能直接连接外网的方式是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "本地部署MQTT服务器"
+      },
+      {
+        "key": "B",
+        "text": "租用远程服务器"
+      },
+      {
+        "key": "C",
+        "text": "公共测试服务器"
+      },
+      {
+        "key": "D",
+        "text": "卫星部署"
+      }
+    ],
+    "answer": "A",
+    "explanation": "本地部署适合局域网中的测试与开发，通常不能直接提供外网连接。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "服务器部署",
+    "text": "免费、能够连接外网但不支持服务器管理的方式是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "本地部署"
+      },
+      {
+        "key": "B",
+        "text": "租用远程服务器"
+      },
+      {
+        "key": "C",
+        "text": "使用公共测试服务器"
+      },
+      {
+        "key": "D",
+        "text": "购买交换机"
+      }
+    ],
+    "answer": "C",
+    "explanation": "公共测试服务器通常免费且可连接外网，但用户不能管理服务器。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "消息流程",
+    "text": "MQTT设备与服务器交换消息前，首先需要（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "建立与服务器的连接"
+      },
+      {
+        "key": "B",
+        "text": "删除所有主题"
+      },
+      {
+        "key": "C",
+        "text": "关闭网络"
+      },
+      {
+        "key": "D",
+        "text": "打印消息"
+      }
+    ],
+    "answer": "A",
+    "explanation": "发布者和订阅者需要先连接MQTT服务器，才能提交订阅或发布消息。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "消息流程",
+    "text": "下列MQTT消息流程排序正确的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "发布消息—设备连接—转发消息—订阅主题"
+      },
+      {
+        "key": "B",
+        "text": "设备连接—订阅请求—发布消息—服务器查找订阅者—服务器转发消息"
+      },
+      {
+        "key": "C",
+        "text": "订阅请求—关闭服务器—发布消息—删除主题"
+      },
+      {
+        "key": "D",
+        "text": "服务器转发—设备连接—查找订阅者—发布消息"
+      }
+    ],
+    "answer": "B",
+    "explanation": "课堂材料给出的流程依次为连接服务器、订阅、发布、查找订阅者和转发消息。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "服务器选择",
+    "text": "学校只在机房局域网内进行MQTT实验，希望免费并可自行管理服务器，较合适的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "使用SIoT本地部署"
+      },
+      {
+        "key": "B",
+        "text": "租用远程服务器"
+      },
+      {
+        "key": "C",
+        "text": "使用不可管理的公共测试服务器"
+      },
+      {
+        "key": "D",
+        "text": "使用NFC代替服务器"
+      }
+    ],
+    "answer": "A",
+    "explanation": "SIoT开源免费，可在本地快速搭建并管理，适合校园局域网实验。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "QoS",
+    "text": "MQTT中QoS机制的主要作用是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "控制消息传递的可靠程度"
+      },
+      {
+        "key": "B",
+        "text": "扩大无线电覆盖范围"
+      },
+      {
+        "key": "C",
+        "text": "修改主题名称"
+      },
+      {
+        "key": "D",
+        "text": "降低屏幕亮度"
+      }
+    ],
+    "answer": "A",
+    "explanation": "QoS用于控制消息传递的可靠程度，以满足成功送达或避免重复等需求。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "综合流程分析",
+    "text": "温度传感器向主题“campus/temperature”发布数据。显示屏要收到数据，必须满足的关键条件是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "显示屏订阅该主题并连接同一MQTT服务器"
+      },
+      {
+        "key": "B",
+        "text": "显示屏与传感器使用网线直接相连"
+      },
+      {
+        "key": "C",
+        "text": "显示屏发布另一个无关主题"
+      },
+      {
+        "key": "D",
+        "text": "传感器关闭网络"
+      }
+    ],
+    "answer": "A",
+    "explanation": "订阅者只有连接服务器并订阅匹配主题，才能收到服务器转发的消息。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "综合方案设计",
+    "text": "校园环境监测系统有大量设备频繁上报少量数据，多个看板需要同时接收。最合理的方案是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "每个传感器与每个看板分别建立直接连接"
+      },
+      {
+        "key": "B",
+        "text": "使用MQTT，传感器按主题发布，服务器把消息转发给订阅该主题的多个看板"
+      },
+      {
+        "key": "C",
+        "text": "每月人工抄录数据"
+      },
+      {
+        "key": "D",
+        "text": "使用NFC让所有设备远距离通信"
+      }
+    ],
+    "answer": "B",
+    "explanation": "MQTT适合设备多、消息小且频繁的场景，发布—订阅机制还能让多个看板共享同一主题的数据。"
+  }
+]

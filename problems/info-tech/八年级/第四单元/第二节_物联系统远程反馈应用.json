@@ -1,0 +1,522 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "远程反馈基本概念",
+    "text": "温度超限远程警示系统相比本地报警的主要优势是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "无需温度传感器"
+      },
+      {
+        "key": "B",
+        "text": "突破空间限制向用户通知异常"
+      },
+      {
+        "key": "C",
+        "text": "完全不需要网络"
+      },
+      {
+        "key": "D",
+        "text": "只能在设备旁查看"
+      }
+    ],
+    "answer": "B",
+    "explanation": "远程反馈利用网络把状态和警示发送给异地用户，突破了本地报警的空间限制。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "物联网三层架构",
+    "text": "温度传感器在远程警示系统中主要属于（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "网络层"
+      },
+      {
+        "key": "B",
+        "text": "应用层"
+      },
+      {
+        "key": "C",
+        "text": "显示层"
+      },
+      {
+        "key": "D",
+        "text": "感知层"
+      }
+    ],
+    "answer": "D",
+    "explanation": "温度传感器负责采集环境数据，属于感知层。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "物联网三层架构",
+    "text": "Wi-Fi和MQTT在远程警示系统中主要承担（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "灯光发光"
+      },
+      {
+        "key": "B",
+        "text": "外壳保护"
+      },
+      {
+        "key": "C",
+        "text": "温度采集"
+      },
+      {
+        "key": "D",
+        "text": "网络传输"
+      }
+    ],
+    "answer": "D",
+    "explanation": "Wi-Fi与MQTT用于把数据从采集端传送到服务器和接收端，体现网络层功能。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "物联网三层架构",
+    "text": "屏幕显示和RGB灯警示主要体现（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "电源层的供电"
+      },
+      {
+        "key": "B",
+        "text": "感知层的数据采集"
+      },
+      {
+        "key": "C",
+        "text": "网络层的路由"
+      },
+      {
+        "key": "D",
+        "text": "应用层的信息反馈"
+      }
+    ],
+    "answer": "D",
+    "explanation": "屏幕和RGB灯把处理结果呈现给用户，属于应用层反馈。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "系统环节",
+    "text": "远程警示系统的整体结构通常包括（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "输入、计算和输出"
+      },
+      {
+        "key": "B",
+        "text": "搜索、下载和安装"
+      },
+      {
+        "key": "C",
+        "text": "登录、注册和退出"
+      },
+      {
+        "key": "D",
+        "text": "拍摄、剪辑和发布"
+      }
+    ],
+    "answer": "A",
+    "explanation": "系统可抽象为数据采集的输入、传输与判断的计算、通知用户的输出。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "MQTT发布者",
+    "text": "温度采集端在MQTT通信中通常充当（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "订阅者"
+      },
+      {
+        "key": "B",
+        "text": "显示器"
+      },
+      {
+        "key": "C",
+        "text": "执行器"
+      },
+      {
+        "key": "D",
+        "text": "发布者"
+      }
+    ],
+    "answer": "D",
+    "explanation": "采集端把温度和报警状态发布到指定主题，因此是发布者。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "MQTT订阅者",
+    "text": "接收温度并显示警示的用户端通常充当（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "传感器"
+      },
+      {
+        "key": "B",
+        "text": "网关电源"
+      },
+      {
+        "key": "C",
+        "text": "发布者"
+      },
+      {
+        "key": "D",
+        "text": "订阅者"
+      }
+    ],
+    "answer": "D",
+    "explanation": "用户端订阅相应主题，从服务器接收温度或报警消息。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "MQTT主题",
+    "text": "MQTT主题的主要作用是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "修改无线频段"
+      },
+      {
+        "key": "B",
+        "text": "区分和匹配不同类型的消息"
+      },
+      {
+        "key": "C",
+        "text": "测量环境温度"
+      },
+      {
+        "key": "D",
+        "text": "驱动RGB灯供电"
+      }
+    ],
+    "answer": "B",
+    "explanation": "发布者向主题发送消息，订阅者通过订阅匹配主题接收消息。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "程序功能",
+    "text": "程序中的`read_temp()`主要用于（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "读取温度数据"
+      },
+      {
+        "key": "B",
+        "text": "连接显示器"
+      },
+      {
+        "key": "C",
+        "text": "发布网页"
+      },
+      {
+        "key": "D",
+        "text": "关闭服务器"
+      }
+    ],
+    "answer": "A",
+    "explanation": "`read_temp()`从温湿度传感器读取当前温度。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "阈值判断",
+    "text": "若程序规定温度大于40℃时`alert=1`，当温度为42℃时`alert`应为（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "1"
+      },
+      {
+        "key": "B",
+        "text": "40"
+      },
+      {
+        "key": "C",
+        "text": "42"
+      },
+      {
+        "key": "D",
+        "text": "0"
+      }
+    ],
+    "answer": "A",
+    "explanation": "42℃大于40℃阈值，因此超温标志应设为1。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "报警反馈",
+    "text": "接收端收到`alert=1`时，示例程序会点亮（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "蓝灯"
+      },
+      {
+        "key": "B",
+        "text": "所有灯全灭"
+      },
+      {
+        "key": "C",
+        "text": "红灯"
+      },
+      {
+        "key": "D",
+        "text": "绿灯"
+      }
+    ],
+    "answer": "C",
+    "explanation": "示例程序用红灯表示超温报警状态。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "正常反馈",
+    "text": "接收端收到`alert=0`时，示例程序会点亮（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "不确定颜色"
+      },
+      {
+        "key": "B",
+        "text": "红灯"
+      },
+      {
+        "key": "C",
+        "text": "绿灯"
+      },
+      {
+        "key": "D",
+        "text": "紫灯"
+      }
+    ],
+    "answer": "C",
+    "explanation": "示例程序用绿灯表示未超温的正常状态。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "数据可视化",
+    "text": "显示一段时间内温度变化趋势，较适合使用（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "折线图"
+      },
+      {
+        "key": "B",
+        "text": "纯文字密码"
+      },
+      {
+        "key": "C",
+        "text": "设备照片"
+      },
+      {
+        "key": "D",
+        "text": "随机颜色块"
+      }
+    ],
+    "answer": "A",
+    "explanation": "折线图能清晰呈现温度随时间变化的趋势。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "数据可视化",
+    "text": "在地图上显示不同采集点的位置，较适合使用（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "流程图"
+      },
+      {
+        "key": "B",
+        "text": "音频波形"
+      },
+      {
+        "key": "C",
+        "text": "登录窗口"
+      },
+      {
+        "key": "D",
+        "text": "地图标注"
+      }
+    ],
+    "answer": "D",
+    "explanation": "地图标注适合展示采集点的地理位置。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "数据流分析",
+    "text": "远程温度警示系统的合理数据流是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "服务器测温—RGB灯发布—传感器显示"
+      },
+      {
+        "key": "B",
+        "text": "用户端发光—网络层测温—应用层供电"
+      },
+      {
+        "key": "C",
+        "text": "接收端采集温度—传感器订阅—服务器报警"
+      },
+      {
+        "key": "D",
+        "text": "传感器采集—发布到主题—服务器转发—订阅端接收并反馈"
+      }
+    ],
+    "answer": "D",
+    "explanation": "数据由传感器采集，发布者上传至主题，服务器转发给订阅端，最终形成远程反馈。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "主题匹配",
+    "text": "发送端向`siot/temp`发布温度，接收端只订阅`siot/alert`。接收端将（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "直接控制发送端传感器"
+      },
+      {
+        "key": "B",
+        "text": "收到温度值和报警值"
+      },
+      {
+        "key": "C",
+        "text": "只能收到报警主题的消息"
+      },
+      {
+        "key": "D",
+        "text": "无需订阅也会收到温度"
+      }
+    ],
+    "answer": "C",
+    "explanation": "MQTT按主题匹配消息，未订阅`siot/temp`就不会收到该主题的温度数据。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "系统联调",
+    "text": "发布端能显示温度，但接收端没有任何消息。优先检查的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "两端网络、MQTT服务器地址和订阅主题是否一致"
+      },
+      {
+        "key": "B",
+        "text": "温度传感器外壳颜色"
+      },
+      {
+        "key": "C",
+        "text": "屏幕字体大小"
+      },
+      {
+        "key": "D",
+        "text": "教室灯光亮度"
+      }
+    ],
+    "answer": "A",
+    "explanation": "远程消息依赖两端联网、连接同一服务器并使用匹配主题。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "远程反馈应用",
+    "text": "下列最能体现物联网远程反馈价值的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "用户站在设备旁观察红灯"
+      },
+      {
+        "key": "B",
+        "text": "每月手工记录一次温度"
+      },
+      {
+        "key": "C",
+        "text": "断开网络后删除全部数据"
+      },
+      {
+        "key": "D",
+        "text": "用户在外地收到家中温度异常通知并及时处理"
+      }
+    ],
+    "answer": "D",
+    "explanation": "异地实时获知异常并采取行动，体现了远程反馈突破空间限制的核心价值。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "综合故障诊断",
+    "text": "发送端持续发布正常，服务器也能看到消息，但接收端始终显示旧数据。最合理的排查顺序是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "只提高报警阈值"
+      },
+      {
+        "key": "B",
+        "text": "删除MQTT服务器"
+      },
+      {
+        "key": "C",
+        "text": "检查接收端是否在线、订阅主题是否正确，再检查消息回调与显示程序"
+      },
+      {
+        "key": "D",
+        "text": "更换温度传感器后停止测试"
+      }
+    ],
+    "answer": "C",
+    "explanation": "服务器已有新消息，问题更可能出在接收端连接、订阅、回调或显示链路。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "综合方案设计",
+    "text": "要提高远程温度警示系统的可靠性，下列方案最合理的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "发生网络中断时永久停止系统"
+      },
+      {
+        "key": "B",
+        "text": "定期采集并发布数据，监测连接状态，设置合理阈值，并测试端到端通知时延"
+      },
+      {
+        "key": "C",
+        "text": "只在启动时发送一次数据"
+      },
+      {
+        "key": "D",
+        "text": "让发布端和订阅端使用不同主题"
+      }
+    ],
+    "answer": "B",
+    "explanation": "可靠系统需要稳定采集、正确传输、合理判断和及时反馈，并通过测试发现延迟或断线问题。"
+  }
+]

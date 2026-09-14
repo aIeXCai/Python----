@@ -27,7 +27,7 @@
 
 - `Problem`、`Submission` 以及 `ExecutionTask.problem` 的现有关联。
 - `problem_id` 作为学生 URL、磁盘目录和执行快照中的稳定业务标识。
-- `Problem.sync_from_disk()` 读取 `problems/ai/problem*` 的兼容流程。
+- `Problem.sync_from_disk()` 优先读取 `problems/ai/programming/problem*`，并兼容旧的 `problems/ai/problem*`。
 - 教师题库列表、详情、磁盘同步和成绩矩阵的现有入口。
 - 学生题目列表、详情、代码运行、正式提交、成绩和统计页面。
 - Runner 使用任务创建时 `test_snapshot`，不在执行时重新读取题目文件。

@@ -1,6 +1,7 @@
 import os
 import glob
 from dataclasses import dataclass, field
+from pathlib import Path
 from django.db import models
 from django.db import transaction
 from django.conf import settings
@@ -535,7 +536,7 @@ class Problem(models.Model):
     注意：测试点文件（input*.txt / output*.txt）仍然存储在文件系统，
     不在数据库中，以兼容现有的 problems/ 目录结构。
     """
-    problem_id = models.CharField('题目ID', max_length=50, unique=True)  # 如 "problem1"
+    problem_id = models.CharField('题目ID', max_length=50, unique=True)
     unit = models.ForeignKey(
         AIUnit, on_delete=models.PROTECT, null=True, blank=True,
         related_name='programming_problems', verbose_name='所属小节',
@@ -588,10 +589,45 @@ class Problem(models.Model):
             raise ValidationError(errors)
 
     def get_problem_dir(self):
-        """获取题目文件目录的绝对路径，ai课在problems/ai/下，信息课在problems/下"""
+        """获取题目文件目录，支持题名目录与稳定题目 ID 的映射。"""
         if self.course == 'ai':
-            return settings.PROBLEMS_DIR / 'ai' / self.problem_id
+            ai_dir = settings.PROBLEMS_DIR / 'ai'
+            programming_dir = ai_dir / 'programming'
+            categorized_dir = programming_dir / self.problem_id
+            legacy_dir = ai_dir / self.problem_id
+            if categorized_dir.exists():
+                return categorized_dir
+            if programming_dir.exists():
+                for candidate in programming_dir.iterdir():
+                    if not candidate.is_dir() or candidate.name.startswith('.'):
+                        continue
+                    metadata = self._read_disk_metadata(candidate)
+                    if metadata.get('problem_id') == self.problem_id:
+                        return candidate
+            # 保留旧路径读取，方便平滑迁移和历史部署回滚。
+            if legacy_dir.exists():
+                return legacy_dir
+            return categorized_dir
         return settings.PROBLEMS_DIR / self.problem_id
+
+    @staticmethod
+    def _read_disk_metadata(problem_dir):
+        """读取可选 metadata.txt，格式为每行一个 key: value。"""
+        metadata_path = Path(problem_dir) / 'metadata.txt'
+        if not metadata_path.exists():
+            return {}
+        try:
+            content = metadata_path.read_text(encoding='utf-8')
+        except UnicodeDecodeError:
+            content = metadata_path.read_text(encoding='gbk')
+        metadata = {}
+        for raw_line in content.splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith('#') or ':' not in line:
+                continue
+            key, value = line.split(':', 1)
+            metadata[key.strip()] = value.strip()
+        return metadata
 
     def get_test_cases(self):
         """
@@ -676,8 +712,9 @@ class Problem(models.Model):
     @classmethod
     def sync_from_disk(cls, actor=None):
         """
-        从 problems/ai/ 和 problems/ 目录同步题目列表到数据库。
-        problems/ai/  → course='ai'
+        从 AI 编程题目录和信息课题目目录同步题目列表到数据库。
+        problems/ai/programming/ → course='ai'，目录名可直接使用题目名称
+        problems/ai/problem*/    → course='ai'（旧目录兼容）
         problems/根目录 → course='info'
         """
         problems_dir = settings.PROBLEMS_DIR
@@ -686,22 +723,27 @@ class Problem(models.Model):
         if not os.path.exists(problems_dir):
             return result
 
-        # 定义扫描规则：(子目录名或None表示根目录, 课程名)
+        # 新 AI 目录优先；旧目录保留兼容。同名题目只处理一次。
         scans = [
-            ('ai', 'ai'),      # problems/ai/ → AI课
-            (None, 'info'),    # problems/根目录 → 信息课
+            (os.path.join('ai', 'programming'), 'ai', True),
+            ('ai', 'ai', False),
+            (None, 'info', False),
         ]
+        seen = set()
 
-        for subdir, course in scans:
+        for subdir, course, allow_named_dirs in scans:
             scan_dir = os.path.join(problems_dir, subdir) if subdir else problems_dir
             if not os.path.exists(scan_dir):
                 continue
 
             for item in os.listdir(scan_dir):
                 item_path = os.path.join(scan_dir, item)
-                if not os.path.isdir(item_path) or not item.startswith('problem'):
+                if not os.path.isdir(item_path) or item.startswith('.'):
+                    continue
+                if not allow_named_dirs and not item.startswith('problem'):
                     continue
 
+                problem_id = item
                 try:
                     def read_text(filename):
                         path = os.path.join(item_path, filename)
@@ -714,16 +756,21 @@ class Problem(models.Model):
                             with open(path, 'r', encoding='gbk') as file:
                                 return file.read()
 
+                    metadata = cls._read_disk_metadata(item_path)
+                    problem_id = (metadata.get('problem_id') or item).strip()
+                    if not problem_id:
+                        raise ValueError('题目 ID 不能为空')
+                    identity = (course, problem_id)
+                    if identity in seen:
+                        continue
+                    seen.add(identity)
+
                     description = read_text('description.txt')
                     template_code = read_text('template.py')
-                    difficulty = ''
-                    for line in read_text('metadata.txt').splitlines():
-                        if line.startswith('difficulty:'):
-                            difficulty = line.split(':', 1)[1].strip()
-                            break
+                    difficulty = metadata.get('difficulty', '')
 
                     defaults = {
-                        'title': item,
+                        'title': (metadata.get('title') or item).strip(),
                         'description': description,
                         'course': course,
                         'difficulty': difficulty,
@@ -731,11 +778,11 @@ class Problem(models.Model):
                     }
                     with transaction.atomic():
                         obj, created = cls.objects.get_or_create(
-                            problem_id=item,
+                            problem_id=problem_id,
                             defaults={**defaults, 'created_by': actor},
                         )
                         if created:
-                            result.created.append(item)
+                            result.created.append(problem_id)
                             continue
                         if (
                             actor is not None
@@ -743,7 +790,7 @@ class Problem(models.Model):
                             and obj.created_by_id != getattr(actor, 'pk', None)
                         ):
                             result.skipped.append({
-                                'problem_id': item,
+                                'problem_id': problem_id,
                                 'reason': '题目属于其他教师或历史共享题，未覆盖内容',
                             })
                             continue
@@ -754,17 +801,17 @@ class Problem(models.Model):
                                 changed_fields.append(model_field)
                         if not changed_fields:
                             result.skipped.append({
-                                'problem_id': item, 'reason': '内容无变化',
+                                'problem_id': problem_id, 'reason': '内容无变化',
                             })
                             continue
                         obj.management_version += 1
                         obj.save(update_fields=[
                             *changed_fields, 'management_version', 'updated_at',
                         ])
-                        result.updated.append(item)
+                        result.updated.append(problem_id)
                 except Exception as exc:
                     result.failed.append({
-                        'problem_id': item,
+                        'problem_id': problem_id,
                         'reason': str(exc) or '读取或写入题目失败',
                     })
 

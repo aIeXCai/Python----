@@ -3,8 +3,8 @@ from .models import Problem, Submission
 from users.grade_levels import GRADE_CHOICES, normalize_grade, normalize_student_identifier
 from users.scopes import is_platform_admin
 
-from .problem_management import publication_data, publication_label
-from .problem_eligibility import cached_test_count, programming_quiz_eligibility
+from .problems.management import publication_data, publication_label
+from .problems.eligibility import cached_test_count, programming_quiz_eligibility
 
 
 class ProblemListSerializer(serializers.ModelSerializer):

@@ -1,0 +1,282 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "互联网互联与互通",
+    "text": "覆盖一间计算机教室的网络通常属于（　　）",
+    "options": [
+      { "key": "A", "text": "局域网" },
+      { "key": "B", "text": "城域网" },
+      { "key": "C", "text": "广域网" },
+      { "key": "D", "text": "卫星网" }
+    ],
+    "answer": "A",
+    "explanation": "局域网覆盖家庭、教室或校园等较小范围。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "互联网互联与互通",
+    "text": "能连接城市内多个局域网的网络是（　　）",
+    "options": [
+      { "key": "A", "text": "个人网" },
+      { "key": "B", "text": "城域网" },
+      { "key": "C", "text": "家庭网" },
+      { "key": "D", "text": "蓝牙网" }
+    ],
+    "answer": "B",
+    "explanation": "城域网的覆盖范围通常是一座城市。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "互联网互联与互通",
+    "text": "跨城市甚至跨国家连接的网络通常称为（　　）",
+    "options": [
+      { "key": "A", "text": "局域网" },
+      { "key": "B", "text": "城域网" },
+      { "key": "C", "text": "广域网" },
+      { "key": "D", "text": "校园网" }
+    ],
+    "answer": "C",
+    "explanation": "广域网覆盖范围大，可跨城市和国家连接。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "网络设备",
+    "text": "校园网中连接不同网络并转发数据的关键设备是（　　）",
+    "options": [
+      { "key": "A", "text": "键盘" },
+      { "key": "B", "text": "路由器" },
+      { "key": "C", "text": "打印机" },
+      { "key": "D", "text": "显示器" }
+    ],
+    "answer": "B",
+    "explanation": "路由器的核心功能是路由选择与数据转发。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "网络连接方式",
+    "text": "下列关于有线连接的描述，正确的是（　　）",
+    "options": [
+      { "key": "A", "text": "一般较稳定" },
+      { "key": "B", "text": "无需布线" },
+      { "key": "C", "text": "一定比无线便捷" },
+      { "key": "D", "text": "不需要传输介质" }
+    ],
+    "answer": "A",
+    "explanation": "有线连接通常更稳定，但布线操作相对烦琐。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "网络连接方式",
+    "text": "下列哪种方式适合手机在教室内便捷接入校园网（　　）",
+    "options": [
+      { "key": "A", "text": "Wi-Fi" },
+      { "key": "B", "text": "光纤直接手机" },
+      { "key": "C", "text": "双绞线焊接" },
+      { "key": "D", "text": "移动硬盘" }
+    ],
+    "answer": "A",
+    "explanation": "Wi-Fi属于无线连接，适合移动终端便捷接入。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "网络连接方式",
+    "text": "需要为校园主干网提供高速长距离传输，宜选择（　　）",
+    "options": [
+      { "key": "A", "text": "蓝牙" },
+      { "key": "B", "text": "光纤" },
+      { "key": "C", "text": "红外线" },
+      { "key": "D", "text": "U盘" }
+    ],
+    "answer": "B",
+    "explanation": "光纤速度快、稳定性好，适合长距离主干网。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "IP地址",
+    "text": "IP地址在网络中的主要作用是（　　）",
+    "options": [
+      { "key": "A", "text": "标识网络中的设备" },
+      { "key": "B", "text": "提高屏幕亮度" },
+      { "key": "C", "text": "压缩图片" },
+      { "key": "D", "text": "修改文件名" }
+    ],
+    "answer": "A",
+    "explanation": "IP地址是为区分网络中设备而设置的数字标识。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "IP地址",
+    "text": "IPv4地址通常采用的表示方法是（　　）",
+    "options": [
+      { "key": "A", "text": "点分十进制" },
+      { "key": "B", "text": "纯字母" },
+      { "key": "C", "text": "图形编码" },
+      { "key": "D", "text": "条形码" }
+    ],
+    "answer": "A",
+    "explanation": "IPv4常由4个用小数点分隔的十进制数表示。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "IP地址",
+    "text": "IPv4地址中每个十进制数的取值范围是（　　）",
+    "options": [
+      { "key": "A", "text": "0～15" },
+      { "key": "B", "text": "0～99" },
+      { "key": "C", "text": "0～255" },
+      { "key": "D", "text": "1～999" }
+    ],
+    "answer": "C",
+    "explanation": "IPv4每一部分由8位二进制数表示，范围为0～255。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "IP地址",
+    "text": "IPv4地址由哪两部分组成（　　）",
+    "options": [
+      { "key": "A", "text": "用户名和密码" },
+      { "key": "B", "text": "网络号和主机号" },
+      { "key": "C", "text": "文件名和扩展名" },
+      { "key": "D", "text": "域名和路径" }
+    ],
+    "answer": "B",
+    "explanation": "IP地址的编码意义可概括为网络号加主机号。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "网络命令",
+    "text": "Windows中查看本机IP地址和默认网关可使用（　　）",
+    "options": [
+      { "key": "A", "text": "ipconfig" },
+      { "key": "B", "text": "paint" },
+      { "key": "C", "text": "copy" },
+      { "key": "D", "text": "shutdown" }
+    ],
+    "answer": "A",
+    "explanation": "ipconfig命令用于查看本机网络配置信息。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "网络命令",
+    "text": "用于测试本机与目标设备是否连通的命令是（　　）",
+    "options": [
+      { "key": "A", "text": "ping" },
+      { "key": "B", "text": "format" },
+      { "key": "C", "text": "rename" },
+      { "key": "D", "text": "dir" }
+    ],
+    "answer": "A",
+    "explanation": "ping命令可测试到目标IP地址或域名的网络连通性。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "IPv6",
+    "text": "IPv6地址的长度是（　　）",
+    "options": [
+      { "key": "A", "text": "16位" },
+      { "key": "B", "text": "32位" },
+      { "key": "C", "text": "64位" },
+      { "key": "D", "text": "128位" }
+    ],
+    "answer": "D",
+    "explanation": "IPv6使用128位地址，能提供远多于IPv4的地址。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "网络连接方式",
+    "text": "两栋教学楼相距500米，要求高速、稳定且抗干扰，最合适的传输介质是（　　）",
+    "options": [
+      { "key": "A", "text": "蓝牙" },
+      { "key": "B", "text": "Wi-Fi" },
+      { "key": "C", "text": "双绞线" },
+      { "key": "D", "text": "光纤" }
+    ],
+    "answer": "D",
+    "explanation": "光纤具有高速、远距离和抗干扰的特点，适合楼宇间主干连接。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "IP地址",
+    "text": "同一局域网内的两台计算机，其IPv4地址通常应当（　　）",
+    "options": [
+      { "key": "A", "text": "网络号相同，主机号不同" },
+      { "key": "B", "text": "网络号不同，主机号相同" },
+      { "key": "C", "text": "地址必须完全相同" },
+      { "key": "D", "text": "只能使用IPv6" }
+    ],
+    "answer": "A",
+    "explanation": "同一局域网的设备通常共享网络标识，并以不同主机标识相互区分。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "网络故障排查",
+    "text": "ping默认网关失败，最可能说明（　　）",
+    "options": [
+      { "key": "A", "text": "本机到路由器的本地连接存在问题" },
+      { "key": "B", "text": "屏幕分辨率过低" },
+      { "key": "C", "text": "文档没有保存" },
+      { "key": "D", "text": "键盘已损坏" }
+    ],
+    "answer": "A",
+    "explanation": "默认网关通常是连接本地网络的路由器，ping失败应先检查本地连接。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "IPv6",
+    "text": "推广IPv6主要是为了解决（　　）",
+    "options": [
+      { "key": "A", "text": "IPv4地址资源不足" },
+      { "key": "B", "text": "键盘输入速度慢" },
+      { "key": "C", "text": "显示器色彩不足" },
+      { "key": "D", "text": "网页文字过多" }
+    ],
+    "answer": "A",
+    "explanation": "IPv6的128位地址空间可满足大量联网设备的地址需求。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "网络故障排查",
+    "text": "用IP地址可以ping通外网，但用域名ping不通，最可能的故障是（　　）",
+    "options": [
+      { "key": "A", "text": "DNS域名解析异常" },
+      { "key": "B", "text": "显示器断电" },
+      { "key": "C", "text": "本机完全未接入网络" },
+      { "key": "D", "text": "鼠标灵敏度过低" }
+    ],
+    "answer": "A",
+    "explanation": "IP地址能连通说明外网路径基本正常，域名失败应重点检查DNS解析。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "校园网络规划",
+    "text": "为保证固定机房稳定上网，同时方便师生手机移动接入，较合理的方案是（　　）",
+    "options": [
+      { "key": "A", "text": "机房采用有线连接，公共区域部署Wi-Fi" },
+      { "key": "B", "text": "所有设备只用蓝牙" },
+      { "key": "C", "text": "所有设备都不设置IP地址" },
+      { "key": "D", "text": "取消路由器，让各网络自行通信" }
+    ],
+    "answer": "A",
+    "explanation": "有线连接适合对稳定性要求高的固定设备，Wi-Fi适合移动终端，组合部署能兼顾稳定与便捷。"
+  }
+]

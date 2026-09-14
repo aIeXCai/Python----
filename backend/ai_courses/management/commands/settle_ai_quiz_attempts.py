@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 
 from execution.queue import recover_expired_tasks
 
-from ai_courses.quiz_settlement_services import settle_due_attempts
+from ai_courses.quizzes.settlement_services import settle_due_attempts
 
 
 class Command(BaseCommand):

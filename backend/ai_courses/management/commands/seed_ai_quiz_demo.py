@@ -4,9 +4,9 @@ from django.db import transaction
 from users.models import CustomUser
 
 from ai_courses.models import AIChoiceQuestion, AIQuizSession, AIUnit
-from ai_courses.quiz_attempt_services import start_or_resume_attempt
-from ai_courses.quiz_services import close_quiz, create_quiz, publish_quiz
-from ai_courses.quiz_settlement_services import (
+from ai_courses.quizzes.attempt_services import start_or_resume_attempt
+from ai_courses.quizzes.services import close_quiz, create_quiz, publish_quiz
+from ai_courses.quizzes.settlement_services import (
     request_settlement,
     request_system_settlement,
 )

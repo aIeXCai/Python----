@@ -147,8 +147,8 @@ class ChatSendView(APIView):
         # AI 混合小测：选择题阶段必须禁用助手；编程题上下文从
         # 服务端 attempt 快照取题干，不信任客户端传来的题目内容。
         from ai_courses.models import AIQuizAttempt
-        from ai_courses.quiz_execution_services import programming_item_payload
-        from ai_courses.quiz_services import AIQuizServiceError
+        from ai_courses.quizzes.execution_services import programming_item_payload
+        from ai_courses.quizzes.services import AIQuizServiceError
         active_ai_attempts = AIQuizAttempt.objects.filter(
             user=user, current_marker=True, status=AIQuizAttempt.STATUS_IN_PROGRESS,
         )

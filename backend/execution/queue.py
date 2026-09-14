@@ -352,7 +352,7 @@ def complete_task(*, task_id, runner_id, lease_token, result):
 
 def _maybe_finalize_quiz(task_id):
     try:
-        from ai_courses.quiz_settlement_services import maybe_finalize_attempt
+        from ai_courses.quizzes.settlement_services import maybe_finalize_attempt
         maybe_finalize_attempt(task_id)
     except Exception:
         logger.exception('AI quiz settlement hook failed', extra={'execution_task_id': task_id})

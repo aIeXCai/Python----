@@ -1,0 +1,282 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "网络协议",
+    "text": "网络协议是指（　　）",
+    "options": [
+      { "key": "A", "text": "网络设备通信和数据交换的标准与规则" },
+      { "key": "B", "text": "电脑的外观设计" },
+      { "key": "C", "text": "文档的排版格式" },
+      { "key": "D", "text": "用户的聊天内容" }
+    ],
+    "answer": "A",
+    "explanation": "网络协议规定通信方式、数据传输方式和数据格式等。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "网络协议",
+    "text": "不同设备能够正确通信，关键是它们需要（　　）",
+    "options": [
+      { "key": "A", "text": "遵循共同的协议" },
+      { "key": "B", "text": "使用同一品牌" },
+      { "key": "C", "text": "拥有相同外壳" },
+      { "key": "D", "text": "安装同一款壁纸" }
+    ],
+    "answer": "A",
+    "explanation": "共同的规则能让不同设备正确理解和交换数据。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "TCP/IP协议族",
+    "text": "互联网最基础、最核心的通信协议族是（　　）",
+    "options": [
+      { "key": "A", "text": "TCP/IP" },
+      { "key": "B", "text": "JPEG" },
+      { "key": "C", "text": "MP3" },
+      { "key": "D", "text": "HTML文档" }
+    ],
+    "answer": "A",
+    "explanation": "TCP/IP由多个相互协作的子协议构成，是互联网的核心通信协议族。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "TCP协议",
+    "text": "TCP的中文名称是（　　）",
+    "options": [
+      { "key": "A", "text": "传输控制协议" },
+      { "key": "B", "text": "超文本传输协议" },
+      { "key": "C", "text": "简单邮件传输协议" },
+      { "key": "D", "text": "邮局协议" }
+    ],
+    "answer": "A",
+    "explanation": "TCP即Transmission Control Protocol，中文为传输控制协议。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "TCP协议",
+    "text": "TCP协议的主要作用是（　　）",
+    "options": [
+      { "key": "A", "text": "保证数据完整、有序、可靠传输" },
+      { "key": "B", "text": "为设备分配外观颜色" },
+      { "key": "C", "text": "为网页选择字体" },
+      { "key": "D", "text": "保存用户密码" }
+    ],
+    "answer": "A",
+    "explanation": "TCP像可靠的“运输队”，关注数据的完整性、顺序和可靠到达。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "IP协议",
+    "text": "IP的中文名称是（　　）",
+    "options": [
+      { "key": "A", "text": "网际协议" },
+      { "key": "B", "text": "邮局协议" },
+      { "key": "C", "text": "简单邮件传输协议" },
+      { "key": "D", "text": "超文本传输协议" }
+    ],
+    "answer": "A",
+    "explanation": "IP即Internet Protocol，主要负责网络寻址。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "IP协议",
+    "text": "IP协议的主要作用是（　　）",
+    "options": [
+      { "key": "A", "text": "确定设备地址并寻找传输路径" },
+      { "key": "B", "text": "保证邮件主题正确" },
+      { "key": "C", "text": "编辑视频" },
+      { "key": "D", "text": "打印数据包" }
+    ],
+    "answer": "A",
+    "explanation": "IP像“导航员”，负责寻址和路径选择。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "TCP/IP分层",
+    "text": "TCP/IP模型中位于最顶层的是（　　）",
+    "options": [
+      { "key": "A", "text": "应用层" },
+      { "key": "B", "text": "传输层" },
+      { "key": "C", "text": "网络层" },
+      { "key": "D", "text": "网络接口层" }
+    ],
+    "answer": "A",
+    "explanation": "应用层位于最顶层，面向应用程序和用户需求。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "TCP/IP分层",
+    "text": "HTTP、SMTP和POP3属于TCP/IP模型的（　　）",
+    "options": [
+      { "key": "A", "text": "应用层" },
+      { "key": "B", "text": "传输层" },
+      { "key": "C", "text": "网络层" },
+      { "key": "D", "text": "网络接口层" }
+    ],
+    "answer": "A",
+    "explanation": "HTTP、SMTP、POP3和FTP等都是应用层协议。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "TCP/IP分层",
+    "text": "TCP和UDP属于TCP/IP模型的（　　）",
+    "options": [
+      { "key": "A", "text": "传输层" },
+      { "key": "B", "text": "应用层" },
+      { "key": "C", "text": "网络层" },
+      { "key": "D", "text": "网络接口层" }
+    ],
+    "answer": "A",
+    "explanation": "传输层负责端对端的数据传送，常见协议有TCP和UDP。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "TCP/IP分层",
+    "text": "IP协议属于TCP/IP模型的（　　）",
+    "options": [
+      { "key": "A", "text": "网络层" },
+      { "key": "B", "text": "应用层" },
+      { "key": "C", "text": "传输层" },
+      { "key": "D", "text": "网络接口层" }
+    ],
+    "answer": "A",
+    "explanation": "网络层负责寻址与路径规划，其核心协议是IP。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "TCP/IP分层",
+    "text": "通过网线或Wi-Fi实际传输数据的是（　　）",
+    "options": [
+      { "key": "A", "text": "网络接口层" },
+      { "key": "B", "text": "应用层" },
+      { "key": "C", "text": "邮件层" },
+      { "key": "D", "text": "文档层" }
+    ],
+    "answer": "A",
+    "explanation": "网络接口层位于底层，通过物理介质完成数据传输。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "TCP/IP分层",
+    "text": "TCP/IP模型从上到下的正确顺序是（　　）",
+    "options": [
+      { "key": "A", "text": "应用层、传输层、网络层、网络接口层" },
+      { "key": "B", "text": "网络层、应用层、传输层、接口层" },
+      { "key": "C", "text": "传输层、网络层、应用层、接口层" },
+      { "key": "D", "text": "接口层、应用层、网络层、传输层" }
+    ],
+    "answer": "A",
+    "explanation": "TCP/IP采用四层结构：应用层、传输层、网络层和网络接口层。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "UDP协议",
+    "text": "与TCP相比，UDP的典型特点是（　　）",
+    "options": [
+      { "key": "A", "text": "无连接、速度快，但不保证数据完整到达" },
+      { "key": "B", "text": "必然保证每个数据包重传" },
+      { "key": "C", "text": "只用于显示图片" },
+      { "key": "D", "text": "负责分配域名" }
+    ],
+    "answer": "A",
+    "explanation": "UDP追求较低延迟，不提供TCP那样的可靠传输保障。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "TCP与UDP",
+    "text": "下列应用中通常更适合使用TCP的是（　　）",
+    "options": [
+      { "key": "A", "text": "传输不能损坏的文件" },
+      { "key": "B", "text": "实时视频通话" },
+      { "key": "C", "text": "只显示本地时钟" },
+      { "key": "D", "text": "修改屏幕亮度" }
+    ],
+    "answer": "A",
+    "explanation": "文件传输强调完整和准确，TCP能提供可靠、有序传输。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "TCP与UDP",
+    "text": "对少量数据丢失容忍、更重视实时性的视频通话，通常更适合（　　）",
+    "options": [
+      { "key": "A", "text": "UDP" },
+      { "key": "B", "text": "POP3" },
+      { "key": "C", "text": "HTML" },
+      { "key": "D", "text": "静态IP地址" }
+    ],
+    "answer": "A",
+    "explanation": "UDP开销较小、延迟较低，适合对实时性要求高的场景。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "TCP/IP分层",
+    "text": "数据到达手机后，能根据端口将聊天数据交给即时通信软件，这主要是（　　）的作用",
+    "options": [
+      { "key": "A", "text": "传输层" },
+      { "key": "B", "text": "网络层" },
+      { "key": "C", "text": "网络接口层" },
+      { "key": "D", "text": "电源管理层" }
+    ],
+    "answer": "A",
+    "explanation": "传输层通过端口区分应用程序，完成端对端数据传送。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "TCP/IP分层",
+    "text": "将输入的网址或消息转换为相应应用协议的数据格式，属于（　　）",
+    "options": [
+      { "key": "A", "text": "应用层" },
+      { "key": "B", "text": "网络层" },
+      { "key": "C", "text": "网络接口层" },
+      { "key": "D", "text": "显示层" }
+    ],
+    "answer": "A",
+    "explanation": "应用层将用户需求和数据封装为应用协议可识别的格式。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "数据分包传输",
+    "text": "6000字节数据按每包1024字节分包，至少需要的数据包数是（　　）",
+    "options": [
+      { "key": "A", "text": "5个" },
+      { "key": "B", "text": "6个" },
+      { "key": "C", "text": "7个" },
+      { "key": "D", "text": "8个" }
+    ],
+    "answer": "B",
+    "explanation": "6000÷1024约为5.86，前5包不足以容纳全部数据，因此需要6个包。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "TCP/IP传输过程",
+    "text": "发送一段即时消息时，下列对各层分工的描述正确的是（　　）",
+    "options": [
+      { "key": "A", "text": "应用层准备数据格式，传输层管理端对端传送，网络层负责IP寻址，接口层通过物理介质传输" },
+      { "key": "B", "text": "应用层规划IP路径，网络层编辑邮件正文" },
+      { "key": "C", "text": "传输层负责Wi-Fi无线电波，接口层负责HTTP格式" },
+      { "key": "D", "text": "所有功能均由IP协议单独完成" }
+    ],
+    "answer": "A",
+    "explanation": "TCP/IP四层各司其职并协同工作，分层能将复杂的通信过程拆分为清晰任务。"
+  }
+]

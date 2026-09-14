@@ -1,0 +1,282 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "RFID基本原理",
+    "text": "RFID技术主要利用（　　）进行信息传输",
+    "options": [
+      { "key": "A", "text": "无线电波" },
+      { "key": "B", "text": "纸质表格" },
+      { "key": "C", "text": "机械齿轮" },
+      { "key": "D", "text": "水流" }
+    ],
+    "answer": "A",
+    "explanation": "RFID是一种利用无线电波进行信息传输和自动识别的技术。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "RFID基本原理",
+    "text": "RFID识别目标时通常（　　）",
+    "options": [
+      { "key": "A", "text": "必须把标签插入读卡器" },
+      { "key": "B", "text": "必须看清标签上的文字" },
+      { "key": "C", "text": "无需直接接触目标" },
+      { "key": "D", "text": "只能依靠人工输入" }
+    ],
+    "answer": "C",
+    "explanation": "RFID通过无线电波自动识别标签，不需要标签与读卡器直接接触。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "RFID系统组成",
+    "text": "一个完整的RFID系统通常由电子标签、读卡器和（　　）组成",
+    "options": [
+      { "key": "A", "text": "打印机" },
+      { "key": "B", "text": "管理系统" },
+      { "key": "C", "text": "红外灯" },
+      { "key": "D", "text": "纸质地图" }
+    ],
+    "answer": "B",
+    "explanation": "课件将完整RFID系统分为电子标签、读卡器和管理系统三个部分。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "RFID电子标签",
+    "text": "RFID电子标签中用于保存信息的部分是（　　）",
+    "options": [
+      { "key": "A", "text": "纸质外壳" },
+      { "key": "B", "text": "显示屏" },
+      { "key": "C", "text": "机械开关" },
+      { "key": "D", "text": "微型芯片中的存储单元阵列" }
+    ],
+    "answer": "D",
+    "explanation": "RFID电子标签内含微型芯片，芯片中的存储单元阵列用于记录标签信息。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "RFID电子标签",
+    "text": "RFID电子标签接收到读卡器发出的无线信号后，会（　　）",
+    "options": [
+      { "key": "A", "text": "发送自身存储的信息" },
+      { "key": "B", "text": "自动打印纸质门票" },
+      { "key": "C", "text": "关闭管理系统" },
+      { "key": "D", "text": "改变游客位置" }
+    ],
+    "answer": "A",
+    "explanation": "读卡器的无线信号激活或访问电子标签后，标签会把存储的信息发送给读卡器。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "RFID技术特性",
+    "text": "读卡器能同时识别多个游客手环，体现了RFID（　　）",
+    "options": [
+      { "key": "A", "text": "只能逐个接触读取" },
+      { "key": "B", "text": "批量快速读取" },
+      { "key": "C", "text": "不能修改数据" },
+      { "key": "D", "text": "必须人工抄录" }
+    ],
+    "answer": "B",
+    "explanation": "RFID可以批量、快速读取多个标签，适合人流密集或物品数量较多的动态场景。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "RFID技术特性",
+    "text": "RFID标签中的部分数据可以反复修改，体现了（　　）",
+    "options": [
+      { "key": "A", "text": "信号不能传播" },
+      { "key": "B", "text": "标签只能读取一次" },
+      { "key": "C", "text": "数据动态可写" },
+      { "key": "D", "text": "必须更换芯片" }
+    ],
+    "answer": "C",
+    "explanation": "数据动态可写是RFID的重要特点，可根据权限实时修改标签中的相关数据。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "RFID技术特性",
+    "text": "防水、耐高温、抗污染的RFID标签体现了（　　）",
+    "options": [
+      { "key": "A", "text": "识别距离固定" },
+      { "key": "B", "text": "只能室内使用" },
+      { "key": "C", "text": "数据容量为零" },
+      { "key": "D", "text": "环境适应性强" }
+    ],
+    "answer": "D",
+    "explanation": "具有防水、耐高温和抗污染外壳的标签能适应多种工作环境，体现了较强环境适应性。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "RFID应用限制",
+    "text": "RFID标签贴在金属表面时可能难以读取，主要原因是（　　）",
+    "options": [
+      { "key": "A", "text": "金属会反射或干扰无线电波" },
+      { "key": "B", "text": "金属会删除管理系统" },
+      { "key": "C", "text": "标签会变成二维码" },
+      { "key": "D", "text": "读卡器只能读取纸张" }
+    ],
+    "answer": "A",
+    "explanation": "金属会反射无线电波并造成屏蔽或衰减，可能使RFID标签无法正常激活和通信。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "RFID定位",
+    "text": "电子围栏是基于定位技术设置的（　　）",
+    "options": [
+      { "key": "A", "text": "实体铁栏杆" },
+      { "key": "B", "text": "虚拟边界" },
+      { "key": "C", "text": "纸质警示牌" },
+      { "key": "D", "text": "普通地图图例" }
+    ],
+    "answer": "B",
+    "explanation": "电子围栏是在系统中设定的虚拟边界，人员进入或离开指定区域时可触发相应反应。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "RFID定位",
+    "text": "RFID定位系统中，读卡器与电子标签之间的通信属于（　　）环节",
+    "options": [
+      { "key": "A", "text": "打印地图" },
+      { "key": "B", "text": "人工登记" },
+      { "key": "C", "text": "信号交互" },
+      { "key": "D", "text": "图像美化" }
+    ],
+    "answer": "C",
+    "explanation": "读卡器和电子标签通过无线电波交换信息，这一过程构成定位系统的信号交互基础。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "RFID定位",
+    "text": "当游客进入危险区域后，系统向手环发送震动提醒，属于（　　）",
+    "options": [
+      { "key": "A", "text": "标签生产" },
+      { "key": "B", "text": "纸质导航" },
+      { "key": "C", "text": "数据删除" },
+      { "key": "D", "text": "智能预警" }
+    ],
+    "answer": "D",
+    "explanation": "系统根据游客位置判断其进入警示区域，并自动触发手环震动，体现智能预警。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "RFID安全",
+    "text": "未经允许追踪游客的移动路径和停留时间，主要会造成（　　）",
+    "options": [
+      { "key": "A", "text": "隐私泄露" },
+      { "key": "B", "text": "标签防水能力增强" },
+      { "key": "C", "text": "识别速度提高" },
+      { "key": "D", "text": "系统成本降低" }
+    ],
+    "answer": "A",
+    "explanation": "移动路径和停留时间属于个人行为数据，未经授权收集、使用或泄露会侵犯游客隐私。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "RFID应用",
+    "text": "下列哪项属于RFID技术的典型应用？（　　）",
+    "options": [
+      { "key": "A", "text": "只用纸笔统计仓库货物" },
+      { "key": "B", "text": "通过电子标签管理供应链中的货物" },
+      { "key": "C", "text": "用普通放大镜测量温度" },
+      { "key": "D", "text": "关闭所有通信设备" }
+    ],
+    "answer": "B",
+    "explanation": "RFID常用于零售与供应链管理，可快速识别和追踪带有电子标签的货物。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "RFID系统组成",
+    "text": "景区读卡器已成功读取游客手环编号，但无法判断该游客是否有权限进入。系统最可能缺少的是（　　）",
+    "options": [
+      { "key": "A", "text": "更鲜艳的手环颜色" },
+      { "key": "B", "text": "更大的标签外壳" },
+      { "key": "C", "text": "保存并核验游客权限的管理系统" },
+      { "key": "D", "text": "纸质景区地图" }
+    ],
+    "answer": "C",
+    "explanation": "标签提供编号、读卡器读取编号，是否有权限需要管理系统查询记录并作出判断。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "RFID定位",
+    "text": "RFID电子围栏实现越界预警的一般流程是（　　）",
+    "options": [
+      { "key": "A", "text": "读取标签信号、估算位置、判断是否越界、触发预警" },
+      { "key": "B", "text": "触发预警、删除标签、估算位置、读取信号" },
+      { "key": "C", "text": "打印地图、关闭读卡器、记录天气、触发预警" },
+      { "key": "D", "text": "先认定越界，再随机读取一个标签" }
+    ],
+    "answer": "A",
+    "explanation": "系统先通过标签与读卡器完成信号交互，再进行位置估算和边界判断，确认越界后才触发预警。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "RFID安全",
+    "text": "为防止未授权设备修改RFID标签内容，最合适的措施是（　　）",
+    "options": [
+      { "key": "A", "text": "取消全部标签编号" },
+      { "key": "B", "text": "设置写入权限和密码验证" },
+      { "key": "C", "text": "把标签永久暴露在室外" },
+      { "key": "D", "text": "允许任何读卡器自由写入" }
+    ],
+    "answer": "B",
+    "explanation": "通过权限控制和写入密码验证，可限制只有授权设备才能修改标签数据，降低篡改风险。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "RFID抗干扰",
+    "text": "仓库中的RFID标签必须贴在金属货架上，下列改进方案最合适的是（　　）",
+    "options": [
+      { "key": "A", "text": "把所有读卡器关闭" },
+      { "key": "B", "text": "改用普通纸质标签且不记录数据" },
+      { "key": "C", "text": "提高货架温度" },
+      { "key": "D", "text": "使用抗金属标签，并增加吸波材料或隔离层" }
+    ],
+    "answer": "D",
+    "explanation": "抗金属标签配合吸波材料或隔离层能减弱金属对无线电波的反射和屏蔽，提高读取可靠性。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "RFID系统设计",
+    "text": "景区希望同时实现游客定位、危险区域提醒和隐私保护，下列方案最合理的是（　　）",
+    "options": [
+      { "key": "A", "text": "公开每名游客的姓名和实时位置" },
+      { "key": "B", "text": "使用唯一标签编号定位，管理系统按权限访问数据，越界时只向相关人员预警" },
+      { "key": "C", "text": "所有游客共用一个标签编号" },
+      { "key": "D", "text": "只记录位置，不设置任何访问控制" }
+    ],
+    "answer": "B",
+    "explanation": "唯一编号支持定位，权限控制限制数据访问，按需预警避免无关人员接触位置数据，兼顾功能和隐私。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "RFID故障分析",
+    "text": "某电子围栏在金属设施附近频繁漏报，但离开金属区域后恢复正常。最合理的判断与处理是（　　）",
+    "options": [
+      { "key": "A", "text": "管理系统一定被删除，应重建全部游客档案" },
+      { "key": "B", "text": "游客一定未佩戴手环，无需检测设备" },
+      { "key": "C", "text": "金属可能使信号衰减，应调整读卡器位置或使用抗金属标签" },
+      { "key": "D", "text": "电子围栏不需要无线信号，故障与环境无关" }
+    ],
+    "answer": "C",
+    "explanation": "故障与金属区域高度相关，说明金属反射或屏蔽无线电波的可能性较大，应优先改善标签、天线和读卡器的部署。"
+  }
+]

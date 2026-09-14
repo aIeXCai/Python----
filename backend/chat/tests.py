@@ -73,7 +73,7 @@ class QuizChatGuardTest(APITestCase):
         self.assertNotIn('正确答案', prompt)
         self.assertNotIn('隐藏测试点', prompt.split('### 学生当前代码')[0])
 
-    @patch('ai_courses.quiz_execution_services.programming_item_payload')
+    @patch('ai_courses.quizzes.execution_services.programming_item_payload')
     def test_programming_quiz_context_does_not_replace_chat_session_id(self, payload):
         teacher = CustomUser.objects.create_user(
             username='ai-chat-session-teacher', password='test', role='teacher', managed_grade='七年级',
