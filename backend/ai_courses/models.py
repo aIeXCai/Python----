@@ -589,21 +589,37 @@ class Problem(models.Model):
             raise ValidationError(errors)
 
     def get_problem_dir(self):
-        """获取题目文件目录，支持题名目录与稳定题目 ID 的映射。"""
+        """获取题目文件目录，支持年级分层、题名目录与稳定题目 ID 映射。"""
         if self.course == 'ai':
             ai_dir = settings.PROBLEMS_DIR / 'ai'
             programming_dir = ai_dir / 'programming'
-            categorized_dir = programming_dir / self.problem_id
+            categorized_dir = (
+                programming_dir / self.grade_tag / self.problem_id
+                if self.grade_tag else programming_dir / self.problem_id
+            )
             legacy_dir = ai_dir / self.problem_id
             if categorized_dir.exists():
                 return categorized_dir
             if programming_dir.exists():
-                for candidate in programming_dir.iterdir():
-                    if not candidate.is_dir() or candidate.name.startswith('.'):
+                search_roots = []
+                if self.grade_tag:
+                    search_roots.append(programming_dir / self.grade_tag)
+                search_roots.extend(
+                    programming_dir / grade
+                    for grade in CANONICAL_GRADES
+                    if grade != self.grade_tag
+                )
+                # 最后检查迁移前的 programming/题目 平铺结构。
+                search_roots.append(programming_dir)
+                for search_root in search_roots:
+                    if not search_root.exists():
                         continue
-                    metadata = self._read_disk_metadata(candidate)
-                    if metadata.get('problem_id') == self.problem_id:
-                        return candidate
+                    for candidate in search_root.iterdir():
+                        if not candidate.is_dir() or candidate.name.startswith('.'):
+                            continue
+                        metadata = self._read_disk_metadata(candidate)
+                        if metadata.get('problem_id') == self.problem_id:
+                            return candidate
             # 保留旧路径读取，方便平滑迁移和历史部署回滚。
             if legacy_dir.exists():
                 return legacy_dir
@@ -713,7 +729,8 @@ class Problem(models.Model):
     def sync_from_disk(cls, actor=None):
         """
         从 AI 编程题目录和信息课题目目录同步题目列表到数据库。
-        problems/ai/programming/ → course='ai'，目录名可直接使用题目名称
+        problems/ai/programming/<年级>/ → course='ai'，并自动设置适用年级
+        problems/ai/programming/ → course='ai'（兼容旧的平铺结构）
         problems/ai/problem*/    → course='ai'（旧目录兼容）
         problems/根目录 → course='info'
         """
@@ -736,13 +753,22 @@ class Problem(models.Model):
             if not os.path.exists(scan_dir):
                 continue
 
+            candidates = []
             for item in os.listdir(scan_dir):
                 item_path = os.path.join(scan_dir, item)
                 if not os.path.isdir(item_path) or item.startswith('.'):
                     continue
+                if allow_named_dirs and course == 'ai' and item in CANONICAL_GRADES:
+                    for problem_name in os.listdir(item_path):
+                        problem_path = os.path.join(item_path, problem_name)
+                        if os.path.isdir(problem_path) and not problem_name.startswith('.'):
+                            candidates.append((problem_name, problem_path, item))
+                    continue
                 if not allow_named_dirs and not item.startswith('problem'):
                     continue
+                candidates.append((item, item_path, ''))
 
+            for item, item_path, directory_grade in candidates:
                 problem_id = item
                 try:
                     def read_text(filename):
@@ -776,6 +802,8 @@ class Problem(models.Model):
                         'difficulty': difficulty,
                         'template_code': template_code,
                     }
+                    if directory_grade:
+                        defaults['grade_tag'] = directory_grade
                     with transaction.atomic():
                         obj, created = cls.objects.get_or_create(
                             problem_id=problem_id,
@@ -792,6 +820,16 @@ class Problem(models.Model):
                             result.skipped.append({
                                 'problem_id': problem_id,
                                 'reason': '题目属于其他教师或历史共享题，未覆盖内容',
+                            })
+                            continue
+                        if (
+                            directory_grade
+                            and obj.unit_id
+                            and obj.unit.grade != directory_grade
+                        ):
+                            result.skipped.append({
+                                'problem_id': problem_id,
+                                'reason': '题目所在年级目录与已关联小节年级不一致',
                             })
                             continue
                         changed_fields = []

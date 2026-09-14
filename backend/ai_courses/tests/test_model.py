@@ -166,6 +166,29 @@ class ProblemGetTestCasesTest(TestCase):
 
 
 class ProblemGetProblemDirTest(TestCase):
+    def test_ai_problem_uses_grade_subdir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            expected = root / 'ai' / 'programming' / '八年级' / 'problem_grade8'
+            expected.mkdir(parents=True)
+            problem = Problem(
+                problem_id='problem_grade8', course='ai', grade_tag='八年级',
+            )
+            with override_settings(PROBLEMS_DIR=root):
+                self.assertEqual(problem.get_problem_dir(), expected)
+
+    def test_ai_problem_resolves_named_directory_inside_grade(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            named_dir = root / 'ai' / 'programming' / '八年级' / '打印三行问候语'
+            named_dir.mkdir(parents=True)
+            (named_dir / 'metadata.txt').write_text(
+                'problem_id: problem1\ntitle: 打印三行问候语\n', encoding='utf-8',
+            )
+            problem = Problem(problem_id='problem1', course='ai', grade_tag='八年级')
+            with override_settings(PROBLEMS_DIR=root):
+                self.assertEqual(problem.get_problem_dir(), named_dir)
+
     def test_ai_problem_uses_programming_subdir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -223,6 +246,27 @@ class ProblemSyncFromDiskTest(TestCase):
             p = Problem.objects.get(problem_id='problem_new_ai')
             self.assertEqual(p.course, 'ai')
             self.assertEqual(p.description, '求和题描述内容')
+
+    def test_sync_ai_problem_from_grade_subdir_sets_grade_tag(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(
+                tmpdir, 'ai', 'programming', '八年级', '八年级示例题',
+            )
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'metadata.txt'), 'w', encoding='utf-8') as file:
+                file.write('problem_id: grade8_demo\ntitle: 八年级示例题\n')
+            with open(os.path.join(prob_dir, 'description.txt'), 'w', encoding='utf-8') as file:
+                file.write('年级目录同步测试')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertEqual(created, ['grade8_demo'])
+            self.assertEqual(updated, [])
+            problem = Problem.objects.get(problem_id='grade8_demo')
+            self.assertEqual(problem.grade_tag, '八年级')
+            self.assertEqual(problem.description, '年级目录同步测试')
 
     def test_sync_named_directory_uses_directory_name_by_default(self):
         with tempfile.TemporaryDirectory() as tmpdir:

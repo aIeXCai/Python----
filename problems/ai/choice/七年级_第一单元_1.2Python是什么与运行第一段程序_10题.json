@@ -1,0 +1,132 @@
+[
+  {
+    "difficulty": "easy",
+    "category": "1.2 Python是什么与运行第一段程序",
+    "text": "Python 是什么？",
+    "options": [
+      { "key": "A", "text": "一种电脑硬件" },
+      { "key": "B", "text": "一种编程语言" },
+      { "key": "C", "text": "一个输入法" },
+      { "key": "D", "text": "一种文件夹" }
+    ],
+    "answer": "B",
+    "explanation": "Python 是一种编程语言，人们可以用它把解决问题的步骤写成代码。"
+  },
+  {
+    "difficulty": "easy",
+    "category": "1.2 Python是什么与运行第一段程序",
+    "text": "编程语言的主要作用是什么？",
+    "options": [
+      { "key": "A", "text": "按照固定规则向计算机写指令" },
+      { "key": "B", "text": "自动把电脑变得更快" },
+      { "key": "C", "text": "代替键盘和鼠标" },
+      { "key": "D", "text": "只用来给文件命名" }
+    ],
+    "answer": "A",
+    "explanation": "编程语言提供固定的词语和书写规则，让人们能够把指令清楚地写给计算机。"
+  },
+  {
+    "difficulty": "easy",
+    "category": "1.2 Python是什么与运行第一段程序",
+    "text": "在 Python 中，print() 的作用是什么？",
+    "options": [
+      { "key": "A", "text": "删除文件" },
+      { "key": "B", "text": "关闭程序" },
+      { "key": "C", "text": "输出内容" },
+      { "key": "D", "text": "移动鼠标" }
+    ],
+    "answer": "C",
+    "explanation": "print() 可以把括号中指定的内容输出到控制台。"
+  },
+  {
+    "difficulty": "easy",
+    "category": "1.2 Python是什么与运行第一段程序",
+    "text": "在编程界面中，我们通常在哪个区域书写代码？",
+    "options": [
+      { "key": "A", "text": "控制台" },
+      { "key": "B", "text": "代码编辑区" },
+      { "key": "C", "text": "回收站" },
+      { "key": "D", "text": "任务栏" }
+    ],
+    "answer": "B",
+    "explanation": "代码编辑区用于输入和修改代码，控制台主要用于查看运行结果或报错信息。"
+  },
+  {
+    "difficulty": "easy",
+    "category": "1.2 Python是什么与运行第一段程序",
+    "text": "写好代码后，点击“运行”按钮主要是为了什么？",
+    "options": [
+      { "key": "A", "text": "改变电脑桌面" },
+      { "key": "B", "text": "删除刚写的代码" },
+      { "key": "C", "text": "把代码打印在纸上" },
+      { "key": "D", "text": "让计算机开始执行代码" }
+    ],
+    "answer": "D",
+    "explanation": "点击“运行”后，计算机会开始执行编辑区中的代码。"
+  },
+  {
+    "difficulty": "easy",
+    "category": "1.2 Python是什么与运行第一段程序",
+    "text": "Python 代码文件通常使用哪个扩展名？",
+    "options": [
+      { "key": "A", "text": ".py" },
+      { "key": "B", "text": ".jpg" },
+      { "key": "C", "text": ".mp3" },
+      { "key": "D", "text": ".pptx" }
+    ],
+    "answer": "A",
+    "explanation": "Python 代码文件通常以 .py 作为扩展名，例如 hello.py。"
+  },
+  {
+    "difficulty": "medium",
+    "category": "1.2 Python是什么与运行第一段程序",
+    "text": "小明想编写并运行一段 Python 代码，以下操作顺序最合理的是哪一项？",
+    "options": [
+      { "key": "A", "text": "查看结果、书写代码、点击运行" },
+      { "key": "B", "text": "点击运行、查看结果、书写代码" },
+      { "key": "C", "text": "书写代码、点击运行、查看结果" },
+      { "key": "D", "text": "书写代码、查看结果、删除代码" }
+    ],
+    "answer": "C",
+    "explanation": "基本流程是先在编辑区写代码，再点击运行，最后到控制台查看并核对结果。"
+  },
+  {
+    "difficulty": "medium",
+    "category": "1.2 Python是什么与运行第一段程序",
+    "text": "运行以下代码后，控制台会显示什么？\nprint(\"第一行\")\nprint(\"第二行\")",
+    "options": [
+      { "key": "A", "text": "只显示“第一行”" },
+      { "key": "B", "text": "先显示“第二行”，再显示“第一行”" },
+      { "key": "C", "text": "两行代码都不执行" },
+      { "key": "D", "text": "第一行显示“第一行”，第二行显示“第二行”" }
+    ],
+    "answer": "D",
+    "explanation": "Python 按照代码从上到下的顺序执行，每个 print() 输出一行内容。"
+  },
+  {
+    "difficulty": "hard",
+    "category": "1.2 Python是什么与运行第一段程序",
+    "text": "以下哪一行 Python 代码能正确输出“今天开始学 Python”？",
+    "options": [
+      { "key": "A", "text": "print(“今天开始学 Python”)" },
+      { "key": "B", "text": "print(\"今天开始学 Python\")" },
+      { "key": "C", "text": "print(\"今天开始学 Python)" },
+      { "key": "D", "text": "print\"今天开始学 Python\"" }
+    ],
+    "answer": "B",
+    "explanation": "正确代码需要包含 print、一对英文括号和一对英文引号。A 使用了中文引号，C 少一个引号，D 少括号。"
+  },
+  {
+    "difficulty": "hard",
+    "category": "1.2 Python是什么与运行第一段程序",
+    "text": "小红写了 print(\"你好)，运行时出现错误。怎样修改最合适？",
+    "options": [
+      { "key": "A", "text": "删除 print" },
+      { "key": "B", "text": "把右括号改成左括号" },
+      { "key": "C", "text": "在“你好”后面补上英文双引号" },
+      { "key": "D", "text": "把 Python 文件改成图片文件" }
+    ],
+    "answer": "C",
+    "explanation": "原代码只有左侧的英文双引号，需在“你好”后面补上右侧双引号，修改为 print(\"你好\")。"
+  }
+]
