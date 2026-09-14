@@ -4,10 +4,12 @@ ai_courses Model + Serializer 单元测试
 """
 import os
 import tempfile
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from ai_courses.models import Problem, Submission
 from ai_courses.serializers import SubmissionCreateSerializer
 from users.models import CustomUser
@@ -490,9 +492,17 @@ class SubmissionModelTest(TestCase):
         self.assertEqual(Submission.objects.filter(user=self.student, problem=self.prob).count(), 2)
 
     def test_ordering_by_submitted_at_desc(self):
-        """默认按 submitted_at 降序（最新在前）"""
+        """默认按 submitted_at 降序（最新在前）
+
+        注意：submitted_at 是 auto_now_add，Windows 系统时钟精度较低，连续两次
+        create() 可能写入完全相同的时间戳，导致排序退化为主键升序。因此这里显式
+        把两个 submitted_at 拉开，保证断言在各平台都成立。
+        """
         sub1 = Submission.objects.create(user=self.student, problem=self.prob, code='c1', score=50.0, status='wrong')
         sub2 = Submission.objects.create(user=self.student, problem=self.prob, code='c2', score=80.0, status='wrong')
+        base = timezone.now() - timedelta(days=1)
+        Submission.objects.filter(pk=sub1.pk).update(submitted_at=base)
+        Submission.objects.filter(pk=sub2.pk).update(submitted_at=base + timedelta(hours=1))
         ids = list(Submission.objects.values_list('id', flat=True))
         self.assertEqual(ids, [sub2.id, sub1.id])  # 最新在前面
 

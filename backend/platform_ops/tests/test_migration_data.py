@@ -1,8 +1,10 @@
+import contextlib
 import json
 import os
 import sqlite3
 import tempfile
 from pathlib import Path
+from unittest import skipIf
 
 from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase, TestCase
@@ -166,6 +168,7 @@ class MigrationSafetyHelperTests(SimpleTestCase):
             with self.subTest(key=key), self.assertRaises(ImproperlyConfigured):
                 validate_manifest(broken)
 
+    @skipIf(os.name == 'nt', 'Windows 只支持只读位，无法表达 POSIX 0600 权限')
     def test_private_writers_set_0600_permissions(self):
         with tempfile.TemporaryDirectory() as directory:
             bytes_path = Path(directory) / 'data.bin'
@@ -178,13 +181,16 @@ class MigrationSafetyHelperTests(SimpleTestCase):
     def test_sqlite_checks_detect_foreign_key_violation(self):
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / 'broken.sqlite3'
-            with sqlite3.connect(database) as sqlite_connection:
+            # sqlite3.connect 的上下文管理器只提交事务、不关闭连接；Windows 上
+            # 未释放的句柄会导致 TemporaryDirectory 清理时抛 WinError 32。
+            with contextlib.closing(sqlite3.connect(database)) as sqlite_connection:
                 sqlite_connection.execute('PRAGMA foreign_keys=OFF')
                 sqlite_connection.execute('CREATE TABLE parent (id INTEGER PRIMARY KEY)')
                 sqlite_connection.execute(
                     'CREATE TABLE child (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent(id))'
                 )
                 sqlite_connection.execute('INSERT INTO child VALUES (1, 999)')
+                sqlite_connection.commit()
                 integrity, foreign_keys = sqlite_checks(sqlite_connection)
             self.assertEqual(integrity, ['ok'])
             self.assertEqual(len(foreign_keys), 1)
