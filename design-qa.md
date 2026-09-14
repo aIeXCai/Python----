@@ -1,58 +1,34 @@
-**Comparison Metadata**
+# Design QA — AI 选择题库筛选区与选择列
 
-- source visual truth path: `/var/folders/bn/61rtkld10mx6zykws10ps7800000gn/T/codex-clipboard-ce33ce10-1c52-4be2-a9cd-1bfdb4be6082.png`
-- implementation: `http://localhost:5173/teacher/ai`
-- implementation screenshot path: unavailable; captured in the Codex in-app browser but the browser security policy prevented exporting/combining it with the local source image
-- viewport: responsive in-app browser viewport, 542 × 784 CSS px for the final card-grid capture; desktop-width card grid was also inspected before the browser panel narrowed
-- source pixels: 592 × 372
-- implementation pixels: 542 × 784 for the final card-grid capture
-- CSS size and density normalization: implementation capture was 542 × 784 CSS px at the browser's default density; no density-normalized side-by-side artifact could be produced
-- state: Alex-compatible superuser view, nine active problems; card grid, edit modal, two selected grades, filtered class dropdown, and select-all state were inspected
+## Comparison metadata
 
-**Findings**
+- Source visual truth: `/var/folders/bn/61rtkld10mx6zykws10ps7800000gn/T/codex-clipboard-4c0fea62-bbfe-497d-91cd-21030b03136f.png`
+- Implementation: `http://127.0.0.1:5173/teacher/ai`，选择题库 Tab
+- Implementation screenshot: `docs/reports/assets/ai-choice-bank-filter-after.png`
+- Normalized comparison: `docs/reports/assets/ai-choice-bank-filter-comparison.png`
+- Source size: 2880 × 1556 px
+- Implementation viewport: 1280 × 720 CSS px；截图 1280 × 720 px
+- State: 七年级、12 道题、未选中题目、批量删除按钮禁用
 
-- No P0/P1/P2 issue was observed in the separately opened artifacts. The card actions are compact icon buttons in the upper-right; the old “查看” and independent “范围” actions are absent. The edit modal contains the all-school option and the two-stage grade/class selection.
-- [Blocked] A formal fidelity pass cannot be completed because the required source-and-implementation image could not be placed into the same comparison input. Opening the local source image in the in-app browser was rejected by browser security policy, and the implementation screenshot could not be exported to a local path by the available browser API.
+## Findings and fixes
 
-**Required Fidelity Surfaces**
+- P1：筛选控件仍呈原生表单观感，尺寸和间距不统一。已改为响应式网格，统一 40 px 高度、9 px 圆角、边框、悬停与焦点状态，搜索框占据剩余空间。
+- P1：表格“选择”列宽度不足，表头文字被拆成两行。已固定为 72 px，并设置居中与不换行。
+- P2：窄屏下筛选项可能过度拥挤。已增加 1100 px 两列布局和 640 px 单列布局。
 
-- Fonts and typography: separately inspected; hierarchy and small-text weights remain consistent with the existing teacher dashboard. Formal pixel comparison is blocked.
-- Spacing and layout rhythm: separately inspected at desktop and 542 px responsive widths; cards remain readable and icon controls do not overlap titles. Formal normalized comparison is blocked.
-- Colors and visual tokens: existing purple/blue product palette is retained; edit, visibility, and archive actions use distinct low-emphasis semantic fills. Formal sampled comparison is blocked.
-- Image quality and asset fidelity: no raster product imagery is used in this UI; action graphics use the existing Lucide icon library and render sharply.
-- Copy and content: “查看” and standalone “范围” are removed; edit scope copy clearly explains grade-first and class-second selection, all-school visibility, and future-class behavior.
+## Fidelity surfaces
 
-**Full-view Comparison Evidence**
+- Typography: 延用现有教师端字体层级；“选择”表头单行显示。
+- Spacing: 筛选控件间距统一为 10 px，筛选卡片与批量操作卡片保持现有页面节奏。
+- Color: 延用现有紫蓝主题、浅灰边框和焦点色，不引入新的视觉体系。
+- Assets: 无新增位图资源；保留现有 Lucide 图标。
+- Copy: 原有筛选项、搜索提示和表格字段均保持不变。
 
-- Source was opened from the supplied image and the implementation was captured from the local page. Separate inspection confirms the intended density reduction, but separate views do not qualify as the required side-by-side comparison.
+## Interaction and regression checks
 
-**Focused Region Comparison Evidence**
+- 全选后 12 个题目复选框全部选中，取消全选后全部恢复。
+- 浏览器控制台无 error/warning。
+- 相关前端测试：9/9 通过。
+- 前端生产构建：通过。
 
-- Card action region: edit, hide/show, and archive appear as 30 px icon buttons aligned to the upper-right.
-- Edit range region: unchecking “全校可见” enables the grade dropdown; selecting 七年级 and 八年级 filters the class dropdown to those grades; selecting the top class checkbox changes the summary to “已全选所有已选年级”.
-- These focused regions were inspected in the browser, but no combined comparison artifact is available.
-
-**Comparison History**
-
-- Iteration 1: implementation card initially retained large action buttons and separate view/range actions (source state supplied by the user).
-- Fixes made: replaced actions with upper-right icon buttons, removed view and standalone range actions, merged content and audience editing, added two-stage dropdowns and all-school/select-all controls.
-- Post-fix evidence: local browser capture at `http://localhost:5173/teacher/ai`; no visible overlap or broken responsive layout was observed.
-- Remaining blocker: combined source/implementation comparison could not be created under the browser security policy.
-
-**Implementation Checklist**
-
-- [x] Compact upper-right edit, visibility, and archive/restore icon actions
-- [x] Remove duplicated view action
-- [x] Merge audience controls into edit modal
-- [x] Multi-select grades before selecting classes
-- [x] Filter class choices by selected grades
-- [x] Add selected-grade class select-all and all-school options
-- [x] Preserve archive semantics and historical scores
-- [x] Verify interactions in the local browser
-- [ ] Complete a normalized side-by-side visual comparison
-
-**Follow-up Polish**
-
-- P3: consider adding visible hover/focus rings to the icon controls in a later accessibility polish pass.
-
-final result: blocked
+final result: passed

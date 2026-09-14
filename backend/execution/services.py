@@ -9,7 +9,7 @@ from users.models import CustomUser
 
 from .constants import STATUS_QUEUED, STATUS_RUNNING, TASK_TYPE_GRADE, TASK_TYPE_RUN
 from .models import ExecutionTask
-from .snapshots import build_test_snapshot, snapshot_digest
+from .snapshots import InvalidTestSnapshot, build_test_snapshot, snapshot_digest, validate_test_snapshot
 
 
 class ExecutionRequestError(Exception):
@@ -153,6 +153,122 @@ def enqueue_grade(*, user, problem, code, idempotency_key=None):
                     score=None,
                     status='pending',
                     execution_task=task,
+                )
+        except IntegrityError:
+            task = _existing_task(user, key, digest)
+            if not task:
+                raise
+            return task, task.submission, False
+    return task, submission, True
+
+
+def enqueue_quiz_run(
+    *, user, quiz_attempt, quiz_item_id, problem, code, stdin='', idempotency_key=None,
+):
+    """Enqueue a quiz run while keeping the public practice contract unchanged."""
+    _validate_text_size(code, 'EXECUTION_CODE_MAX_BYTES', '代码')
+    _validate_text_size(stdin, 'EXECUTION_STDIN_MAX_BYTES', '标准输入')
+    key = _idempotency_key(idempotency_key)
+    digest = snapshot_digest({
+        'task_type': TASK_TYPE_RUN,
+        'quiz_attempt_id': quiz_attempt.pk,
+        'quiz_item_id': quiz_item_id,
+        'code': code,
+        'stdin': stdin,
+    })
+
+    with transaction.atomic():
+        existing = _existing_task(user, key, digest)
+        if existing:
+            return existing, False
+        _lock_user_and_check_capacity(user)
+        try:
+            with transaction.atomic():
+                task = ExecutionTask.objects.create(
+                    user=user,
+                    problem=problem,
+                    quiz_attempt=quiz_attempt,
+                    quiz_item_id=quiz_item_id,
+                    task_type=TASK_TYPE_RUN,
+                    code=code,
+                    stdin=stdin,
+                    snapshot_hash=digest,
+                    limits=_limits(TASK_TYPE_RUN),
+                    idempotency_key=key,
+                    expires_at=timezone.now() + timezone.timedelta(
+                        seconds=settings.EXECUTION_QUEUE_TTL_SECONDS,
+                    ),
+                )
+        except IntegrityError:
+            task = _existing_task(user, key, digest)
+            if not task:
+                raise
+            return task, False
+    return task, True
+
+
+def enqueue_quiz_grade(
+    *, user, quiz_attempt, quiz_item_id, problem, code, test_snapshot,
+    test_snapshot_hash, idempotency_key=None,
+):
+    """Enqueue grading from a server-owned, publish-time frozen test snapshot."""
+    _validate_text_size(code, 'EXECUTION_CODE_MAX_BYTES', '代码')
+    try:
+        validate_test_snapshot(test_snapshot, expected_problem_id=problem.problem_id)
+    except InvalidTestSnapshot as exc:
+        raise ExecutionRequestError(
+            '小测冻结测试点校验失败，请联系教师',
+            status_code=409,
+            code='quiz_test_snapshot_invalid',
+        ) from exc
+    if snapshot_digest(test_snapshot) != test_snapshot_hash:
+        raise ExecutionRequestError(
+            '小测冻结测试点校验失败，请联系教师',
+            status_code=409,
+            code='quiz_test_snapshot_invalid',
+        )
+    key = _idempotency_key(idempotency_key)
+    digest = snapshot_digest({
+        'task_type': TASK_TYPE_GRADE,
+        'quiz_attempt_id': quiz_attempt.pk,
+        'quiz_item_id': quiz_item_id,
+        'problem_id': problem.problem_id,
+        'code': code,
+        'test_snapshot_hash': test_snapshot_hash,
+    })
+
+    with transaction.atomic():
+        existing = _existing_task(user, key, digest)
+        if existing:
+            return existing, existing.submission, False
+        _lock_user_and_check_capacity(user)
+        try:
+            with transaction.atomic():
+                task = ExecutionTask.objects.create(
+                    user=user,
+                    problem=problem,
+                    quiz_attempt=quiz_attempt,
+                    quiz_item_id=quiz_item_id,
+                    task_type=TASK_TYPE_GRADE,
+                    code=code,
+                    test_snapshot=test_snapshot,
+                    snapshot_hash=digest,
+                    limits=_limits(TASK_TYPE_GRADE),
+                    idempotency_key=key,
+                    expires_at=timezone.now() + timezone.timedelta(
+                        seconds=settings.EXECUTION_QUEUE_TTL_SECONDS,
+                    ),
+                )
+                submission = Submission.objects.create(
+                    user=user,
+                    problem=problem,
+                    code=code,
+                    score=None,
+                    status='pending',
+                    execution_task=task,
+                    quiz_attempt=quiz_attempt,
+                    quiz_item_id=quiz_item_id,
+                    counts_for_quiz=True,
                 )
         except IntegrityError:
             task = _existing_task(user, key, digest)

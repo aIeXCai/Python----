@@ -29,6 +29,14 @@ class ExecutionTask(models.Model):
         blank=True,
         related_name='execution_tasks',
     )
+    quiz_attempt = models.ForeignKey(
+        'ai_courses.AIQuizAttempt',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='execution_tasks',
+    )
+    quiz_item_id = models.CharField(max_length=36, blank=True, db_index=True)
     task_type = models.CharField(max_length=16, choices=TASK_TYPE_CHOICES)
     status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_QUEUED, db_index=True)
     code = models.TextField()
@@ -70,11 +78,19 @@ class ExecutionTask(models.Model):
                 condition=models.Q(score__isnull=True) | models.Q(score__gte=0, score__lte=100),
                 name='execution_score_valid_range',
             ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(quiz_attempt__isnull=True, quiz_item_id='')
+                    | (models.Q(quiz_attempt__isnull=False) & ~models.Q(quiz_item_id=''))
+                ),
+                name='execution_quiz_context_pair',
+            ),
         )
         indexes = (
             models.Index(fields=('status', 'priority', 'queued_at'), name='exec_queue_idx'),
             models.Index(fields=('user', 'status', 'created_at'), name='exec_user_status_idx'),
             models.Index(fields=('lease_expires_at', 'status'), name='exec_lease_idx'),
+            models.Index(fields=('quiz_attempt', 'quiz_item_id'), name='exec_quiz_item_idx'),
         )
 
     def __str__(self):

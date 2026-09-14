@@ -1,0 +1,282 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "域名",
+    "text": "为互联网中的计算机按规则起的字符型名称叫作（　　）",
+    "options": [
+      { "key": "A", "text": "域名" },
+      { "key": "B", "text": "状态码" },
+      { "key": "C", "text": "端口" },
+      { "key": "D", "text": "数据包" }
+    ],
+    "answer": "A",
+    "explanation": "域名是便于人们识别和记忆的字符型网络名称。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "域名",
+    "text": "域名相对IP地址的一个主要优点是（　　）",
+    "options": [
+      { "key": "A", "text": "更容易识别和记忆" },
+      { "key": "B", "text": "不需要服务器" },
+      { "key": "C", "text": "只能使用数字" },
+      { "key": "D", "text": "能代替所有网络协议" }
+    ],
+    "answer": "A",
+    "explanation": "字符型域名通常比一串数字形式的IP地址更易记忆。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "域名",
+    "text": "域名www.taobao.com中的com通常表示（　　）",
+    "options": [
+      { "key": "A", "text": "商业机构" },
+      { "key": "B", "text": "教育机构" },
+      { "key": "C", "text": "政府机构" },
+      { "key": "D", "text": "中国国家域名" }
+    ],
+    "answer": "A",
+    "explanation": "com是常见的通用顶级域名，通常用于商业机构。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "域名",
+    "text": "域名www.tsinghua.edu.cn中的edu通常表示（　　）",
+    "options": [
+      { "key": "A", "text": "教育机构" },
+      { "key": "B", "text": "商业机构" },
+      { "key": "C", "text": "政府机构" },
+      { "key": "D", "text": "邮件服务器" }
+    ],
+    "answer": "A",
+    "explanation": "edu常用于标识教育机构。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "DNS",
+    "text": "把域名转换成IP地址的过程称为（　　）",
+    "options": [
+      { "key": "A", "text": "域名解析" },
+      { "key": "B", "text": "文件压缩" },
+      { "key": "C", "text": "数据加密" },
+      { "key": "D", "text": "图像编辑" }
+    ],
+    "answer": "A",
+    "explanation": "域名解析就是将域名转换为对应IP地址。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "DNS",
+    "text": "专门提供域名解析服务的系统是（　　）",
+    "options": [
+      { "key": "A", "text": "DNS" },
+      { "key": "B", "text": "CPU" },
+      { "key": "C", "text": "USB" },
+      { "key": "D", "text": "PDF" }
+    ],
+    "answer": "A",
+    "explanation": "DNS即域名系统，用于将域名解析为IP地址。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "URL",
+    "text": "网络中资源的唯一地址称为（　　）",
+    "options": [
+      { "key": "A", "text": "URL" },
+      { "key": "B", "text": "RAM" },
+      { "key": "C", "text": "LAN" },
+      { "key": "D", "text": "CPU" }
+    ],
+    "answer": "A",
+    "explanation": "URL的中文名称是统一资源定位符。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "URL",
+    "text": "URL中的http部分表示（　　）",
+    "options": [
+      { "key": "A", "text": "通信协议" },
+      { "key": "B", "text": "资源名" },
+      { "key": "C", "text": "文件大小" },
+      { "key": "D", "text": "用户密码" }
+    ],
+    "answer": "A",
+    "explanation": "URL开头的http指明浏览器与服务器通信所用的协议。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "URL",
+    "text": "在URL https://www.school.edu.cn/news/index.html中，www.school.edu.cn是（　　）",
+    "options": [
+      { "key": "A", "text": "域名" },
+      { "key": "B", "text": "状态码" },
+      { "key": "C", "text": "文件大小" },
+      { "key": "D", "text": "邮件主题" }
+    ],
+    "answer": "A",
+    "explanation": "该部分标识存放资源的网站服务器域名。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "URL",
+    "text": "在URL https://www.school.edu.cn/news/index.html中，/news/表示（　　）",
+    "options": [
+      { "key": "A", "text": "资源路径" },
+      { "key": "B", "text": "网络协议" },
+      { "key": "C", "text": "顶级域名" },
+      { "key": "D", "text": "HTTP状态码" }
+    ],
+    "answer": "A",
+    "explanation": "/news/表示资源在服务器中存放的路径。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "URL",
+    "text": "在URL https://www.school.edu.cn/news/index.html中，index.html是（　　）",
+    "options": [
+      { "key": "A", "text": "资源名" },
+      { "key": "B", "text": "网关地址" },
+      { "key": "C", "text": "用户名" },
+      { "key": "D", "text": "顶级域名" }
+    ],
+    "answer": "A",
+    "explanation": "index.html是当前URL所定位的具体网页文件名。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "HTTP协议",
+    "text": "HTTP的中文名称是（　　）",
+    "options": [
+      { "key": "A", "text": "超文本传输协议" },
+      { "key": "B", "text": "简单邮件传输协议" },
+      { "key": "C", "text": "邮局协议" },
+      { "key": "D", "text": "传输控制协议" }
+    ],
+    "answer": "A",
+    "explanation": "HTTP即超文本传输协议，用于网页资源传输。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "HTTP协议",
+    "text": "HTTP最基本的工作模式是（　　）",
+    "options": [
+      { "key": "A", "text": "请求和响应" },
+      { "key": "B", "text": "只上传不下载" },
+      { "key": "C", "text": "只存储不传输" },
+      { "key": "D", "text": "先打印再扫描" }
+    ],
+    "answer": "A",
+    "explanation": "浏览器向服务器发出HTTP请求，服务器返回HTTP响应。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "HTTP状态码",
+    "text": "HTTP状态码200通常表示（　　）",
+    "options": [
+      { "key": "A", "text": "请求成功" },
+      { "key": "B", "text": "资源不存在" },
+      { "key": "C", "text": "没有连接键盘" },
+      { "key": "D", "text": "文件已打印" }
+    ],
+    "answer": "A",
+    "explanation": "200 OK表示服务器已成功找到并返回所需资源。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "域名",
+    "text": "对域名www.beijing.gov.cn的理解，正确的是（　　）",
+    "options": [
+      { "key": "A", "text": "它通常是中国政府机构网站的域名" },
+      { "key": "B", "text": "gov表示教育机构" },
+      { "key": "C", "text": "cn表示商业机构" },
+      { "key": "D", "text": "www是HTTP状态码" }
+    ],
+    "answer": "A",
+    "explanation": "gov常表示政府机构，cn是中国国家或地区域名。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "URL",
+    "text": "从网站首页进入“学校新闻”后，URL中最可能发生变化的是（　　）",
+    "options": [
+      { "key": "A", "text": "路径或资源名" },
+      { "key": "B", "text": "电脑型号" },
+      { "key": "C", "text": "显示器尺寸" },
+      { "key": "D", "text": "键盘布局" }
+    ],
+    "answer": "A",
+    "explanation": "同一网站不同栏目通常共用协议和域名，而路径或具体资源名会变化。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "HTTP状态码",
+    "text": "浏览器访问一个不存在的网页路径时，服务器最可能返回（　　）",
+    "options": [
+      { "key": "A", "text": "200 OK" },
+      { "key": "B", "text": "404 Not Found" },
+      { "key": "C", "text": "IP地址" },
+      { "key": "D", "text": "邮件附件" }
+    ],
+    "answer": "B",
+    "explanation": "404 Not Found表示服务器找不到请求的资源。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "DNS与HTTP",
+    "text": "用户输入域名访问网页时，较合理的先后顺序是（　　）",
+    "options": [
+      { "key": "A", "text": "先由DNS获取IP地址，再发出HTTP请求" },
+      { "key": "B", "text": "先打印网页，再查找域名" },
+      { "key": "C", "text": "先返回404，再连接服务器" },
+      { "key": "D", "text": "先发送邮件，再启动浏览器" }
+    ],
+    "answer": "A",
+    "explanation": "域名需先解析为IP地址以定位服务器，然后浏览器通过HTTP请求网页。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "HTTP通信过程",
+    "text": "用户点击链接后浏览器显示网页，下列描述最完整的是（　　）",
+    "options": [
+      { "key": "A", "text": "浏览器按HTTP格式发出请求，服务器查找资源并返回含状态码的响应" },
+      { "key": "B", "text": "浏览器只需在本地随机生成网页" },
+      { "key": "C", "text": "DNS直接将网页内容打印出来" },
+      { "key": "D", "text": "服务器不接收请求也会自动发送所有文件" }
+    ],
+    "answer": "A",
+    "explanation": "HTTP采用请求—响应模式，响应中的状态码说明请求的处理结果。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "网页访问排错",
+    "text": "某网站首页可正常打开，但访问其/news/abc.html时收到404，可合理推断（　　）",
+    "options": [
+      { "key": "A", "text": "服务器可达，但该路径下的资源不存在" },
+      { "key": "B", "text": "电脑一定没有连网" },
+      { "key": "C", "text": "DNS一定完全无法工作" },
+      { "key": "D", "text": "HTTP请求从未到达服务器" }
+    ],
+    "answer": "A",
+    "explanation": "首页能打开说明网络和域名解析基本正常；404明确指向被请求的具体资源未找到。"
+  }
+]

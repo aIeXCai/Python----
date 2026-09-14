@@ -403,6 +403,57 @@ body {
 .stat-card p { color: var(--text-secondary); font-size: 0.85rem; }
 
 /* ─── Problems Section ───────────────────────────────────────────────────── */
+.ai-dashboard-tabs {
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(102, 126, 234, 0.14);
+  border-radius: 15px;
+  box-shadow: 0 8px 24px rgba(48, 56, 105, 0.08);
+}
+
+.ai-dashboard-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 146px;
+  padding: 11px 20px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: 600 0.95rem var(--font);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ai-dashboard-tabs button:hover:not(.active) {
+  color: var(--primary);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.ai-dashboard-tabs button.active {
+  color: #fff;
+  background: var(--bg-gradient);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.28);
+}
+
+.ai-dashboard-tabs button:focus-visible {
+  outline: 3px solid rgba(102, 126, 234, 0.3);
+  outline-offset: 2px;
+}
+
+.ai-dashboard-panel {
+  animation: dashboardPanelIn 0.2s ease-out;
+}
+
+@keyframes dashboardPanelIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .problems-section {
   background: var(--card-bg);
   backdrop-filter: blur(20px);
@@ -1129,6 +1180,8 @@ body {
   .welcome-section h1 { font-size: 1.5rem; }
   .problem-title { font-size: 1.3rem; }
   .result-score-large { font-size: 3rem; }
+  .ai-dashboard-tabs { display: flex; width: 100%; }
+  .ai-dashboard-tabs button { flex: 1; min-width: 0; padding-inline: 10px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

@@ -3,15 +3,20 @@
  * 运行: cd frontend && npx vitest run src/pages/teacher/tabs/Tab3Stats.test.jsx
  */
 import { describe, it, expect, vi } from 'vitest'
+import { useState } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { sortStudentsByNumber } from '../../../utils/studentSort.js'
 
 vi.mock('lucide-react', () => ({
   BarChart2: () => <span data-testid="icon-barchart">BarChart2</span>,
   Users: () => <span data-testid="icon-users">Users</span>,
   CheckCircle: () => <span data-testid="icon-check">Check</span>,
   RefreshCw: () => <span data-testid="icon-refresh">RefreshCw</span>,
+  X: () => <span data-testid="icon-x">X</span>,
 }))
+
+import Tab3Stats from './Tab3Stats.jsx'
 
 const mockStatsData = {
   students: [
@@ -49,6 +54,12 @@ const defaultProps = {
 // 简化版 Tab3Stats（内联关键逻辑）
 function SimplifiedTab3Stats(props) {
   const ROWS = 5, COLS = 10
+  const [numberSort, setNumberSort] = useState(null)
+  const toggleNumberSort = () => {
+    setNumberSort(prev => (prev === null ? 'asc' : prev === 'asc' ? 'desc' : null))
+  }
+  const rawStudents = props.statsData?.students || []
+  const displayStudents = numberSort ? sortStudentsByNumber(rawStudents, numberSort) : rawStudents
 
   const scoreMapByNum = {}
   ;(props.statsData?.students || []).forEach(stu => {
@@ -100,13 +111,16 @@ function SimplifiedTab3Stats(props) {
         <table data-testid="stats-table">
           <thead>
             <tr>
-              <th>年级</th><th>班级</th><th>姓名</th><th>学号</th>
+              <th>年级</th><th>班级</th><th>姓名</th>
+              <th data-testid="sort-number" onClick={toggleNumberSort} style={{ cursor: 'pointer' }}>
+                学号 {numberSort === 'asc' ? '↑' : numberSort === 'desc' ? '↓' : '↕'}
+              </th>
               {(props.statsData?.sessions || []).map(s => <th key={s.id}>{s.title}</th>)}
             </tr>
           </thead>
           <tbody>
-            {(props.statsData?.students || []).map(stu => (
-              <tr key={stu.user_id}>
+            {displayStudents.map(stu => (
+              <tr key={stu.user_id} data-testid={`row-${stu.user_id}`}>
                 <td>{props.gradeDisplay(stu.grade)}</td>
                 <td>{stu.class_num}班</td>
                 <td>{stu.display_name}</td>
@@ -201,6 +215,40 @@ describe('Tab3Stats', () => {
     expect(screen.getByText('李四')).toBeInTheDocument()
   })
 
+  it('点击学号表头按学号升序/降序排序', async () => {
+    const user = userEvent.setup()
+    const unsorted = {
+      ...mockStatsData,
+      students: [
+        mockStatsData.students[2], // 王五 03
+        mockStatsData.students[0], // 张三 01
+        mockStatsData.students[1], // 李四 02
+      ],
+    }
+    render(<SimplifiedTab3Stats {...defaultProps} statsData={unsorted} />)
+    const names = () => screen.getAllByTestId(/^row-/).map(r => r.children[2].textContent)
+
+    expect(names()).toEqual(['王五', '张三', '李四'])   // 默认：后端返回顺序
+    await user.click(screen.getByTestId('sort-number'))
+    expect(names()).toEqual(['张三', '李四', '王五'])   // 升序
+    await user.click(screen.getByTestId('sort-number'))
+    expect(names()).toEqual(['王五', '李四', '张三'])   // 降序
+  })
+
+  it('学号按数字排序而非字符串（2 排在 10 之前）', async () => {
+    const user = userEvent.setup()
+    const data = {
+      sessions: [],
+      students: [
+        { user_id: 1, username: 'x1', display_name: '十号', grade: '七年级', class_num: '1', student_number: '10', scores: [50] },
+        { user_id: 2, username: 'x2', display_name: '二号', grade: '七年级', class_num: '1', student_number: '2', scores: [60] },
+      ],
+    }
+    render(<SimplifiedTab3Stats {...defaultProps} statsData={data} />)
+    await user.click(screen.getByTestId('sort-number'))
+    expect(screen.getAllByTestId(/^row-/).map(r => r.children[2].textContent)).toEqual(['二号', '十号'])
+  })
+
   it('≥80 分学生灯矩阵为绿色', () => {
     render(<SimplifiedTab3Stats {...defaultProps} />)
     // 李四学号02，第一场小测100分 → 亮
@@ -228,6 +276,22 @@ describe('Tab3Stats', () => {
     render(<SimplifiedTab3Stats {...defaultProps} selectedQuiz="" />)
     await user.selectOptions(screen.getByTestId('quiz-select'), '1')
     expect(defaultProps.setSelectedQuiz).toHaveBeenCalledWith('1')
+  })
+
+  it('真实灯阵支持按小测设置阈值并保存', async () => {
+    localStorage.clear()
+    const user = userEvent.setup()
+    render(<Tab3Stats {...defaultProps} selectedQuiz="1" />)
+
+    const threshold = screen.getByLabelText('信息科技小测亮灯阈值')
+    expect(threshold).toHaveValue(80)
+    expect(screen.getByLabelText('学号 1已亮灯')).toBeInTheDocument()
+    await user.clear(threshold)
+    await user.type(threshold, '90')
+
+    expect(screen.getByLabelText('学号 1未亮灯')).toBeInTheDocument()
+    expect(screen.getByLabelText('学号 2已亮灯')).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('infoQuizLampThresholds'))['1']).toBe(90)
   })
 
   it('年级切换时 setSelectedQuiz 为空（清空小测筛选）', async () => {

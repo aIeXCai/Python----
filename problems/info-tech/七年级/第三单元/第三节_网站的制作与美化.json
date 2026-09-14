@@ -1,0 +1,282 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "HTML基础",
+    "text": "HTML的中文名称是（　　）",
+    "options": [
+      { "key": "A", "text": "超文本标记语言" },
+      { "key": "B", "text": "高级图像编辑语言" },
+      { "key": "C", "text": "网络传输协议" },
+      { "key": "D", "text": "数据库查询语言" }
+    ],
+    "answer": "A",
+    "explanation": "HTML是HyperText Markup Language的缩写，中文称为超文本标记语言。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "HTML基础",
+    "text": "HTML主要通过一系列标签来定义网页的（　　）",
+    "options": [
+      { "key": "A", "text": "网络带宽" },
+      { "key": "B", "text": "结构和内容" },
+      { "key": "C", "text": "电脑硬件" },
+      { "key": "D", "text": "用户密码" }
+    ],
+    "answer": "B",
+    "explanation": "HTML是一种描述性的标记语言，使用标签描述网页内容及其结构。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "HTML标签",
+    "text": "由开始标签和结束标签共同组成的是（　　）",
+    "options": [
+      { "key": "A", "text": "文件路径" },
+      { "key": "B", "text": "CSS属性" },
+      { "key": "C", "text": "双标签" },
+      { "key": "D", "text": "网络协议" }
+    ],
+    "answer": "C",
+    "explanation": "双标签通常采用<标签名>内容</标签名>的形式，包含开始标签和结束标签。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "HTML标签",
+    "text": "在HTML中，网页上可见的主要内容通常放在（　　）标签内",
+    "options": [
+      { "key": "A", "text": "<title>" },
+      { "key": "B", "text": "<head>" },
+      { "key": "C", "text": "<html>" },
+      { "key": "D", "text": "<body>" }
+    ],
+    "answer": "D",
+    "explanation": "<body>标签包含浏览器页面中显示的文字、图片、表格和链接等可见内容。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "HTML表格",
+    "text": "定义HTML表格开始和结束的标签是（　　）",
+    "options": [
+      { "key": "A", "text": "<table></table>" },
+      { "key": "B", "text": "<tr></tr>" },
+      { "key": "C", "text": "<td></td>" },
+      { "key": "D", "text": "<a></a>" }
+    ],
+    "answer": "A",
+    "explanation": "<table></table>用于定义整个表格，行和单元格标签应包含在表格内部。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "HTML表格",
+    "text": "在HTML表格中，<tr>标签用于定义（　　）",
+    "options": [
+      { "key": "A", "text": "一个超链接" },
+      { "key": "B", "text": "一行" },
+      { "key": "C", "text": "一张图片" },
+      { "key": "D", "text": "网页标题" }
+    ],
+    "answer": "B",
+    "explanation": "tr是table row的缩写，<tr></tr>定义表格中的一行。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "HTML表格",
+    "text": "在HTML表格中，普通数据单元格使用（　　）标签",
+    "options": [
+      { "key": "A", "text": "<th>" },
+      { "key": "B", "text": "<img>" },
+      { "key": "C", "text": "<td>" },
+      { "key": "D", "text": "<style>" }
+    ],
+    "answer": "C",
+    "explanation": "<td></td>定义普通表格单元格，<th></th>通常定义表头单元格。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "HTML图片",
+    "text": "在网页中插入图片常用的标签是（　　）",
+    "options": [
+      { "key": "A", "text": "<table>" },
+      { "key": "B", "text": "<body>" },
+      { "key": "C", "text": "<a>" },
+      { "key": "D", "text": "<img>" }
+    ],
+    "answer": "D",
+    "explanation": "<img>是用于在HTML页面中插入图片的单标签。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "HTML图片",
+    "text": "<img>标签中用于指定图片地址的属性是（　　）",
+    "options": [
+      { "key": "A", "text": "src" },
+      { "key": "B", "text": "href" },
+      { "key": "C", "text": "border" },
+      { "key": "D", "text": "title" }
+    ],
+    "answer": "A",
+    "explanation": "src属性用于指定浏览器要加载的图片文件地址。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "HTML超链接",
+    "text": "HTML中创建超链接使用（　　）标签",
+    "options": [
+      { "key": "A", "text": "<p>" },
+      { "key": "B", "text": "<a>" },
+      { "key": "C", "text": "<tr>" },
+      { "key": "D", "text": "<img>" }
+    ],
+    "answer": "B",
+    "explanation": "<a></a>标签用于创建页面之间或页面内位置之间的跳转。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "HTML超链接",
+    "text": "<a>标签中用于指定链接目标的属性是（　　）",
+    "options": [
+      { "key": "A", "text": "src" },
+      { "key": "B", "text": "width" },
+      { "key": "C", "text": "href" },
+      { "key": "D", "text": "opacity" }
+    ],
+    "answer": "C",
+    "explanation": "href属性指定超链接跳转到的URL、网页文件或页面内位置。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "JavaScript基础",
+    "text": "网页中的按钮点击、表单验证和动态内容更新可使用（　　）实现",
+    "options": [
+      { "key": "A", "text": "JPEG" },
+      { "key": "B", "text": "MP3" },
+      { "key": "C", "text": "PDF" },
+      { "key": "D", "text": "JavaScript" }
+    ],
+    "answer": "D",
+    "explanation": "JavaScript是广泛用于网页开发的编程语言，可为网页增加交互功能。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "CSS美化",
+    "text": "CSS属性background-color用于设置（　　）",
+    "options": [
+      { "key": "A", "text": "背景颜色" },
+      { "key": "B", "text": "超链接目标" },
+      { "key": "C", "text": "图片地址" },
+      { "key": "D", "text": "表格行数" }
+    ],
+    "answer": "A",
+    "explanation": "background-color属性用于设置元素或网页区域的背景颜色。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "CSS美化",
+    "text": "CSS中opacity: 0.5表示元素（　　）",
+    "options": [
+      { "key": "A", "text": "完全不透明" },
+      { "key": "B", "text": "呈半透明状态" },
+      { "key": "C", "text": "完全不可见且被删除" },
+      { "key": "D", "text": "宽度为0.5像素" }
+    ],
+    "answer": "B",
+    "explanation": "opacity取值范围为0到1，0完全透明，1完全不透明，0.5表示半透明。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "HTML超链接",
+    "text": "index.html要链接同一文件夹中的craft.html，正确代码是（　　）",
+    "options": [
+      { "key": "A", "text": "<a src=\"craft.html\">传统技艺</a>" },
+      { "key": "B", "text": "<a href=\"craft.html\">传统技艺</a>" },
+      { "key": "C", "text": "<img href=\"craft.html\">传统技艺" },
+      { "key": "D", "text": "<link=\"craft.html\">传统技艺</link>" }
+    ],
+    "answer": "B",
+    "explanation": "超链接使用<a>双标签，href属性指定目标。同目录文件可直接使用文件名作为相对路径。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "HTML图片路径",
+    "text": "代码<img src=\"./images/photo.jpg\">表示图片位于（　　）",
+    "options": [
+      { "key": "A", "text": "当前HTML文件所在目录的images子文件夹中" },
+      { "key": "B", "text": "任意网站的根目录中" },
+      { "key": "C", "text": "浏览器安装目录中" },
+      { "key": "D", "text": "网络服务器的固定地址中" }
+    ],
+    "answer": "A",
+    "explanation": "./表示当前目录，images/photo.jpg表示进入images子文件夹并加载photo.jpg。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "HTML标签关系",
+    "text": "关于<h1>和<p>标签的使用，下列说法正确的是（　　）",
+    "options": [
+      { "key": "A", "text": "必须把<p>嵌套在<h1>内部" },
+      { "key": "B", "text": "两者都只能写在<head>中" },
+      { "key": "C", "text": "两者通常作为并列的标题和段落元素使用" },
+      { "key": "D", "text": "两者都是单标签" }
+    ],
+    "answer": "C",
+    "explanation": "<h1>用于标题，<p>用于段落，它们通常在<body>中按语义作为同级元素使用，不应随意错误嵌套。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "HTML表格",
+    "text": "下列HTML表格结构正确的是（　　）",
+    "options": [
+      { "key": "A", "text": "<tr><table><td>内容</td></table></tr>" },
+      { "key": "B", "text": "<td><table><tr>内容</tr></table></td>" },
+      { "key": "C", "text": "<table><td><tr>内容</tr></td></table>" },
+      { "key": "D", "text": "<table><tr><td>内容</td></tr></table>" }
+    ],
+    "answer": "D",
+    "explanation": "表格应由<table>包含行<tr>，每一行再包含普通单元格<td>或表头单元格<th>。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "网页故障分析",
+    "text": "网页中的图片位置显示破损图标，代码为<img src=\"./pic/lion.jpg\">。最合理的排查方法是（　　）",
+    "options": [
+      { "key": "A", "text": "检查HTML所在位置、pic文件夹、文件名和扩展名是否与路径完全一致" },
+      { "key": "B", "text": "只修改网页背景颜色" },
+      { "key": "C", "text": "删除所有文字标签" },
+      { "key": "D", "text": "把opacity设置为0" }
+    ],
+    "answer": "A",
+    "explanation": "本地图片无法显示通常与相对路径、文件位置、名称大小写或扩展名不一致有关，应逐项核对。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "网页综合制作",
+    "text": "要制作一个有图片、导航和统一背景的非遗网页，下列技术组合最合理的是（　　）",
+    "options": [
+      { "key": "A", "text": "只使用<img>标签完成所有功能" },
+      { "key": "B", "text": "用HTML组织内容和链接，用CSS设置背景与透明度，必要时用JavaScript增加交互" },
+      { "key": "C", "text": "只修改网页文件名" },
+      { "key": "D", "text": "把所有内容写入href属性" }
+    ],
+    "answer": "B",
+    "explanation": "HTML负责页面结构和内容，CSS负责视觉样式，JavaScript可补充交互，三者分工明确。"
+  }
+]

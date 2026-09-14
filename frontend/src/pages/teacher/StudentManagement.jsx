@@ -8,6 +8,7 @@ import {
   revealStudentPassword,
 } from '../../api/index.js'
 import { GRADES } from '../../constants/grades.js'
+import { sortStudents } from '../../utils/studentSort.js'
 
 const API = API_BASE_URL
 const grades = GRADES
@@ -52,8 +53,9 @@ export default function StudentManagement() {
     }
     if (filters.grade) result = result.filter(s => s.grade === filters.grade)
     if (filters.class_num) result = result.filter(s => String(s.class_num) === filters.class_num)
-    setFiltered(result)
-  }, [filters, students])
+    // 本地排序：切换排序条件即时生效（学号按数字排序，'2' 在 '10' 之前）
+    setFiltered(sortStudents(result, sortConfig.field, sortConfig.order))
+  }, [filters, students, sortConfig])
 
   const loadStudents = async () => {
     setLoading(true)

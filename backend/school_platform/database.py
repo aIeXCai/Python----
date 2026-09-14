@@ -74,6 +74,10 @@ def build_database_settings(base_dir, environment, environ=None):
                 # Django 默认 5 秒太短：上课时全班学生并发作答/自动保存，
                 # 写锁竞争一多就抛 "database is locked"。放大后显著缓解。
                 'timeout': 30,
+                # SQLite 的 DEFERRED 事务会先读后写；并发开始小测时，
+                # 读事务升级为写事务可能绕过 busy_timeout 直接失败。
+                # IMMEDIATE 在事务开始时申请写入资格，让竞争者按 timeout 等待。
+                'transaction_mode': 'IMMEDIATE',
             },
         }
         validate_database_settings(environment=environment, engine=engine, config=config)
