@@ -13,6 +13,8 @@ import StudentManagement from './pages/teacher/StudentManagement.jsx'
 import InfoAdmin from './pages/teacher/InfoAdmin.jsx'
 import AiAdmin from './pages/teacher/aiAdmin.jsx'
 import ProblemDetail from './pages/student/ai/ProblemDetail.jsx'
+import AIQuizPage from './pages/student/ai/QuizPage.jsx'
+import AIQuizResult from './pages/student/ai/QuizResult.jsx'
 import './index.css'
 
 function ProtectedRoute({ children }) {
@@ -46,6 +48,8 @@ export default function App() {
           <Route element={<StudentLayout />}>
             <Route path="/course-select" element={<CourseSelect />} />
             <Route path="/problem/:problemId" element={<ProblemDetail />} />
+            <Route path="/student/ai-quiz/:sessionId" element={<AIQuizPage />} />
+            <Route path="/student/ai-quiz-result/:sessionId" element={<AIQuizResult />} />
             <Route path="/student/dashboard" element={<StudentDashboard />} />
           </Route>
 

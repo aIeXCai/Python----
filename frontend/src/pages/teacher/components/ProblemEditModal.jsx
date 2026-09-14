@@ -43,7 +43,7 @@ function Dropdown({ label, summary, disabled, children }) {
   )
 }
 
-export default function ProblemEditModal({ problem, user, onClose, onSaved }) {
+export default function ProblemEditModal({ problem, user, units = [], onClose, onSaved }) {
   const allowedGrades = useMemo(
     () => user.is_superuser ? GRADES : [user.managed_grade].filter(Boolean),
     [user.is_superuser, user.managed_grade],
@@ -52,6 +52,7 @@ export default function ProblemEditModal({ problem, user, onClose, onSaved }) {
     title: problem.title || '',
     difficulty: problem.difficulty || '',
     grade_tag: problem.grade_tag || '',
+    unit: problem.unit ? String(problem.unit) : '',
     description: problem.description || '',
     template_code: problem.template_code || '',
   })
@@ -109,6 +110,15 @@ export default function ProblemEditModal({ problem, user, onClose, onSaved }) {
   }, [selectedGrades])
 
   const updateField = (field, value) => setForm(current => ({ ...current, [field]: value }))
+  const updateUnit = (value) => {
+    const section = units.flatMap(root => root.sections || [])
+      .find(item => String(item.id) === value)
+    setForm(current => ({
+      ...current,
+      unit: value,
+      grade_tag: section?.grade || current.grade_tag,
+    }))
+  }
   const updateScope = (grade, changes) => {
     setScopes(current => ({ ...current, [grade]: { ...current[grade], ...changes } }))
   }
@@ -171,13 +181,16 @@ export default function ProblemEditModal({ problem, user, onClose, onSaved }) {
     let updated = problem
     let contentSaved = false
     try {
-      const contentChanged = canEditContent && Object.entries(form).some(
-        ([field, value]) => value !== (problem[field] || ''),
-      )
+      const contentChanged = canEditContent && Object.entries(form).some(([field, value]) => (
+        field === 'unit'
+          ? value !== (problem.unit ? String(problem.unit) : '')
+          : value !== (problem[field] || '')
+      ))
       if (contentChanged) {
         updated = await updateAdminProblem(problem.problem_id, {
           expected_version: problem.management_version,
           ...form,
+          unit: form.unit ? Number(form.unit) : null,
         })
         contentSaved = true
       }
@@ -242,11 +255,31 @@ export default function ProblemEditModal({ problem, user, onClose, onSaved }) {
               <input id="ai-problem-difficulty" disabled={!canEditContent} value={form.difficulty} onChange={event => updateField('difficulty', event.target.value)} style={fieldStyle} placeholder="入门 / 进阶 / 高级" />
             </div>
             <div>
+              <label style={labelStyle} htmlFor="ai-problem-unit">所属 AI 小节</label>
+              <select id="ai-problem-unit" disabled={!canEditContent} value={form.unit} onChange={event => updateUnit(event.target.value)} style={fieldStyle}>
+
+
+                <option value="">未分类</option>
+                {form.unit && !units.some(root => (root.sections || []).some(section => String(section.id) === form.unit)) && (
+                  <option value={form.unit} disabled>{problem.big_unit_name} / {problem.unit_name}（已归档或不可用）</option>
+                )}
+                {units.map(root => (
+                  <optgroup key={root.id} label={`${root.grade} · ${root.display_name}`}>
+                    {(root.sections || []).map(section => (
+                      <option key={section.id} value={String(section.id)}>{section.display_name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              {!units.length && <div style={fieldHintStyle}>暂无可用小节，请先在 AI 单元管理中创建。</div>}
+            </div>
+            <div>
               <label style={labelStyle} htmlFor="ai-problem-grade-tag">适用年级标签</label>
-              <select id="ai-problem-grade-tag" disabled={!canEditContent} value={form.grade_tag} onChange={event => updateField('grade_tag', event.target.value)} style={fieldStyle}>
+              <select id="ai-problem-grade-tag" disabled={!canEditContent || Boolean(form.unit)} value={form.grade_tag} onChange={event => updateField('grade_tag', event.target.value)} style={fieldStyle}>
                 <option value="">未分类</option>
                 {GRADES.map(grade => <option key={grade} value={grade}>{grade}</option>)}
               </select>
+              <div style={fieldHintStyle}>{form.unit ? '已随所属小节自动同步' : '未归类题目可保留旧练习年级标签'}</div>
             </div>
           </div>
 
@@ -336,6 +369,7 @@ const modalStyle = { boxSizing: 'border-box', background: '#fbfbfd', width: 'min
 const titleRowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }
 const iconButtonStyle = { border: 'none', background: 'transparent', color: '#747b89', cursor: 'pointer', padding: 4 }
 const labelStyle = { display: 'block', color: '#555d6b', fontSize: 13, fontWeight: 700, margin: '12px 0 6px' }
+const fieldHintStyle = { color: '#8a909d', fontSize: 11, lineHeight: 1.5, marginTop: 4 }
 const sectionStyle = { background: 'white', border: '1px solid #e5e7ef', borderRadius: 12, padding: 16 }
 const sectionTitleStyle = { margin: 0, fontSize: 15, color: '#303744' }
 const sectionHintStyle = { margin: '4px 0 0', color: '#8a909d', fontSize: 12, lineHeight: 1.6 }

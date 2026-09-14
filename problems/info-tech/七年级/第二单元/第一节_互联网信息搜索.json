@@ -1,0 +1,282 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "信息获取方式",
+    "text": "想快速获取大量中华传统文化资料，较合适的方式是（　　）",
+    "options": [
+      { "key": "A", "text": "互联网搜索" },
+      { "key": "B", "text": "只凭自己的记忆" },
+      { "key": "C", "text": "等待别人主动告知" },
+      { "key": "D", "text": "随机猜测" }
+    ],
+    "answer": "A",
+    "explanation": "互联网搜索具有速度快、信息量大的特点，适合快速获取较多主题资料。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "搜索引擎",
+    "text": "专门帮助用户在互联网上查找信息的工具称为（　　）",
+    "options": [
+      { "key": "A", "text": "电子邮箱" },
+      { "key": "B", "text": "搜索引擎" },
+      { "key": "C", "text": "视频播放器" },
+      { "key": "D", "text": "计算器" }
+    ],
+    "answer": "B",
+    "explanation": "搜索引擎通过收集、整理和索引网络信息，帮助用户查找网页、图片和视频等资源。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "关键词",
+    "text": "搜索时输入的简短、有代表性的词语称为（　　）",
+    "options": [
+      { "key": "A", "text": "文件夹" },
+      { "key": "B", "text": "网址" },
+      { "key": "C", "text": "关键词" },
+      { "key": "D", "text": "附件" }
+    ],
+    "answer": "C",
+    "explanation": "关键词是用户向搜索引擎描述搜索需求的核心词语。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "关键词",
+    "text": "选择搜索关键词时，通常应做到（　　）",
+    "options": [
+      { "key": "A", "text": "越长越好" },
+      { "key": "B", "text": "只输入一个标点符号" },
+      { "key": "C", "text": "故意使用无关词语" },
+      { "key": "D", "text": "简短、准确、有代表性" }
+    ],
+    "answer": "D",
+    "explanation": "简短、准确且有代表性的关键词能清楚表达需求，提高搜索结果的相关性。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "搜索步骤",
+    "text": "使用搜索引擎查找信息的基本顺序是（　　）",
+    "options": [
+      { "key": "A", "text": "打开浏览器、进入搜索引擎、输入关键词、查看结果" },
+      { "key": "B", "text": "关闭浏览器、输入关键词、拔掉网络、查看结果" },
+      { "key": "C", "text": "先打印结果、再输入关键词" },
+      { "key": "D", "text": "删除文件、关闭电脑、输入关键词" }
+    ],
+    "answer": "A",
+    "explanation": "用户应先打开浏览器并进入搜索引擎，再输入关键词，最后浏览和筛选搜索结果。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "搜索引擎原理",
+    "text": "搜索引擎使用网络爬虫自动收集网页内容，这一步称为（　　）",
+    "options": [
+      { "key": "A", "text": "排序" },
+      { "key": "B", "text": "抓取" },
+      { "key": "C", "text": "打印" },
+      { "key": "D", "text": "删除" }
+    ],
+    "answer": "B",
+    "explanation": "抓取是搜索引擎利用网络爬虫自动发现并收集网页内容的过程。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "搜索引擎原理",
+    "text": "搜索引擎将抓取的网页分类整理并建立数据库，这一步称为（　　）",
+    "options": [
+      { "key": "A", "text": "索引" },
+      { "key": "B", "text": "下载" },
+      { "key": "C", "text": "聊天" },
+      { "key": "D", "text": "录音" }
+    ],
+    "answer": "A",
+    "explanation": "索引是对抓取内容进行分类整理并建立索引数据库，方便之后快速检索。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "搜索引擎原理",
+    "text": "搜索引擎按照相关程度把结果依次呈现给用户，这一步称为（　　）",
+    "options": [
+      { "key": "A", "text": "复制" },
+      { "key": "B", "text": "上传" },
+      { "key": "C", "text": "排序" },
+      { "key": "D", "text": "压缩" }
+    ],
+    "answer": "C",
+    "explanation": "排序环节根据关键词和相关算法，把较符合需求的结果排在适当位置。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "搜索技巧",
+    "text": "在搜索短语两侧加英文双引号，通常表示（　　）",
+    "options": [
+      { "key": "A", "text": "只搜索图片" },
+      { "key": "B", "text": "删除搜索记录" },
+      { "key": "C", "text": "关闭搜索引擎" },
+      { "key": "D", "text": "精确匹配引号内的完整短语" }
+    ],
+    "answer": "D",
+    "explanation": "英文双引号可用于精确短语搜索，使结果尽量包含引号内连续、完整的词组。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "搜索技巧",
+    "text": "搜索指令site:主要用于（　　）",
+    "options": [
+      { "key": "A", "text": "限定在指定网站或域名内搜索" },
+      { "key": "B", "text": "限定电脑屏幕大小" },
+      { "key": "C", "text": "改变文件扩展名" },
+      { "key": "D", "text": "自动翻译网页" }
+    ],
+    "answer": "A",
+    "explanation": "site:后接网站域名，可以把搜索范围限制在指定网站内。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "搜索技巧",
+    "text": "搜索指令filetype:doc表示优先查找（　　）",
+    "options": [
+      { "key": "A", "text": "视频文件" },
+      { "key": "B", "text": "Word文档" },
+      { "key": "C", "text": "音频文件" },
+      { "key": "D", "text": "所有网页" }
+    ],
+    "answer": "B",
+    "explanation": "filetype:用于限定文件类型，doc是常见的Word文档扩展名。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "信息保存",
+    "text": "保存网页中的一段文字，常用的方法是（　　）",
+    "options": [
+      { "key": "A", "text": "关闭网页后凭记忆重写" },
+      { "key": "B", "text": "只记录网页颜色" },
+      { "key": "C", "text": "选中文字并复制，再粘贴到文档" },
+      { "key": "D", "text": "拔掉电源" }
+    ],
+    "answer": "C",
+    "explanation": "选中需要的文字后执行复制，再粘贴到文档中，是保存网页文字的常见方法。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "信息保存",
+    "text": "保存网页中的图片，常用的命令是（　　）",
+    "options": [
+      { "key": "A", "text": "撤销" },
+      { "key": "B", "text": "查找替换" },
+      { "key": "C", "text": "页面刷新" },
+      { "key": "D", "text": "图片另存为" }
+    ],
+    "answer": "D",
+    "explanation": "在图片上打开右键菜单并选择“图片另存为”，可以选择位置保存图片文件。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "信息可信度",
+    "text": "面对多个搜索结果，较合理的做法是（　　）",
+    "options": [
+      { "key": "A", "text": "选择来源可靠、标题和内容相关的信息" },
+      { "key": "B", "text": "只相信最夸张的标题" },
+      { "key": "C", "text": "认为网上信息全部正确" },
+      { "key": "D", "text": "完全不查看来源" }
+    ],
+    "answer": "A",
+    "explanation": "筛选信息时应关注来源是否正规、内容是否相关，必要时还要用多个可靠来源相互核对。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "关键词优化",
+    "text": "要查找“中国结的象征意义”，下列关键词组合较准确的是（　　）",
+    "options": [
+      { "key": "A", "text": "一个红色的东西是什么意思" },
+      { "key": "B", "text": "中国结 象征意义" },
+      { "key": "C", "text": "意义" },
+      { "key": "D", "text": "我想知道一种传统工艺的全部内容" }
+    ],
+    "answer": "B",
+    "explanation": "“中国结 象征意义”同时保留主题和需求，表述简短明确，搜索结果通常更相关。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "搜索技巧",
+    "text": "只想在中国非物质文化遗产网查找包含“广东醒狮”的内容，较合适的搜索式是（　　）",
+    "options": [
+      { "key": "A", "text": "广东醒狮 filetype:mp3" },
+      { "key": "B", "text": "site:广东醒狮" },
+      { "key": "C", "text": "\"广东醒狮\" site:www.ihchina.cn" },
+      { "key": "D", "text": "www.ihchina.cn filetype:jpg" }
+    ],
+    "answer": "C",
+    "explanation": "英文双引号用于精确匹配短语，site:www.ihchina.cn把范围限定在中国非物质文化遗产网。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "信息可信度",
+    "text": "两个网页对同一传统文化的起源说法不同，最合理的处理方式是（　　）",
+    "options": [
+      { "key": "A", "text": "选择自己最喜欢的说法" },
+      { "key": "B", "text": "转发两个说法且不说明差异" },
+      { "key": "C", "text": "只看网页颜色判断" },
+      { "key": "D", "text": "核查作者、机构和发布时间，并用更多权威来源交叉验证" }
+    ],
+    "answer": "D",
+    "explanation": "信息冲突时应检查来源背景和发布时间，并寻找权威、独立来源进行交叉验证。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "信息使用规范",
+    "text": "把搜索到的图片用于电子书时，符合信息使用规范的做法是（　　）",
+    "options": [
+      { "key": "A", "text": "确认使用许可并标注图片来源" },
+      { "key": "B", "text": "删除原作者信息后署上自己的名字" },
+      { "key": "C", "text": "认为网络图片都可任意商用" },
+      { "key": "D", "text": "故意隐瞒图片出处" }
+    ],
+    "answer": "A",
+    "explanation": "使用网络资源应尊重知识产权，确认许可范围，并按要求标注作者和出处。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "综合搜索策略",
+    "text": "要制作一份可信的“广东醒狮历史”电子书，下列搜索与处理方案最合理的是（　　）",
+    "options": [
+      { "key": "A", "text": "只使用搜索结果第一页的第一段文字" },
+      { "key": "B", "text": "用准确关键词和site:限定权威网站，核对多个来源，保存资料并记录出处" },
+      { "key": "C", "text": "只让生成式人工智能给出答案，不核验内容" },
+      { "key": "D", "text": "大量下载资料但不分类、不阅读" }
+    ],
+    "answer": "B",
+    "explanation": "准确搜索、权威来源限定、交叉核验和出处记录共同保证资料的相关性、可信度与使用规范。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "搜索问题诊断",
+    "text": "搜索“文化”得到的结果范围过大且不符合任务需求，最有效的改进是（　　）",
+    "options": [
+      { "key": "A", "text": "重复使用完全相同的关键词" },
+      { "key": "B", "text": "删掉所有关键词" },
+      { "key": "C", "text": "补充具体对象和需求，如“广东醒狮 历史起源”，必要时再使用搜索指令" },
+      { "key": "D", "text": "只查看广告内容" }
+    ],
+    "answer": "C",
+    "explanation": "原关键词过于宽泛，应增加主题对象和具体需求，并根据情况使用精确匹配、站点或文件类型限定。"
+  }
+]

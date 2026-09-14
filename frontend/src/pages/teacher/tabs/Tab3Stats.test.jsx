@@ -13,7 +13,10 @@ vi.mock('lucide-react', () => ({
   Users: () => <span data-testid="icon-users">Users</span>,
   CheckCircle: () => <span data-testid="icon-check">Check</span>,
   RefreshCw: () => <span data-testid="icon-refresh">RefreshCw</span>,
+  X: () => <span data-testid="icon-x">X</span>,
 }))
+
+import Tab3Stats from './Tab3Stats.jsx'
 
 const mockStatsData = {
   students: [
@@ -273,6 +276,22 @@ describe('Tab3Stats', () => {
     render(<SimplifiedTab3Stats {...defaultProps} selectedQuiz="" />)
     await user.selectOptions(screen.getByTestId('quiz-select'), '1')
     expect(defaultProps.setSelectedQuiz).toHaveBeenCalledWith('1')
+  })
+
+  it('真实灯阵支持按小测设置阈值并保存', async () => {
+    localStorage.clear()
+    const user = userEvent.setup()
+    render(<Tab3Stats {...defaultProps} selectedQuiz="1" />)
+
+    const threshold = screen.getByLabelText('信息科技小测亮灯阈值')
+    expect(threshold).toHaveValue(80)
+    expect(screen.getByLabelText('学号 1已亮灯')).toBeInTheDocument()
+    await user.clear(threshold)
+    await user.type(threshold, '90')
+
+    expect(screen.getByLabelText('学号 1未亮灯')).toBeInTheDocument()
+    expect(screen.getByLabelText('学号 2已亮灯')).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('infoQuizLampThresholds'))['1']).toBe(90)
   })
 
   it('年级切换时 setSelectedQuiz 为空（清空小测筛选）', async () => {

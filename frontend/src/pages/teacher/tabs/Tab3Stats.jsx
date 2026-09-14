@@ -4,6 +4,17 @@ import { API_BASE_URL } from '../../../api/config.js'
 import { GRADES } from '../../../constants/grades.js'
 import { sortStudentsByNumber } from '../../../utils/studentSort.js'
 
+const INFO_LAMP_THRESHOLDS_KEY = 'infoQuizLampThresholds'
+
+function initialLampThresholds() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(INFO_LAMP_THRESHOLDS_KEY) || '{}')
+    return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {}
+  } catch {
+    return {}
+  }
+}
+
 export default function Tab3Stats({
   statsData, statsLoading, statsFilter,
   setStatsFilter,
@@ -12,6 +23,7 @@ export default function Tab3Stats({
   loadStats,
   gradeDisplay, scoreColor,
 }) {
+  const [lampThresholds, setLampThresholds] = useState(initialLampThresholds)
   // 自动刷新：依赖 loadStats，保证筛选/所选小测变化后定时器使用最新的筛选条件
   useEffect(() => {
     if (!autoRefresh) return
@@ -27,6 +39,16 @@ export default function Tab3Stats({
   const ROWS = 5, COLS = 10
   // 班级范围与全平台一致（注册/学生管理/AI成绩均为 1-20）
   const CLASS_OPTIONS = Array.from({ length: 20 }, (_, i) => String(i + 1))
+  const lampQuizId = String(selectedQuiz || statsData?.sessions?.[0]?.id || 'default')
+  const lampThreshold = Number(lampThresholds[lampQuizId] ?? 80)
+  const setLampThreshold = value => {
+    const nextValue = Math.min(100, Math.max(0, Number(value) || 0))
+    setLampThresholds(current => {
+      const next = { ...current, [lampQuizId]: nextValue }
+      localStorage.setItem(INFO_LAMP_THRESHOLDS_KEY, JSON.stringify(next))
+      return next
+    })
+  }
 
   // 学号排序：null=默认顺序，'asc' 升序，'desc' 降序（点击"学号"表头循环切换）
   const [numberSort, setNumberSort] = useState(null)
@@ -48,8 +70,7 @@ export default function Tab3Stats({
       if (sc != null) scoreMapByNum[num] = sc
     }
   })
-  // 达标（≥80）人数统计
-  const passCount = Object.values(scoreMapByNum).filter(v => v >= 80).length
+  const passCount = Object.values(scoreMapByNum).filter(v => v >= lampThreshold).length
 
   const handleReset = async (student) => {
     if (!selectedQuiz) return
@@ -212,20 +233,34 @@ export default function Tab3Stats({
         </div>
       </div>
 
-      {/* 右侧：达标灯矩阵（≥80 亮灯） */}
+      {/* 右侧：可自定义阈值的达标灯矩阵 */}
       <div style={{
         minWidth: 360, maxWidth: 440,
         background: 'white', borderRadius: 14, padding: '18px 20px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', gap: 10,
         height: 'fit-content', maxHeight: '100%', overflow: 'hidden'
       }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#333', textAlign: 'center' }}>达标监控 · 学号1-50（≥80 亮灯）</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#333', textAlign: 'center' }}>达标监控 · 学号1-50</div>
+        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, color: '#666', fontSize: 12 }}>
+          亮灯阈值
+          <input
+            aria-label="信息科技小测亮灯阈值"
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            value={lampThreshold}
+            onChange={event => setLampThreshold(event.target.value)}
+            style={{ width: 68, padding: '5px 7px', border: '1px solid #d9deea', borderRadius: 7, textAlign: 'center' }}
+          />
+          分
+        </label>
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)`, gap: 5 }}>
           {Array.from({ length: ROWS * COLS }, (_, idx) => {
             const lampNum = idx + 1
-            const isLit = (scoreMapByNum[lampNum] || 0) >= 80
+            const isLit = scoreMapByNum[lampNum] != null && scoreMapByNum[lampNum] >= lampThreshold
             return (
-              <div key={idx} title={`学号${lampNum} ${isLit ? '✓ ≥80 达标' : '未达标（<80）'}`}
+              <div key={idx} aria-label={`学号 ${lampNum}${isLit ? '已亮灯' : '未亮灯'}`} title={`学号${lampNum} ${isLit ? `✓ ≥${lampThreshold} 达标` : `未达标（<${lampThreshold}）`}`}
                 style={{
                   width: 28, height: 28, borderRadius: 5,
                   background: isLit ? '#4caf50' : '#2a2a2a',
@@ -242,7 +277,7 @@ export default function Tab3Stats({
           })}
         </div>
         <div style={{ fontSize: 11, color: '#888', textAlign: 'center' }}>
-          {passCount}/{ROWS * COLS} 达标
+          {passCount}/{ROWS * COLS} 已达到 {lampThreshold} 分
         </div>
       </div>
     </div>

@@ -1,0 +1,282 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "网站开发流程",
+    "text": "网站开发通常包含规划、素材准备、开发、测试、发布和（　　）六个阶段",
+    "options": [
+      { "key": "A", "text": "打印" },
+      { "key": "B", "text": "维护" },
+      { "key": "C", "text": "关机" },
+      { "key": "D", "text": "截图" }
+    ],
+    "answer": "B",
+    "explanation": "课件把网站开发分为规划、素材准备、开发、测试、发布和维护六个关键阶段。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "网站开发流程",
+    "text": "明确网站主题、设计栏目和进行人员分工，主要属于（　　）阶段",
+    "options": [
+      { "key": "A", "text": "网站规划" },
+      { "key": "B", "text": "网站发布" },
+      { "key": "C", "text": "网站维护" },
+      { "key": "D", "text": "性能测试" }
+    ],
+    "answer": "A",
+    "explanation": "网站规划阶段要明确主题、栏目结构、版面思路和团队分工。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "素材准备",
+    "text": "下列哪项属于网站开发前的素材准备？（　　）",
+    "options": [
+      { "key": "A", "text": "申请服务器域名" },
+      { "key": "B", "text": "修复上线后的漏洞" },
+      { "key": "C", "text": "搜集并整理文字、图片和视频" },
+      { "key": "D", "text": "统计网站上线后的访问量" }
+    ],
+    "answer": "C",
+    "explanation": "素材准备阶段需要根据栏目需求搜集、整理并适当加工文字、图片、音频和视频等资源。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "素材分类",
+    "text": "不同类型或不同主题的网站素材应（　　）",
+    "options": [
+      { "key": "A", "text": "全部放入一个文件夹且使用相同文件名" },
+      { "key": "B", "text": "下载后立即删除" },
+      { "key": "C", "text": "只保存在聊天记录中" },
+      { "key": "D", "text": "分别存入结构清晰的文件夹" }
+    ],
+    "answer": "D",
+    "explanation": "按照主题和素材类型建立层级清晰的文件夹，可以提高查找和网页引用效率。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "素材版权",
+    "text": "下载网络图片用于非遗网站前，首先应检查（　　）",
+    "options": [
+      { "key": "A", "text": "版权许可和来源信息" },
+      { "key": "B", "text": "图片是否最先出现在搜索结果中" },
+      { "key": "C", "text": "文件名是否最短" },
+      { "key": "D", "text": "下载按钮颜色" }
+    ],
+    "answer": "A",
+    "explanation": "使用网络素材应确认来源可靠、许可条件明确，并按照要求署名或限制使用范围。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "素材版权",
+    "text": "素材平台没有明确说明图片授权方式时，合理的做法是（　　）",
+    "options": [
+      { "key": "A", "text": "默认可以任意商用" },
+      { "key": "B", "text": "查看服务条款或授权说明，必要时不用该素材" },
+      { "key": "C", "text": "删除水印后使用" },
+      { "key": "D", "text": "改文件名后视为原创" }
+    ],
+    "answer": "B",
+    "explanation": "授权不清晰时应进一步核查Terms of Service或License等说明，无法确认合法性时应换用来源明确的素材。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "网页编辑工具",
+    "text": "下列哪项属于专业网页制作软件？（　　）",
+    "options": [
+      { "key": "A", "text": "画图" },
+      { "key": "B", "text": "计算器" },
+      { "key": "C", "text": "Dreamweaver" },
+      { "key": "D", "text": "音乐播放器" }
+    ],
+    "answer": "C",
+    "explanation": "Dreamweaver是课件列举的专业网页制作软件，可用于设计和编辑网页。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "网页编辑工具",
+    "text": "下列哪项适合直接编辑网页代码？（　　）",
+    "options": [
+      { "key": "A", "text": "电子表格软件" },
+      { "key": "B", "text": "视频播放器" },
+      { "key": "C", "text": "图片浏览器" },
+      { "key": "D", "text": "VS Code" }
+    ],
+    "answer": "D",
+    "explanation": "VS Code是常用代码编辑器，可以直接编写和修改HTML、CSS和JavaScript代码。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "网页编辑工具",
+    "text": "通过浏览器打开并使用的网页搭建工具属于（　　）",
+    "options": [
+      { "key": "A", "text": "在线网页编辑工具" },
+      { "key": "B", "text": "本地打印工具" },
+      { "key": "C", "text": "音频采集工具" },
+      { "key": "D", "text": "硬盘维修工具" }
+    ],
+    "answer": "A",
+    "explanation": "在线网页编辑工具通常通过浏览器使用，便于快速搭建和预览网页。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "网页文件",
+    "text": "网页文件常用的标准扩展名是（　　）",
+    "options": [
+      { "key": "A", "text": ".docx" },
+      { "key": "B", "text": ".html" },
+      { "key": "C", "text": ".xlsx" },
+      { "key": "D", "text": ".mp3" }
+    ],
+    "answer": "B",
+    "explanation": "HTML是网页的标准标记格式，常见网页文件扩展名为.html或.htm。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "图片加工",
+    "text": "为了保留非遗图片的核心内容并去除无关边缘，可以进行（　　）",
+    "options": [
+      { "key": "A", "text": "录音" },
+      { "key": "B", "text": "压缩网页代码" },
+      { "key": "C", "text": "裁剪" },
+      { "key": "D", "text": "申请域名" }
+    ],
+    "answer": "C",
+    "explanation": "裁剪可以调整图片取景范围，保留主体并去除不需要的边缘内容。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "视频加工",
+    "text": "为网站视频添加字幕和背景音乐，属于（　　）",
+    "options": [
+      { "key": "A", "text": "网站备案" },
+      { "key": "B", "text": "服务器维护" },
+      { "key": "C", "text": "栏目规划" },
+      { "key": "D", "text": "视频素材加工" }
+    ],
+    "answer": "D",
+    "explanation": "剪辑片段、添加字幕和配乐都是常见的视频素材加工操作。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "网站测试",
+    "text": "检查超链接是否有效、页面是否兼容，主要属于（　　）阶段",
+    "options": [
+      { "key": "A", "text": "网站测试" },
+      { "key": "B", "text": "网站规划" },
+      { "key": "C", "text": "素材搜集" },
+      { "key": "D", "text": "网站维护" }
+    ],
+    "answer": "A",
+    "explanation": "网站测试阶段需要检查链接有效性、兼容性和性能，发现问题后及时修复。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "网站维护",
+    "text": "网站上线后更新内容、修复漏洞和优化体验，属于（　　）",
+    "options": [
+      { "key": "A", "text": "素材准备" },
+      { "key": "B", "text": "网站维护" },
+      { "key": "C", "text": "栏目设计" },
+      { "key": "D", "text": "首页草图绘制" }
+    ],
+    "answer": "B",
+    "explanation": "发布后仍需持续更新内容、修复安全或功能问题并改善用户体验，这属于网站维护。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "网站开发流程",
+    "text": "网站开发六个阶段的正确顺序是（　　）",
+    "options": [
+      { "key": "A", "text": "规划、素材准备、开发、测试、发布、维护" },
+      { "key": "B", "text": "发布、规划、测试、素材准备、维护、开发" },
+      { "key": "C", "text": "素材准备、发布、规划、维护、测试、开发" },
+      { "key": "D", "text": "维护、发布、测试、开发、规划、素材准备" }
+    ],
+    "answer": "A",
+    "explanation": "先规划并准备素材，再开发和测试，确认可用后发布，最后进入持续维护阶段。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "素材管理",
+    "text": "下列网站素材目录结构最便于后续制作的是（　　）",
+    "options": [
+      { "key": "A", "text": "所有文件放在桌面并命名为1、2、3" },
+      { "key": "B", "text": "班级姓名/非遗门类/图片、文字、视频等素材类型" },
+      { "key": "C", "text": "每次使用后随机移动文件" },
+      { "key": "D", "text": "只在聊天记录中保存素材" }
+    ],
+    "answer": "B",
+    "explanation": "按照人员或项目、非遗门类和素材类型建立层级，可以快速定位资源并减少网页路径错误。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "网页图片引用",
+    "text": "代码<img src=\"https://example.com/a.jpg\">中的图片地址属于（　　）",
+    "options": [
+      { "key": "A", "text": "本地相对路径" },
+      { "key": "B", "text": "文件夹名称" },
+      { "key": "C", "text": "完整的网络地址" },
+      { "key": "D", "text": "网页标题" }
+    ],
+    "answer": "C",
+    "explanation": "以https://开头的完整URL指向网络资源，网页可在网络允许且资源可访问时加载该图片。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "工具选择",
+    "text": "学生希望直接学习和控制HTML代码，并获得语法提示，较适合选择（　　）",
+    "options": [
+      { "key": "A", "text": "普通图片查看器" },
+      { "key": "B", "text": "视频剪辑软件" },
+      { "key": "C", "text": "文字打印工具" },
+      { "key": "D", "text": "VS Code等代码编辑器" }
+    ],
+    "answer": "D",
+    "explanation": "代码编辑器适合直接编写HTML等源代码，并通常提供语法高亮、提示和文件管理功能。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "开发准备方案",
+    "text": "小组准备制作非遗网站，下列准备方案最完整合理的是（　　）",
+    "options": [
+      { "key": "A", "text": "按栏目列出素材需求，从可靠平台收集并核查授权，分类命名后再选择合适工具加工" },
+      { "key": "B", "text": "随意复制网络素材，全部放在一个文件夹中" },
+      { "key": "C", "text": "先发布空白网站，再考虑主题和内容" },
+      { "key": "D", "text": "只选择编辑器，不准备任何素材" }
+    ],
+    "answer": "A",
+    "explanation": "完整准备需要从栏目需求出发，兼顾素材来源与许可、分类存储、规范命名和加工工具选择。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "素材问题诊断",
+    "text": "网页制作时多张本地图片无法显示，而图片文件曾被随意移动和改名。最有效的改进是（　　）",
+    "options": [
+      { "key": "A", "text": "继续随机更改文件位置" },
+      { "key": "B", "text": "建立固定素材目录和命名规则，并同步修正网页中的图片路径" },
+      { "key": "C", "text": "删除所有HTML文件" },
+      { "key": "D", "text": "只改变网页背景颜色" }
+    ],
+    "answer": "B",
+    "explanation": "图片移动或改名会使原路径失效。固定目录结构并让代码路径与实际文件位置一致，才能稳定加载素材。"
+  }
+]

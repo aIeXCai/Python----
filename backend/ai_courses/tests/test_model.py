@@ -1,0 +1,582 @@
+"""
+ai_courses Model + Serializer 单元测试
+运行: cd backend && python manage.py test ai_courses.tests_model
+"""
+import os
+import tempfile
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+from django.core.exceptions import ValidationError
+from django.test import TestCase, override_settings
+from ai_courses.models import Problem, Submission
+from ai_courses.serializers import SubmissionCreateSerializer
+from users.models import CustomUser
+
+
+# ─── Model Tests ──────────────────────────────────────────────────────────
+
+class ProblemModelTest(TestCase):
+    """Problem 模型"""
+
+    def test_str_returns_problem_id(self):
+        """__str__ = problem_id"""
+        p = Problem.objects.create(problem_id='problem_001', title='两数之和')
+        self.assertEqual(str(p), 'problem_001')
+
+    def test_create_ai_course_problem(self):
+        """创建 AI课题目"""
+        p = Problem.objects.create(
+            problem_id='p_ai_1', title='Hello World', difficulty='easy', course='ai'
+        )
+        self.assertEqual(p.course, 'ai')
+        self.assertEqual(p.difficulty, 'easy')
+
+    def test_create_info_course_problem(self):
+        """创建信息课题目"""
+        p = Problem.objects.create(problem_id='p_info_1', course='info')
+        self.assertEqual(p.course, 'info')
+
+    def test_problem_id_unique(self):
+        """problem_id 全局唯一"""
+        Problem.objects.create(problem_id='unique_id', title='第一题')
+        with self.assertRaises(Exception):  # IntegrityError
+            Problem.objects.create(problem_id='unique_id', title='重复')
+
+    def test_default_course_is_ai(self):
+        """默认 course='ai'"""
+        p = Problem.objects.create(problem_id='default_course')
+        self.assertEqual(p.course, 'ai')
+
+    def test_ordering_by_problem_id(self):
+        """默认按 problem_id 升序"""
+        Problem.objects.create(problem_id='z_problem')
+        Problem.objects.create(problem_id='a_problem')
+        Problem.objects.create(problem_id='m_problem')
+        ids = list(Problem.objects.values_list('problem_id', flat=True))
+        self.assertEqual(ids, ['a_problem', 'm_problem', 'z_problem'])
+
+    def test_default_template_code_empty(self):
+        """默认 template_code 为空字符串"""
+        p = Problem.objects.create(problem_id='test_template_default')
+        self.assertEqual(p.template_code, '')
+
+    def test_grade_tag_defaults_to_unclassified_and_accepts_school_grades(self):
+        unclassified = Problem.objects.create(problem_id='tag_default')
+        tagged = Problem.objects.create(problem_id='tag_grade7', grade_tag='七年级')
+        self.assertEqual(unclassified.grade_tag, '')
+        self.assertEqual(tagged.grade_tag, '七年级')
+
+    def test_grade_tag_rejects_unknown_grade_during_validation(self):
+        problem = Problem(problem_id='tag_invalid', grade_tag='大学')
+        with self.assertRaises(ValidationError):
+            problem.full_clean()
+
+    def test_template_code_set_explicitly(self):
+        """可以显式设置 template_code"""
+        code = 'def solve():\n    # write your code here\n    pass\n'
+        p = Problem.objects.create(problem_id='test_template_set', template_code=code)
+        self.assertEqual(p.template_code, code)
+
+    def test_template_code_persisted(self):
+        """template_code 持久化到数据库"""
+        code = 'print("hello world")'
+        p = Problem.objects.create(problem_id='test_template_persist', template_code=code)
+        p.refresh_from_db()
+        self.assertEqual(p.template_code, code)
+
+
+class ProblemGetTestCasesTest(TestCase):
+    """Problem.get_test_cases() 和 get_test_count() — 读文件系统"""
+
+    def _make_problem(self, course='ai', pid='test_prob'):
+        return Problem.objects.create(problem_id=pid, course=course)
+
+    def test_no_dir_returns_empty_list(self):
+        """题目目录不存在 → []"""
+        p = self._make_problem()
+        self.assertEqual(p.get_test_cases(), [])
+        self.assertEqual(p.get_test_count(), 0)
+
+    def test_input_output_txt_pairs(self):
+        """input1.txt + output1.txt 配对读取"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'test_prob')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'input1.txt'), 'w', encoding='utf-8') as f:
+                f.write('1 2\n')
+            with open(os.path.join(prob_dir, 'output1.txt'), 'w', encoding='utf-8') as f:
+                f.write('3\n')
+
+            with patch.object(Problem, 'get_problem_dir', return_value=prob_dir):
+                p = self._make_problem()
+                cases = p.get_test_cases()
+                self.assertEqual(len(cases), 1)
+                self.assertEqual(cases[0]['number'], 1)
+                self.assertEqual(cases[0]['input'], '1 2\n')
+                self.assertEqual(cases[0]['output'], '3')
+
+    def test_multiple_test_cases(self):
+        """多个测试点按 input 文件名排序"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'test_prob')
+            os.makedirs(prob_dir)
+            for i, (inp, out) in enumerate([('a\n', 'A\n'), ('b\n', 'B\n'), ('c\n', 'C\n')], 1):
+                with open(os.path.join(prob_dir, f'input{i}.txt'), 'w') as f:
+                    f.write(inp)
+                with open(os.path.join(prob_dir, f'output{i}.txt'), 'w') as f:
+                    f.write(out.strip())
+
+            with patch.object(Problem, 'get_problem_dir', return_value=prob_dir):
+                p = self._make_problem()
+                cases = p.get_test_cases()
+                self.assertEqual(len(cases), 3)
+                self.assertEqual(cases[0]['input'], 'a\n')
+                self.assertEqual(cases[2]['input'], 'c\n')
+
+    def test_n_in_n_out_format(self):
+        """1.in / 1.out 格式"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'test_prob')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, '1.in'), 'w', encoding='utf-8') as f:
+                f.write('hello')
+            with open(os.path.join(prob_dir, '1.out'), 'w', encoding='utf-8') as f:
+                f.write('HELLO')
+
+            with patch.object(Problem, 'get_problem_dir', return_value=prob_dir):
+                p = self._make_problem()
+                cases = p.get_test_cases()
+                self.assertEqual(len(cases), 1)
+                self.assertEqual(cases[0]['input'], 'hello')
+                self.assertEqual(cases[0]['output'], 'HELLO')
+
+    def test_get_test_count_calls_get_test_cases(self):
+        """get_test_count = len(get_test_cases())"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'test_prob')
+            os.makedirs(prob_dir)
+            for i in range(5):
+                with open(os.path.join(prob_dir, f'input{i+1}.txt'), 'w') as f:
+                    f.write('x')
+                with open(os.path.join(prob_dir, f'output{i+1}.txt'), 'w') as f:
+                    f.write('y')
+
+            with patch.object(Problem, 'get_problem_dir', return_value=prob_dir):
+                p = self._make_problem()
+
+
+class ProblemGetProblemDirTest(TestCase):
+    def test_ai_problem_uses_grade_subdir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            expected = root / 'ai' / 'programming' / '八年级' / 'problem_grade8'
+            expected.mkdir(parents=True)
+            problem = Problem(
+                problem_id='problem_grade8', course='ai', grade_tag='八年级',
+            )
+            with override_settings(PROBLEMS_DIR=root):
+                self.assertEqual(problem.get_problem_dir(), expected)
+
+    def test_ai_problem_resolves_named_directory_inside_grade(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            named_dir = root / 'ai' / 'programming' / '八年级' / '打印三行问候语'
+            named_dir.mkdir(parents=True)
+            (named_dir / 'metadata.txt').write_text(
+                'problem_id: problem1\ntitle: 打印三行问候语\n', encoding='utf-8',
+            )
+            problem = Problem(problem_id='problem1', course='ai', grade_tag='八年级')
+            with override_settings(PROBLEMS_DIR=root):
+                self.assertEqual(problem.get_problem_dir(), named_dir)
+
+    def test_ai_problem_uses_programming_subdir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            expected = root / 'ai' / 'programming' / 'problem_new_layout'
+            expected.mkdir(parents=True)
+            problem = Problem(problem_id='problem_new_layout', course='ai')
+            with override_settings(PROBLEMS_DIR=root):
+                self.assertEqual(problem.get_problem_dir(), expected)
+
+    def test_ai_problem_resolves_named_directory_from_metadata(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            named_dir = root / 'ai' / 'programming' / '打印三行问候语'
+            named_dir.mkdir(parents=True)
+            (named_dir / 'metadata.txt').write_text(
+                'problem_id: problem1\ntitle: 打印三行问候语\n', encoding='utf-8',
+            )
+            problem = Problem(problem_id='problem1', course='ai')
+            with override_settings(PROBLEMS_DIR=root):
+                self.assertEqual(problem.get_problem_dir(), named_dir)
+
+    def test_ai_problem_supports_legacy_directory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            legacy = root / 'ai' / 'problem_legacy_layout'
+            legacy.mkdir(parents=True)
+            problem = Problem(problem_id='problem_legacy_layout', course='ai')
+            with override_settings(PROBLEMS_DIR=root):
+                self.assertEqual(problem.get_problem_dir(), legacy)
+
+
+class ProblemSyncFromDiskTest(TestCase):
+    """Problem.sync_from_disk() 类方法 — mock os.* 磁盘操作"""
+
+    def test_no_dir_returns_empty(self):
+        """problems_dir 不存在 → ([], [])"""
+        with patch('ai_courses.models.os.path.exists', return_value=False):
+            created, updated = Problem.sync_from_disk()
+            self.assertEqual(created, [])
+            self.assertEqual(updated, [])
+
+    def test_sync_ai_problems_from_programming_subdir(self):
+        """problems/ai/programming/problemX/ → course='ai'"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'ai', 'programming', 'problem_new_ai')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'description.txt'), 'w', encoding='utf-8') as f:
+                f.write('求和题描述内容')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertIn('problem_new_ai', created)
+            p = Problem.objects.get(problem_id='problem_new_ai')
+            self.assertEqual(p.course, 'ai')
+            self.assertEqual(p.description, '求和题描述内容')
+
+    def test_sync_ai_problem_from_grade_subdir_sets_grade_tag(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(
+                tmpdir, 'ai', 'programming', '八年级', '八年级示例题',
+            )
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'metadata.txt'), 'w', encoding='utf-8') as file:
+                file.write('problem_id: grade8_demo\ntitle: 八年级示例题\n')
+            with open(os.path.join(prob_dir, 'description.txt'), 'w', encoding='utf-8') as file:
+                file.write('年级目录同步测试')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertEqual(created, ['grade8_demo'])
+            self.assertEqual(updated, [])
+            problem = Problem.objects.get(problem_id='grade8_demo')
+            self.assertEqual(problem.grade_tag, '八年级')
+            self.assertEqual(problem.description, '年级目录同步测试')
+
+    def test_sync_named_directory_uses_directory_name_by_default(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'ai', 'programming', '计算圆的面积')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'description.txt'), 'w', encoding='utf-8') as f:
+                f.write('输入半径，输出圆的面积')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertIn('计算圆的面积', created)
+            problem = Problem.objects.get(problem_id='计算圆的面积')
+            self.assertEqual(problem.title, '计算圆的面积')
+
+    def test_sync_named_directory_can_keep_stable_problem_id(self):
+        Problem.objects.create(problem_id='problem1', title='problem1', course='ai')
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'ai', 'programming', '打印三行问候语')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'metadata.txt'), 'w', encoding='utf-8') as f:
+                f.write('problem_id: problem1\ntitle: 打印三行问候语\n')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertEqual(created, [])
+            self.assertIn('problem1', updated)
+            self.assertEqual(
+                Problem.objects.get(problem_id='problem1').title,
+                '打印三行问候语',
+            )
+
+    def test_sync_ai_problems_from_legacy_ai_subdir(self):
+        """旧的 problems/ai/problemX/ 目录仍可同步。"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'ai', 'problem_legacy_ai')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'description.txt'), 'w', encoding='utf-8') as f:
+                f.write('旧目录题目')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertIn('problem_legacy_ai', created)
+            self.assertEqual(
+                Problem.objects.get(problem_id='problem_legacy_ai').description,
+                '旧目录题目',
+            )
+
+    def test_sync_info_problems_from_root(self):
+        """problems/problemX/（根目录） → course='info'"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'problem_info')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'description.txt'), 'w', encoding='utf-8') as f:
+                f.write('信息课描述内容')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertIn('problem_info', created)
+            p = Problem.objects.get(problem_id='problem_info')
+            self.assertEqual(p.course, 'info')
+
+    def test_sync_updates_existing(self):
+        """已存在题目再次 sync → update，不重复创建"""
+        Problem.objects.create(problem_id='problem_existing', title='旧标题', course='ai')
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'ai', 'problem_existing')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'description.txt'), 'w', encoding='utf-8') as f:
+                f.write('更新后描述')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertEqual(created, [])
+            self.assertIn('problem_existing', updated)
+            p = Problem.objects.get(problem_id='problem_existing')
+            self.assertEqual(p.description, '更新后描述')
+
+    def test_non_problem_dir_ignored(self):
+        """不以 'problem' 开头的目录被忽略"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sub_dir = os.path.join(tmpdir, 'ai')
+            os.makedirs(sub_dir)
+            os.makedirs(os.path.join(sub_dir, 'random_folder'))  # 不以 problem 开头 → 忽略
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+            self.assertEqual(created, [])
+
+    # ── template_code sync tests ──────────────────────────────────────────────
+
+    def test_sync_with_template_py(self):
+        """有 template.py 的题目 → sync 后 template_code 非空"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'ai', 'problem_with_template')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'description.txt'), 'w', encoding='utf-8') as f:
+                f.write('带模板的题目')
+            with open(os.path.join(prob_dir, 'template.py'), 'w', encoding='utf-8') as f:
+                f.write('def solve():\n    # TODO: implement\n    pass\n')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertIn('problem_with_template', created)
+            p = Problem.objects.get(problem_id='problem_with_template')
+            self.assertEqual(p.template_code, 'def solve():\n    # TODO: implement\n    pass\n')
+
+    def test_sync_without_template_py(self):
+        """无 template.py 的题目 → template_code 为空字符串（向后兼容）"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'ai', 'problem_no_template')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'description.txt'), 'w', encoding='utf-8') as f:
+                f.write('没有模板的题目')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertIn('problem_no_template', created)
+            p = Problem.objects.get(problem_id='problem_no_template')
+            self.assertEqual(p.template_code, '')
+
+    def test_sync_updates_template_code_on_resync(self):
+        """重新 sync 时更新 template_code"""
+        Problem.objects.create(problem_id='problem_re_sync', title='旧标题', course='ai',
+                               template_code='OLD CODE')
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prob_dir = os.path.join(tmpdir, 'ai', 'problem_re_sync')
+            os.makedirs(prob_dir)
+            with open(os.path.join(prob_dir, 'template.py'), 'w', encoding='utf-8') as f:
+                f.write('NEW CODE')
+
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                created, updated = Problem.sync_from_disk()
+
+            self.assertIn('problem_re_sync', updated)
+            p = Problem.objects.get(problem_id='problem_re_sync')
+            self.assertEqual(p.template_code, 'NEW CODE')
+
+    def test_sync_reports_unchanged_problem_as_skipped(self):
+        """无变化题目在详细结果中说明跳过原因。"""
+        Problem.objects.create(problem_id='problem_unchanged', title='problem_unchanged', course='ai')
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.makedirs(os.path.join(tmpdir, 'ai', 'problem_unchanged'))
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                result = Problem.sync_from_disk()
+
+        self.assertEqual(result.created, [])
+        self.assertEqual(result.updated, [])
+        self.assertEqual(result.skipped, [
+            {'problem_id': 'problem_unchanged', 'reason': '内容无变化'},
+        ])
+
+    def test_sync_isolates_and_reports_invalid_problem_file(self):
+        """单题文件解码失败不会中断整批同步。"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            invalid_dir = os.path.join(tmpdir, 'ai', 'problem_invalid_encoding')
+            valid_dir = os.path.join(tmpdir, 'ai', 'problem_valid_after_failure')
+            os.makedirs(invalid_dir)
+            os.makedirs(valid_dir)
+            with open(os.path.join(invalid_dir, 'description.txt'), 'wb') as file:
+                file.write(b'\x81')
+            with patch('ai_courses.models.settings') as mock_settings:
+                mock_settings.PROBLEMS_DIR = tmpdir
+                result = Problem.sync_from_disk()
+
+        self.assertEqual(result.created, ['problem_valid_after_failure'])
+        self.assertEqual(result.failed[0]['problem_id'], 'problem_invalid_encoding')
+        self.assertFalse(Problem.objects.filter(problem_id='problem_invalid_encoding').exists())
+
+
+class SubmissionModelTest(TestCase):
+    """Submission 模型"""
+
+    def setUp(self):
+        self.student = CustomUser.objects.create_user(
+            username='stu_sub', password='x', role='student',
+            grade='七年级', class_num='1', student_number='01'
+        )
+        self.prob = Problem.objects.create(problem_id='subj_prob', course='ai')
+
+    def test_str_format(self):
+        """__str__ = submission id + user + score"""
+        sub = Submission.objects.create(
+            user=self.student, problem=self.prob, code='print(1)',
+            score=100.0, status='accepted'
+        )
+        s = str(sub)
+        self.assertIn('stu_sub', s)
+        self.assertIn('100.0', s)
+
+    def test_create_full_fields(self):
+        """所有字段正确保存"""
+        sub = Submission.objects.create(
+            user=self.student, problem=self.prob, code='x=1\nprint(x)',
+            score=85.5, status='wrong_answer', error_message='输出格式错误'
+        )
+        self.assertEqual(sub.score, 85.5)
+        self.assertEqual(sub.status, 'wrong_answer')
+        self.assertEqual(sub.error_message, '输出格式错误')
+
+    def test_multiple_submissions_same_problem(self):
+        """同一学生同一题目可多次提交"""
+        Submission.objects.create(user=self.student, problem=self.prob, code='v1', score=60.0, status='wrong')
+        Submission.objects.create(user=self.student, problem=self.prob, code='v2', score=100.0, status='accepted')
+        self.assertEqual(Submission.objects.filter(user=self.student, problem=self.prob).count(), 2)
+
+    def test_ordering_by_submitted_at_desc(self):
+        """默认按 submitted_at 降序（最新在前）"""
+        sub1 = Submission.objects.create(user=self.student, problem=self.prob, code='c1', score=50.0, status='wrong')
+        sub2 = Submission.objects.create(user=self.student, problem=self.prob, code='c2', score=80.0, status='wrong')
+        ids = list(Submission.objects.values_list('id', flat=True))
+        self.assertEqual(ids, [sub2.id, sub1.id])  # 最新在前面
+
+
+# ─── Serializer Tests ──────────────────────────────────────────────────────
+
+class SubmissionCreateSerializerTest(TestCase):
+    """SubmissionCreateSerializer 校验"""
+
+    def test_valid_data(self):
+        """合法 code + problem_id → is_valid=True"""
+        s = SubmissionCreateSerializer(data={'problem_id': 'p1', 'code': 'print("hello")'})
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertEqual(s.validated_data['code'], 'print("hello")')
+
+    def test_empty_code_fails(self):
+        """空字符串 → ValidationError"""
+        s = SubmissionCreateSerializer(data={'problem_id': 'p1', 'code': ''})
+        self.assertFalse(s.is_valid())
+        self.assertIn('code', s.errors)
+        self.assertIn('不能为空', str(s.errors['code'][0]))
+
+    def test_whitespace_only_code_fails(self):
+        """纯空白 code → ValidationError"""
+        s = SubmissionCreateSerializer(data={'problem_id': 'p1', 'code': '   \n\t  '})
+        self.assertFalse(s.is_valid())
+        self.assertIn('code', s.errors)
+
+    def test_strips_whitespace(self):
+        """有效 code 首尾空白被 strip"""
+        s = SubmissionCreateSerializer(data={'problem_id': 'p1', 'code': '  print(1)  \n'})
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertEqual(s.validated_data['code'], 'print(1)')
+
+    def test_missing_problem_id(self):
+        """缺少 problem_id → 校验失败"""
+        s = SubmissionCreateSerializer(data={'code': 'print(1)'})
+        self.assertFalse(s.is_valid())
+        self.assertIn('problem_id', s.errors)
+
+    def test_missing_code(self):
+        """缺少 code → 校验失败"""
+        s = SubmissionCreateSerializer(data={'problem_id': 'p1'})
+        self.assertFalse(s.is_valid())
+        self.assertIn('code', s.errors)
+
+
+# ─── ProblemDetailSerializer template_code Tests ─────────────────────────────
+
+class ProblemDetailSerializerTest(TestCase):
+    """ProblemDetailSerializer — template_code 序列化"""
+
+    def setUp(self):
+        self.prob = Problem.objects.create(
+            problem_id='serializer_test', title='序列化测试', difficulty='easy',
+            description='题目描述内容', course='ai',
+            template_code='def solve():\n    pass\n'
+        )
+
+    def test_serializer_includes_template_code(self):
+        """序列化输出包含 template_code 字段"""
+        from ai_courses.serializers import ProblemDetailSerializer
+        with patch.object(Problem, 'get_test_cases', return_value=[]):
+            serializer = ProblemDetailSerializer(self.prob)
+            data = serializer.data
+            self.assertIn('template_code', data)
+            self.assertEqual(data['template_code'], 'def solve():\n    pass\n')
+
+    def test_serializer_template_code_empty(self):
+        """template_code 为空时序列化为空字符串"""
+        prob = Problem.objects.create(
+            problem_id='empty_template', title='空模板', course='ai',
+            template_code=''
+        )
+        from ai_courses.serializers import ProblemDetailSerializer
+        with patch.object(Problem, 'get_test_cases', return_value=[]):
+            serializer = ProblemDetailSerializer(prob)
+            data = serializer.data
+            self.assertIn('template_code', data)
+            self.assertEqual(data['template_code'], '')
+
+    def test_serializer_includes_all_expected_fields(self):
+        """ProblemDetailSerializer 包含完整字段列表"""
+        from ai_courses.serializers import ProblemDetailSerializer
+        expected_fields = {'problem_id', 'title', 'description', 'difficulty', 'grade_tag',
+                           'template_code', 'test_cases', 'created_at'}
+        self.assertEqual(set(ProblemDetailSerializer.Meta.fields), expected_fields)

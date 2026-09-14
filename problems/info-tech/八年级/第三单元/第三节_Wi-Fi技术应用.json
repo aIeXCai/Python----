@@ -1,0 +1,522 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "Wi-Fi基本概念",
+    "text": "Wi-Fi是一种基于IEEE 802.11标准的（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "无线局域网通信技术"
+      },
+      {
+        "key": "B",
+        "text": "有线广域网技术"
+      },
+      {
+        "key": "C",
+        "text": "卫星导航技术"
+      },
+      {
+        "key": "D",
+        "text": "近场支付技术"
+      }
+    ],
+    "answer": "A",
+    "explanation": "Wi-Fi基于IEEE 802.11标准，用于无线局域网通信。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "Wi-Fi频段",
+    "text": "课堂材料介绍的常见Wi-Fi频段是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "900MHz和1GHz"
+      },
+      {
+        "key": "B",
+        "text": "2.4GHz和5GHz"
+      },
+      {
+        "key": "C",
+        "text": "10GHz和20GHz"
+      },
+      {
+        "key": "D",
+        "text": "只有5GHz"
+      }
+    ],
+    "answer": "B",
+    "explanation": "常见Wi-Fi网络主要使用2.4GHz和5GHz频段。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "网络组件",
+    "text": "校园无线网络的核心组件之一是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "无线网络设备"
+      },
+      {
+        "key": "B",
+        "text": "纸质登记表"
+      },
+      {
+        "key": "C",
+        "text": "机械开关"
+      },
+      {
+        "key": "D",
+        "text": "U盘"
+      }
+    ],
+    "answer": "A",
+    "explanation": "无线网络设备负责发出无线信号并连接终端与网络。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "网络组件",
+    "text": "接入Wi-Fi的手机、平板或计算机属于（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "传输介质"
+      },
+      {
+        "key": "B",
+        "text": "终端设备"
+      },
+      {
+        "key": "C",
+        "text": "服务器机柜"
+      },
+      {
+        "key": "D",
+        "text": "光纤接头"
+      }
+    ],
+    "answer": "B",
+    "explanation": "用户通过手机、平板或计算机等终端设备接入无线网络。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "接入流程",
+    "text": "连接校园Wi-Fi时，第一步通常是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "搜索无线网络信号"
+      },
+      {
+        "key": "B",
+        "text": "直接获得IP地址"
+      },
+      {
+        "key": "C",
+        "text": "关闭无线功能"
+      },
+      {
+        "key": "D",
+        "text": "拆除路由器"
+      }
+    ],
+    "answer": "A",
+    "explanation": "终端需要先搜索周围可用的无线网络信号。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "接入流程",
+    "text": "搜索到无线网络后，下一步通常是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "删除网卡"
+      },
+      {
+        "key": "B",
+        "text": "选择目标无线网络"
+      },
+      {
+        "key": "C",
+        "text": "更换显示器"
+      },
+      {
+        "key": "D",
+        "text": "关闭路由器"
+      }
+    ],
+    "answer": "B",
+    "explanation": "搜索完成后应从网络列表中选择需要接入的无线网络。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "接入凭证",
+    "text": "连接受保护的校园Wi-Fi时，账号和密码属于（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "接入凭证"
+      },
+      {
+        "key": "B",
+        "text": "无线频段"
+      },
+      {
+        "key": "C",
+        "text": "硬件接口"
+      },
+      {
+        "key": "D",
+        "text": "传输介质"
+      }
+    ],
+    "answer": "A",
+    "explanation": "账号和密码用于证明用户身份，是网络接入凭证。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "接入流程",
+    "text": "身份验证通过后，网络通常会为终端（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "分配IP地址"
+      },
+      {
+        "key": "B",
+        "text": "更换电池"
+      },
+      {
+        "key": "C",
+        "text": "关闭屏幕"
+      },
+      {
+        "key": "D",
+        "text": "生成蓝牙配对码"
+      }
+    ],
+    "answer": "A",
+    "explanation": "网络为终端分配IP地址后，终端才能在网络中进行正常通信。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "信号影响因素",
+    "text": "关上房门后Wi-Fi信号可能变弱，主要因为（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "障碍物会衰减无线信号"
+      },
+      {
+        "key": "B",
+        "text": "房门会增加网速"
+      },
+      {
+        "key": "C",
+        "text": "终端自动关闭网络"
+      },
+      {
+        "key": "D",
+        "text": "IP地址立即失效"
+      }
+    ],
+    "answer": "A",
+    "explanation": "墙体和房门等障碍物会使无线信号衰减。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "信号影响因素",
+    "text": "同一Wi-Fi连接设备过多时，最可能出现（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "网络变慢或卡顿"
+      },
+      {
+        "key": "B",
+        "text": "覆盖距离无限增加"
+      },
+      {
+        "key": "C",
+        "text": "所有设备功耗归零"
+      },
+      {
+        "key": "D",
+        "text": "信号自动变成蓝牙"
+      }
+    ],
+    "answer": "A",
+    "explanation": "多台设备共享网络资源，连接数量过多可能造成拥塞和卡顿。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "信号影响因素",
+    "text": "附近多个无线路由器使用相近信道，可能造成（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "信道干扰"
+      },
+      {
+        "key": "B",
+        "text": "光纤断裂"
+      },
+      {
+        "key": "C",
+        "text": "蓝牙配对"
+      },
+      {
+        "key": "D",
+        "text": "屏幕损坏"
+      }
+    ],
+    "answer": "A",
+    "explanation": "相近信道的无线信号可能相互干扰，影响Wi-Fi质量。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "网络优化",
+    "text": "为改善家庭Wi-Fi覆盖，较合理的做法是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "把路由器放在开阔、较居中的位置"
+      },
+      {
+        "key": "B",
+        "text": "把路由器塞进金属柜"
+      },
+      {
+        "key": "C",
+        "text": "在路由器周围堆满杂物"
+      },
+      {
+        "key": "D",
+        "text": "关闭所有天线"
+      }
+    ],
+    "answer": "A",
+    "explanation": "开阔、较居中的位置有利于减少遮挡并扩大有效覆盖。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "Wi-Fi发展",
+    "text": "下列属于课堂介绍的Wi-Fi新发展的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "Wi-Fi 6"
+      },
+      {
+        "key": "B",
+        "text": "NFC 2"
+      },
+      {
+        "key": "C",
+        "text": "USB 8"
+      },
+      {
+        "key": "D",
+        "text": "RFID 10"
+      }
+    ],
+    "answer": "A",
+    "explanation": "课堂材料列举了Wi-Fi 6、Wi-Fi 7和Wi-Fi HaLow等发展。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "Wi-Fi安全",
+    "text": "保护Wi-Fi安全的基本做法是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "设置复杂密码"
+      },
+      {
+        "key": "B",
+        "text": "向陌生人公开密码"
+      },
+      {
+        "key": "C",
+        "text": "长期使用默认弱密码"
+      },
+      {
+        "key": "D",
+        "text": "关闭身份验证"
+      }
+    ],
+    "answer": "A",
+    "explanation": "复杂且不易猜测的密码能降低未授权接入风险。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "接入流程分析",
+    "text": "下列校园Wi-Fi接入流程排序正确的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "选择网络—搜索信号—分配IP—身份验证"
+      },
+      {
+        "key": "B",
+        "text": "搜索信号—选择网络—输入凭证—身份验证—分配IP—连接使用"
+      },
+      {
+        "key": "C",
+        "text": "输入凭证—分配IP—搜索信号—选择网络"
+      },
+      {
+        "key": "D",
+        "text": "分配IP—关闭Wi-Fi—输入凭证—连接使用"
+      }
+    ],
+    "answer": "B",
+    "explanation": "终端先搜索并选择网络，再提交凭证接受验证，随后获得IP地址并使用网络。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "频段应用",
+    "text": "手机热点设置为5GHz后，某只支持2.4GHz的旧设备无法连接。较合适的处理方法是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "把热点切换为2.4GHz"
+      },
+      {
+        "key": "B",
+        "text": "关闭旧设备屏幕"
+      },
+      {
+        "key": "C",
+        "text": "更换账号名称即可"
+      },
+      {
+        "key": "D",
+        "text": "让设备改用NFC上网"
+      }
+    ],
+    "answer": "A",
+    "explanation": "设备不支持5GHz时，应将热点切换到其支持的2.4GHz频段。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "网络优化",
+    "text": "教室角落信号弱且网络卡顿。下列排查顺序较合理的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "先检查路由器位置与遮挡，再查看连接数量和信道干扰"
+      },
+      {
+        "key": "B",
+        "text": "只修改桌面壁纸"
+      },
+      {
+        "key": "C",
+        "text": "直接关闭互联网"
+      },
+      {
+        "key": "D",
+        "text": "反复输入相同密码"
+      }
+    ],
+    "answer": "A",
+    "explanation": "位置、障碍物、连接设备数量和信道干扰都是材料中列出的主要影响因素。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "Wi-Fi安全",
+    "text": "下列方案最有利于校园Wi-Fi安全的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "统一使用简单公开密码"
+      },
+      {
+        "key": "B",
+        "text": "取消身份验证"
+      },
+      {
+        "key": "C",
+        "text": "设置较强密码并对用户进行身份认证"
+      },
+      {
+        "key": "D",
+        "text": "允许所有未知设备自动接入"
+      }
+    ],
+    "answer": "C",
+    "explanation": "强密码与身份认证结合，可以减少未授权设备接入。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "综合故障诊断",
+    "text": "某教室靠近路由器的设备也频繁卡顿，测试发现信号强，但同时连接设备很多，附近还有多个同信道网络。最合理的改进是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "增厚教室墙壁"
+      },
+      {
+        "key": "B",
+        "text": "限制不必要的连接并调整信道"
+      },
+      {
+        "key": "C",
+        "text": "把路由器放入柜子"
+      },
+      {
+        "key": "D",
+        "text": "隐藏所有终端屏幕"
+      }
+    ],
+    "answer": "B",
+    "explanation": "信号强说明距离不是主要问题，应针对设备拥塞和同信道干扰进行优化。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "综合方案设计",
+    "text": "学校要改善教学楼Wi-Fi覆盖与安全，下列方案最合理的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "只增大密码长度，不检查覆盖"
+      },
+      {
+        "key": "B",
+        "text": "合理布置无线设备、减少遮挡与信道干扰，并设置强密码和身份认证"
+      },
+      {
+        "key": "C",
+        "text": "把所有无线设备集中放在地下室"
+      },
+      {
+        "key": "D",
+        "text": "取消接入凭证以方便使用"
+      }
+    ],
+    "answer": "B",
+    "explanation": "合理部署能改善覆盖和干扰，强密码与身份认证能同时提升网络安全。"
+  }
+]

@@ -1,0 +1,522 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "智能窗工作原理",
+    "text": "智能窗系统的输入可以来自（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "环境传感器或用户远程指令"
+      },
+      {
+        "key": "B",
+        "text": "只有舵机转动"
+      },
+      {
+        "key": "C",
+        "text": "只有屏幕显示"
+      },
+      {
+        "key": "D",
+        "text": "纸质说明书"
+      }
+    ],
+    "answer": "A",
+    "explanation": "智能窗既可接收传感器数据，也可接收用户从终端发送的控制指令。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "智能窗工作原理",
+    "text": "智能窗系统的计算环节主要负责（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "直接采集温度"
+      },
+      {
+        "key": "B",
+        "text": "提供机械动力"
+      },
+      {
+        "key": "C",
+        "text": "绘制设备外壳"
+      },
+      {
+        "key": "D",
+        "text": "分析数据并判断执行方式"
+      }
+    ],
+    "answer": "D",
+    "explanation": "计算环节根据环境数据、控制模式和用户指令作出决策。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "智能窗工作原理",
+    "text": "控制舵机开关窗属于系统的（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "输出"
+      },
+      {
+        "key": "B",
+        "text": "存储"
+      },
+      {
+        "key": "C",
+        "text": "输入"
+      },
+      {
+        "key": "D",
+        "text": "计算"
+      }
+    ],
+    "answer": "A",
+    "explanation": "舵机执行系统决策，使窗户产生实际动作，属于输出环节。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "系统工作流程",
+    "text": "智能窗系统完整的信息处理流程是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "订阅—拍照—编辑—发布"
+      },
+      {
+        "key": "B",
+        "text": "感知—采集—传输—分析—反馈—控制"
+      },
+      {
+        "key": "C",
+        "text": "控制—结束—感知—删除"
+      },
+      {
+        "key": "D",
+        "text": "输入—打印—关机—输出"
+      }
+    ],
+    "answer": "B",
+    "explanation": "课堂材料将综合流程概括为感知、采集、传输、分析、反馈和控制。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "感知环节",
+    "text": "智能窗感知环境信息主要依靠（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "传感器"
+      },
+      {
+        "key": "B",
+        "text": "舵机"
+      },
+      {
+        "key": "C",
+        "text": "MQTT服务器"
+      },
+      {
+        "key": "D",
+        "text": "逻辑判断模块"
+      }
+    ],
+    "answer": "A",
+    "explanation": "温湿度等传感器负责获取环境信息。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "ADC",
+    "text": "模数转换器ADC的作用是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "把窗户变成传感器"
+      },
+      {
+        "key": "B",
+        "text": "把网络信号变成电源"
+      },
+      {
+        "key": "C",
+        "text": "把主题改成密码"
+      },
+      {
+        "key": "D",
+        "text": "把模拟信号转换为数字信号"
+      }
+    ],
+    "answer": "D",
+    "explanation": "ADC把连续变化的模拟信号转换成计算机可处理的数字信号。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "物联网三层架构",
+    "text": "温湿度传感器在智能窗系统中主要属于（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "应用层"
+      },
+      {
+        "key": "B",
+        "text": "文件层"
+      },
+      {
+        "key": "C",
+        "text": "感知层"
+      },
+      {
+        "key": "D",
+        "text": "网络层"
+      }
+    ],
+    "answer": "C",
+    "explanation": "传感器负责感知和采集环境信息，属于感知层。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "物联网三层架构",
+    "text": "MQTT连接、订阅和发布主要体现（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "机械层"
+      },
+      {
+        "key": "B",
+        "text": "感知层"
+      },
+      {
+        "key": "C",
+        "text": "网络层"
+      },
+      {
+        "key": "D",
+        "text": "应用层"
+      }
+    ],
+    "answer": "C",
+    "explanation": "MQTT负责信息传输，主要体现网络层功能。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "物联网三层架构",
+    "text": "舵机、屏幕和指示灯在智能窗系统中主要用于（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "采集环境数据"
+      },
+      {
+        "key": "B",
+        "text": "传输MQTT消息"
+      },
+      {
+        "key": "C",
+        "text": "反馈和实现开关窗功能"
+      },
+      {
+        "key": "D",
+        "text": "转换无线频段"
+      }
+    ],
+    "answer": "C",
+    "explanation": "这些设备负责呈现状态或执行动作，体现应用层的反馈与控制。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "控制模式",
+    "text": "用户通过按键切换人工控制与自动控制，按键主要用于（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "转换模拟信号"
+      },
+      {
+        "key": "B",
+        "text": "测量温度"
+      },
+      {
+        "key": "C",
+        "text": "转发MQTT消息"
+      },
+      {
+        "key": "D",
+        "text": "选择控制模式"
+      }
+    ],
+    "answer": "D",
+    "explanation": "按键输入可让用户选择人工或自动控制模式。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "MQTT状态反馈",
+    "text": "课堂任务把窗户开关状态发布到主题（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "home/photo"
+      },
+      {
+        "key": "B",
+        "text": "wifi/password"
+      },
+      {
+        "key": "C",
+        "text": "siot/switch"
+      },
+      {
+        "key": "D",
+        "text": "siot/music"
+      }
+    ],
+    "answer": "C",
+    "explanation": "任务要求将`switch_state`发布到`siot/switch`主题。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "自动控制",
+    "text": "程序规定自动模式下温度高于26℃时（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "删除主题"
+      },
+      {
+        "key": "B",
+        "text": "开窗"
+      },
+      {
+        "key": "C",
+        "text": "关窗"
+      },
+      {
+        "key": "D",
+        "text": "关闭传感器"
+      }
+    ],
+    "answer": "B",
+    "explanation": "课堂任务中，`current_temp`高于26℃时执行开窗，否则关窗。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "编程结构",
+    "text": "“若温度高于26℃则开窗，否则关窗”使用（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "分支结构"
+      },
+      {
+        "key": "B",
+        "text": "文件结构"
+      },
+      {
+        "key": "C",
+        "text": "网络拓扑"
+      },
+      {
+        "key": "D",
+        "text": "递归下载"
+      }
+    ],
+    "answer": "A",
+    "explanation": "程序根据温度条件选择开窗或关窗，属于条件分支。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "执行装置",
+    "text": "智能窗系统中负责产生开关窗动作的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "温度传感器"
+      },
+      {
+        "key": "B",
+        "text": "MQTT主题"
+      },
+      {
+        "key": "C",
+        "text": "ADC数值"
+      },
+      {
+        "key": "D",
+        "text": "舵机"
+      }
+    ],
+    "answer": "D",
+    "explanation": "舵机根据控制指令转动，模拟或驱动窗户开关。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "流程排序",
+    "text": "下列智能窗流程排序正确的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "分析判断—控制执行—信息传输—感知采集"
+      },
+      {
+        "key": "B",
+        "text": "信息传输—感知采集—控制执行—分析判断"
+      },
+      {
+        "key": "C",
+        "text": "控制执行—分析判断—感知采集—信息传输"
+      },
+      {
+        "key": "D",
+        "text": "感知采集—信息传输—分析判断—控制执行"
+      }
+    ],
+    "answer": "D",
+    "explanation": "系统先感知采集，再传输数据、分析判断，最后控制执行。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "控制优先级",
+    "text": "自动模式准备开窗时，用户同时发出紧急关窗指令。系统设计需要重点处理（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "主题字体"
+      },
+      {
+        "key": "B",
+        "text": "指令优先级"
+      },
+      {
+        "key": "C",
+        "text": "屏幕颜色"
+      },
+      {
+        "key": "D",
+        "text": "传感器外观"
+      }
+    ],
+    "answer": "B",
+    "explanation": "人工与自动指令冲突时，需要明确优先级才能决定最终操作。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "数据分析",
+    "text": "统计一个月内自动开关窗次数的最大值、最小值和平均值，属于（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "统计分析法"
+      },
+      {
+        "key": "B",
+        "text": "地图标注法"
+      },
+      {
+        "key": "C",
+        "text": "身份认证法"
+      },
+      {
+        "key": "D",
+        "text": "模拟信号法"
+      }
+    ],
+    "answer": "A",
+    "explanation": "计算最大值、最小值、平均值和次数等指标属于统计分析。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "适用性改进",
+    "text": "为老年群体改进智能窗，下列做法不合理的是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "提供语音控制"
+      },
+      {
+        "key": "B",
+        "text": "放大界面字体"
+      },
+      {
+        "key": "C",
+        "text": "保留复杂的多步骤操作"
+      },
+      {
+        "key": "D",
+        "text": "增加强风检测"
+      }
+    ],
+    "answer": "C",
+    "explanation": "适老化设计应降低操作难度，复杂的多步骤操作会增加使用负担。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "综合控制分析",
+    "text": "自动模式下温度为28℃，但风速超过5m/s。若系统增加“强风时必须关窗”的安全规则，合理结果是（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "同时执行开窗和关窗"
+      },
+      {
+        "key": "B",
+        "text": "停止采集所有数据"
+      },
+      {
+        "key": "C",
+        "text": "因温度高而开窗，不考虑风速"
+      },
+      {
+        "key": "D",
+        "text": "根据安全优先级关窗并反馈状态"
+      }
+    ],
+    "answer": "D",
+    "explanation": "多条件控制应把强风安全规则置于普通通风规则之上，避免开窗带来风险。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "综合方案设计",
+    "text": "一个完整且便于优化的智能窗方案应当（　　）",
+    "options": [
+      {
+        "key": "A",
+        "text": "始终使用固定规则，不考虑用户差异和环境变化"
+      },
+      {
+        "key": "B",
+        "text": "采集环境数据和用户指令，完成ADC转换与网络传输，按规则处理冲突，控制舵机并反馈状态，再分析运行数据改进策略"
+      },
+      {
+        "key": "C",
+        "text": "只安装舵机并随机开关窗"
+      },
+      {
+        "key": "D",
+        "text": "只接收远程指令，不反馈窗户状态"
+      }
+    ],
+    "answer": "B",
+    "explanation": "综合应用需要贯通感知、传输、分析、反馈和控制，并利用运行数据持续改进规则与用户体验。"
+  }
+]

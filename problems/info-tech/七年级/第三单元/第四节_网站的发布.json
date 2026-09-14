@@ -1,0 +1,282 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "网页发布基础",
+    "text": "网页发布是指将网页内容上传到（　　），使用户能通过网络访问",
+    "options": [
+      { "key": "A", "text": "打印机" },
+      { "key": "B", "text": "服务器" },
+      { "key": "C", "text": "计算器" },
+      { "key": "D", "text": "回收站" }
+    ],
+    "answer": "B",
+    "explanation": "网页发布需要把网页文件放到提供网络服务的服务器上，访问者才能通过地址获取页面。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "发布方式",
+    "text": "只允许学校同一内部网络中的用户访问，属于（　　）",
+    "options": [
+      { "key": "A", "text": "互联网发布" },
+      { "key": "B", "text": "纸质发布" },
+      { "key": "C", "text": "局域网发布" },
+      { "key": "D", "text": "离线打印" }
+    ],
+    "answer": "C",
+    "explanation": "局域网发布的访问范围限于同一内部网络，适合班级、学校或单位内部共享。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "发布方式",
+    "text": "希望世界各地的互联网用户都能访问网页，应选择（　　）",
+    "options": [
+      { "key": "A", "text": "互联网发布" },
+      { "key": "B", "text": "只在本机打开" },
+      { "key": "C", "text": "局域网内部发布" },
+      { "key": "D", "text": "打印网页" }
+    ],
+    "answer": "A",
+    "explanation": "互联网发布可以突破本地网络范围，让外部互联网用户通过公开地址访问网站。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "局域网发布",
+    "text": "与互联网发布相比，局域网发布通常具有（　　）的特点",
+    "options": [
+      { "key": "A", "text": "全球任何用户都可访问" },
+      { "key": "B", "text": "一定需要公开域名" },
+      { "key": "C", "text": "覆盖范围最大" },
+      { "key": "D", "text": "内部访问速度较快、范围较小" }
+    ],
+    "answer": "D",
+    "explanation": "局域网发布通常速度较快、成本较低且便于内部控制，但访问范围局限于本地网络。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "互联网发布",
+    "text": "互联网发布的主要优势是（　　）",
+    "options": [
+      { "key": "A", "text": "只允许本机访问" },
+      { "key": "B", "text": "覆盖范围广，不受地域限制" },
+      { "key": "C", "text": "完全不需要安全管理" },
+      { "key": "D", "text": "一定没有任何成本" }
+    ],
+    "answer": "B",
+    "explanation": "互联网发布允许不同地区的用户访问网站，传播范围明显大于局域网发布。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "IIS基础",
+    "text": "IIS在Windows系统中属于（　　）",
+    "options": [
+      { "key": "A", "text": "Web服务器软件" },
+      { "key": "B", "text": "图片编辑软件" },
+      { "key": "C", "text": "电子表格软件" },
+      { "key": "D", "text": "音频播放器" }
+    ],
+    "answer": "A",
+    "explanation": "IIS全称Internet Information Services，可在Windows上托管和管理网站及Web服务。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "IIS配置",
+    "text": "在IIS中，网站的物理路径应指向（　　）",
+    "options": [
+      { "key": "A", "text": "浏览器历史记录" },
+      { "key": "B", "text": "任意空白文件夹" },
+      { "key": "C", "text": "存放网页文件的网站文件夹" },
+      { "key": "D", "text": "打印机驱动目录" }
+    ],
+    "answer": "C",
+    "explanation": "物理路径告诉IIS网页文件实际存放在服务器硬盘的哪个文件夹中。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "网络地址",
+    "text": "HTTP服务常用的默认端口号是（　　）",
+    "options": [
+      { "key": "A", "text": "21" },
+      { "key": "B", "text": "25" },
+      { "key": "C", "text": "443" },
+      { "key": "D", "text": "80" }
+    ],
+    "answer": "D",
+    "explanation": "本课IIS局域网发布使用HTTP协议，默认端口号为80。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "网络地址",
+    "text": "通过IP地址访问局域网网页，正确的地址格式是（　　）",
+    "options": [
+      { "key": "A", "text": "http://IP地址/网页文件名" },
+      { "key": "B", "text": "C:\\网页文件夹\\index.html" },
+      { "key": "C", "text": "IP地址@网页文件名" },
+      { "key": "D", "text": "filetype:IP地址" }
+    ],
+    "answer": "A",
+    "explanation": "局域网用户可在浏览器输入http://本机IP地址/网页文件名访问IIS发布的网页。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "互联网发布流程",
+    "text": "域名的主要作用是（　　）",
+    "options": [
+      { "key": "A", "text": "存放全部网页图片" },
+      { "key": "B", "text": "提供便于记忆的网站名称和访问地址" },
+      { "key": "C", "text": "替代所有服务器" },
+      { "key": "D", "text": "修改网页背景" }
+    ],
+    "answer": "B",
+    "explanation": "域名比数字IP地址更便于记忆，可作为用户访问互联网网站的名称。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "DNS解析",
+    "text": "DNS解析主要把域名转换为（　　）",
+    "options": [
+      { "key": "A", "text": "网页背景图片" },
+      { "key": "B", "text": "本地文件夹名称" },
+      { "key": "C", "text": "服务器IP地址" },
+      { "key": "D", "text": "视频字幕" }
+    ],
+    "answer": "C",
+    "explanation": "DNS解析建立域名与服务器IP地址之间的对应关系，引导用户找到网站服务器。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "网站备案",
+    "text": "按照本课互联网发布流程，网站上线前还需要依法完成（　　）",
+    "options": [
+      { "key": "A", "text": "打印网页" },
+      { "key": "B", "text": "更换电脑" },
+      { "key": "C", "text": "删除域名" },
+      { "key": "D", "text": "网络备案" }
+    ],
+    "answer": "D",
+    "explanation": "课件将网络备案列为互联网发布的重要合规步骤，个人或企业按要求提交相应信息。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "发布规范",
+    "text": "发布非遗文化网站时，正确的做法是（　　）",
+    "options": [
+      { "key": "A", "text": "确保内容健康合法并核实资料" },
+      { "key": "B", "text": "发布未经证实的谣言" },
+      { "key": "C", "text": "插入违法有害内容" },
+      { "key": "D", "text": "故意误导访问者" }
+    ],
+    "answer": "A",
+    "explanation": "网页内容应遵守法律法规和公序良俗，传播积极、真实且经过核实的信息。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "发布规范",
+    "text": "网站收集用户信息时，应（　　）",
+    "options": [
+      { "key": "A", "text": "把数据公开给任何人" },
+      { "key": "B", "text": "保护用户隐私并确保数据安全、合法使用" },
+      { "key": "C", "text": "收集与网站无关的全部信息" },
+      { "key": "D", "text": "取消所有安全措施" }
+    ],
+    "answer": "B",
+    "explanation": "网站发布和运营应遵守数据保护要求，只在合理范围内处理数据并采取安全措施保护用户隐私。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "局域网发布",
+    "text": "在地址栏输入http://192.168.1.10/index.html，其含义是（　　）",
+    "options": [
+      { "key": "A", "text": "通过HTTP访问IP为192.168.1.10的服务器上的index.html" },
+      { "key": "B", "text": "打开本机C盘中的index.html" },
+      { "key": "C", "text": "向192.168.1.10发送电子邮件" },
+      { "key": "D", "text": "申请名为index.html的域名" }
+    ],
+    "answer": "A",
+    "explanation": "http表示访问协议，192.168.1.10是服务器IP，index.html是请求的网页文件。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "互联网发布流程",
+    "text": "互联网发布网站的合理流程是（　　）",
+    "options": [
+      { "key": "A", "text": "先删除网页，再申请域名，最后关闭服务器" },
+      { "key": "B", "text": "申请域名、选择服务器或托管平台、完成备案、设置DNS解析并上传网站" },
+      { "key": "C", "text": "只修改本地文件名，无需服务器" },
+      { "key": "D", "text": "只设置背景颜色即可全球访问" }
+    ],
+    "answer": "B",
+    "explanation": "互联网发布需要域名、服务器或托管平台、合规备案和DNS解析，并将网站文件部署到服务器。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "发布方式选择",
+    "text": "班级只想让同校电脑互评网页，且希望成本低、访问快，较合适的是（　　）",
+    "options": [
+      { "key": "A", "text": "立即购买全球域名并公开发布" },
+      { "key": "B", "text": "把网页打印后邮寄" },
+      { "key": "C", "text": "在校园局域网中使用IIS发布" },
+      { "key": "D", "text": "只在制作者电脑上查看" }
+    ],
+    "answer": "C",
+    "explanation": "访问对象限于校内，局域网发布的覆盖范围、速度和成本更符合需求。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "发布规范",
+    "text": "网页中使用他人拍摄的非遗图片，发布前应（　　）",
+    "options": [
+      { "key": "A", "text": "删除原作者署名" },
+      { "key": "B", "text": "认为能下载就可随意使用" },
+      { "key": "C", "text": "只把图片改小" },
+      { "key": "D", "text": "确认授权范围并按要求标注来源" }
+    ],
+    "answer": "D",
+    "explanation": "网站发布不能侵犯他人的版权、商标或专利等知识产权，使用素材前要确认许可并规范署名。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "发布故障分析",
+    "text": "IIS已经启动，同一局域网的同学仍无法访问网页。下列排查顺序最合理的是（　　）",
+    "options": [
+      { "key": "A", "text": "先删除全部网页文件，再重装浏览器" },
+      { "key": "B", "text": "核对物理路径和首页文件名，再检查IP、端口、网络连通性及访问限制" },
+      { "key": "C", "text": "只修改网页字体" },
+      { "key": "D", "text": "立即申请新的互联网域名" }
+    ],
+    "answer": "B",
+    "explanation": "局域网访问涉及网站文件、IIS配置、访问地址和网络连接，应从物理路径与文件开始逐层排查。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "互联网发布问题诊断",
+    "text": "网站文件已上传，输入域名却找不到服务器；直接输入服务器IP可以访问。最可能需要检查（　　）",
+    "options": [
+      { "key": "A", "text": "DNS解析是否正确指向服务器IP" },
+      { "key": "B", "text": "网页背景颜色是否统一" },
+      { "key": "C", "text": "图片透明度是否为0.5" },
+      { "key": "D", "text": "本地文档是否使用艺术字" }
+    ],
+    "answer": "A",
+    "explanation": "服务器IP可直接访问说明网站服务基本正常，域名不能访问更可能是域名与IP的DNS解析未正确配置或尚未生效。"
+  }
+]

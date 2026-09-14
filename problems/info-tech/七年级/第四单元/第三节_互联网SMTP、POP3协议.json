@@ -1,0 +1,282 @@
+[
+  {
+    "id": 1,
+    "difficulty": "easy",
+    "category": "电子邮件",
+    "text": "下列属于电子邮件优点的是（　　）",
+    "options": [
+      { "key": "A", "text": "传送快且成本较低" },
+      { "key": "B", "text": "只能传送纯文本" },
+      { "key": "C", "text": "必须粘贴邮票" },
+      { "key": "D", "text": "只能在同一城市使用" }
+    ],
+    "answer": "A",
+    "explanation": "电子邮件具有快速、成本低、跨平台和支持附件等特点。"
+  },
+  {
+    "id": 2,
+    "difficulty": "easy",
+    "category": "电子邮件",
+    "text": "需要通过电子邮件发送图片，可使用的功能是（　　）",
+    "options": [
+      { "key": "A", "text": "添加附件" },
+      { "key": "B", "text": "删除收件人" },
+      { "key": "C", "text": "关闭网络" },
+      { "key": "D", "text": "清空主题" }
+    ],
+    "answer": "A",
+    "explanation": "图片、音频、视频和文档等文件可作为附件随邮件发送。"
+  },
+  {
+    "id": 3,
+    "difficulty": "easy",
+    "category": "电子邮件地址",
+    "text": "电子邮件地址的正确格式是（　　）",
+    "options": [
+      { "key": "A", "text": "用户名@邮件服务器域名" },
+      { "key": "B", "text": "域名@用户名" },
+      { "key": "C", "text": "用户名#域名" },
+      { "key": "D", "text": "@域名" }
+    ],
+    "answer": "A",
+    "explanation": "电子邮件地址由用户名、@和邮件服务器域名组成。"
+  },
+  {
+    "id": 4,
+    "difficulty": "easy",
+    "category": "电子邮件地址",
+    "text": "在xiaoming@qq.com中，xiaoming表示（　　）",
+    "options": [
+      { "key": "A", "text": "用户名" },
+      { "key": "B", "text": "邮件主题" },
+      { "key": "C", "text": "附件名" },
+      { "key": "D", "text": "网络协议" }
+    ],
+    "answer": "A",
+    "explanation": "@前的部分是该邮件账户的用户名。"
+  },
+  {
+    "id": 5,
+    "difficulty": "easy",
+    "category": "电子邮件地址",
+    "text": "在stu@zjschool.com中，zjschool.com表示（　　）",
+    "options": [
+      { "key": "A", "text": "邮件服务器域名" },
+      { "key": "B", "text": "学生密码" },
+      { "key": "C", "text": "邮件正文" },
+      { "key": "D", "text": "附件路径" }
+    ],
+    "answer": "A",
+    "explanation": "@后的部分用于标识邮箱所属的邮件服务器。"
+  },
+  {
+    "id": 6,
+    "difficulty": "easy",
+    "category": "SMTP协议",
+    "text": "SMTP的中文名称是（　　）",
+    "options": [
+      { "key": "A", "text": "简单邮件传输协议" },
+      { "key": "B", "text": "超文本传输协议" },
+      { "key": "C", "text": "邮局协议第3版" },
+      { "key": "D", "text": "网际协议" }
+    ],
+    "answer": "A",
+    "explanation": "SMTP是Simple Mail Transfer Protocol的缩写。"
+  },
+  {
+    "id": 7,
+    "difficulty": "easy",
+    "category": "SMTP协议",
+    "text": "SMTP协议主要用于（　　）",
+    "options": [
+      { "key": "A", "text": "发送电子邮件" },
+      { "key": "B", "text": "打印邮件" },
+      { "key": "C", "text": "编辑图片" },
+      { "key": "D", "text": "查看IP地址" }
+    ],
+    "answer": "A",
+    "explanation": "SMTP负责将邮件发出，也用于邮件服务器之间传递邮件。"
+  },
+  {
+    "id": 8,
+    "difficulty": "easy",
+    "category": "POP3协议",
+    "text": "POP3协议主要用于（　　）",
+    "options": [
+      { "key": "A", "text": "接收电子邮件" },
+      { "key": "B", "text": "发布网页" },
+      { "key": "C", "text": "规划IP路径" },
+      { "key": "D", "text": "创建域名" }
+    ],
+    "answer": "A",
+    "explanation": "POP3用于从邮件服务器检索和下载邮件。"
+  },
+  {
+    "id": 9,
+    "difficulty": "easy",
+    "category": "POP3协议",
+    "text": "POP3的完整含义是（　　）",
+    "options": [
+      { "key": "A", "text": "邮局协议第3版" },
+      { "key": "B", "text": "传输控制协议" },
+      { "key": "C", "text": "互联网信息访问协议" },
+      { "key": "D", "text": "超文本传输协议" }
+    ],
+    "answer": "A",
+    "explanation": "POP3是Post Office Protocol version 3，即邮局协议第3版。"
+  },
+  {
+    "id": 10,
+    "difficulty": "easy",
+    "category": "POP3协议",
+    "text": "POP3将邮件下载到本地后，用户可以（　　）",
+    "options": [
+      { "key": "A", "text": "离线查看邮件" },
+      { "key": "B", "text": "无需账号即可登录" },
+      { "key": "C", "text": "把POP3当作域名" },
+      { "key": "D", "text": "直接改变收件人地址" }
+    ],
+    "answer": "A",
+    "explanation": "POP3支持将邮件下载到本地，便于离线访问。"
+  },
+  {
+    "id": 11,
+    "difficulty": "easy",
+    "category": "IMAP协议",
+    "text": "可在多个设备间实时同步邮件状态和操作的协议是（　　）",
+    "options": [
+      { "key": "A", "text": "IMAP" },
+      { "key": "B", "text": "SMTP" },
+      { "key": "C", "text": "HTTP" },
+      { "key": "D", "text": "IP" }
+    ],
+    "answer": "A",
+    "explanation": "IMAP是接收邮件的协议，支持邮件状态和操作的实时同步。"
+  },
+  {
+    "id": 12,
+    "difficulty": "easy",
+    "category": "邮件操作",
+    "text": "发送带附件的电子邮件时，正确的做法是（　　）",
+    "options": [
+      { "key": "A", "text": "在点击发送前上传附件" },
+      { "key": "B", "text": "先发送再添加附件" },
+      { "key": "C", "text": "不填写收件人" },
+      { "key": "D", "text": "主动断开网络" }
+    ],
+    "answer": "A",
+    "explanation": "收件人、主题、正文和附件都应在点击发送前确认。"
+  },
+  {
+    "id": 13,
+    "difficulty": "easy",
+    "category": "邮件安全",
+    "text": "收到疑似钓鱼邮件时，正确的做法是（　　）",
+    "options": [
+      { "key": "A", "text": "不随意点击链接，先核实发件人" },
+      { "key": "B", "text": "立即输入账号密码" },
+      { "key": "C", "text": "直接向对方转账" },
+      { "key": "D", "text": "转发给所有同学" }
+    ],
+    "answer": "A",
+    "explanation": "可疑邮件可能盗取信息，应先核实来源并避免点击不明链接。"
+  },
+  {
+    "id": 14,
+    "difficulty": "easy",
+    "category": "邮件安全",
+    "text": "下列邮箱密码设置更安全的是（　　）",
+    "options": [
+      { "key": "A", "text": "字母、数字和符号组合的较长密码" },
+      { "key": "B", "text": "123456" },
+      { "key": "C", "text": "000000" },
+      { "key": "D", "text": "与用户名完全相同" }
+    ],
+    "answer": "A",
+    "explanation": "较长且包含多类字符的密码更难被猜解。"
+  },
+  {
+    "id": 15,
+    "difficulty": "medium",
+    "category": "邮件收发过程",
+    "text": "用户A发邮件给用户B，“A提交邮件—服务器间转发—B下载邮件”对应的协议顺序是（　　）",
+    "options": [
+      { "key": "A", "text": "SMTP、SMTP、POP3" },
+      { "key": "B", "text": "POP3、SMTP、SMTP" },
+      { "key": "C", "text": "HTTP、POP3、IP" },
+      { "key": "D", "text": "POP3、POP3、SMTP" }
+    ],
+    "answer": "A",
+    "explanation": "客户端提交邮件和服务器间转发均使用SMTP，收件人可用POP3下载邮件。"
+  },
+  {
+    "id": 16,
+    "difficulty": "medium",
+    "category": "POP3与IMAP",
+    "text": "希望手机和电脑上的已读、删除等邮件状态保持一致，宜选择（　　）",
+    "options": [
+      { "key": "A", "text": "IMAP" },
+      { "key": "B", "text": "SMTP" },
+      { "key": "C", "text": "HTTP状态码" },
+      { "key": "D", "text": "静态IP" }
+    ],
+    "answer": "A",
+    "explanation": "IMAP强调邮件状态与操作在服务器和多设备间同步。"
+  },
+  {
+    "id": 17,
+    "difficulty": "medium",
+    "category": "邮件故障排查",
+    "text": "邮件客户端因SMTP服务器地址配置错误而无法发送，应首先（　　）",
+    "options": [
+      { "key": "A", "text": "核对并修正SMTP服务器设置" },
+      { "key": "B", "text": "更换邮件正文字体" },
+      { "key": "C", "text": "删除浏览器历史" },
+      { "key": "D", "text": "调低屏幕亮度" }
+    ],
+    "answer": "A",
+    "explanation": "SMTP服务器地址、端口或加密方式配置错误会直接阻断发送。"
+  },
+  {
+    "id": 18,
+    "difficulty": "medium",
+    "category": "邮件故障排查",
+    "text": "发件方设置正常但邮件被退回，下列最可能属于接收方问题的是（　　）",
+    "options": [
+      { "key": "A", "text": "收件人邮箱容量已满" },
+      { "key": "B", "text": "发件人键盘损坏" },
+      { "key": "C", "text": "发件人显示器断电" },
+      { "key": "D", "text": "邮件字体太小" }
+    ],
+    "answer": "A",
+    "explanation": "收件地址错误、账号注销、容量已满或拦截规则均可导致接收失败。"
+  },
+  {
+    "id": 19,
+    "difficulty": "hard",
+    "category": "邮件收发原理",
+    "text": "A和B分别使用不同域名的邮箱，A发出邮件后，下列过程最合理的是（　　）",
+    "options": [
+      { "key": "A", "text": "A的客户端用SMTP提交，邮件服务器依据B的域名转发，B用POP3或IMAP接收" },
+      { "key": "B", "text": "A用POP3发送，B用SMTP下载" },
+      { "key": "C", "text": "邮件不经服务器直接进入B的屏幕" },
+      { "key": "D", "text": "DNS用于编写邮件正文" }
+    ],
+    "answer": "A",
+    "explanation": "SMTP负责提交和服务器间传送，收件方域名帮助确定邮件服务器，POP3或IMAP负责接收。"
+  },
+  {
+    "id": 20,
+    "difficulty": "hard",
+    "category": "邮件安全与排错",
+    "text": "收到“熟人”紧急要求转账并附带登录链接的邮件，最恰当的处理是（　　）",
+    "options": [
+      { "key": "A", "text": "不点击链接，通过其他可信渠道核实身份和请求" },
+      { "key": "B", "text": "立即转账并回复密码" },
+      { "key": "C", "text": "将邮件群发给所有联系人" },
+      { "key": "D", "text": "只要显示熟人姓名就直接相信" }
+    ],
+    "answer": "A",
+    "explanation": "发件人显示名可能被伪造，应避免操作可疑链接并独立核实。"
+  }
+]

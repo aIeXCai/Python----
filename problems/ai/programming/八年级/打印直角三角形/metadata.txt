@@ -1,0 +1,2 @@
+problem_id: problem8
+title: 打印直角三角形
