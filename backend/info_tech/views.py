@@ -516,17 +516,23 @@ class QuizAttemptResetView(APIView):
 
 
 def _teacher_results(user):
+    """教师可见的有效作答：每人每场小测保留 **历史最高分** 的那一次。
+
+    只统计已结算（已提交 / 已超时）的作答；分数并列时取最近一次，保证结果稳定。
+    """
     session_ids = _teacher_sessions(user).values_list('id', flat=True)
     settle_expired_attempts(session_ids=session_ids)
-    latest_settled_id = QuizSubmission.objects.filter(
+    best_settled_id = QuizSubmission.objects.filter(
         user_id=OuterRef('user_id'),
         session_id=OuterRef('session_id'),
         status__in=(QuizSubmission.STATUS_SUBMITTED, QuizSubmission.STATUS_TIMED_OUT),
-    ).order_by('-attempt_no', '-id').values('id')[:1]
+    ).order_by(
+        F('score').desc(nulls_last=True), '-attempt_no', '-id'
+    ).values('id')[:1]
     results = QuizSubmission.objects.filter(
         session__in=_teacher_sessions(user),
         status__in=(QuizSubmission.STATUS_SUBMITTED, QuizSubmission.STATUS_TIMED_OUT),
-    ).annotate(latest_settled_id=Subquery(latest_settled_id)).filter(id=F('latest_settled_id'))
+    ).annotate(best_settled_id=Subquery(best_settled_id)).filter(id=F('best_settled_id'))
     return scope_by_grade(results, user)
 
 

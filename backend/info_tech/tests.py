@@ -705,3 +705,59 @@ class QuizStatsAPITest(APITestCase):
         """管理范围外年级返回 403"""
         resp = self.client.get('/api/admin/info/stats/grade/高三/', HTTP_AUTHORIZATION=f'Token {self.token}')
         self.assertEqual(resp.status_code, 403)
+
+    # ─── 历史最高分口径 ───────────────────────────────────────────────
+
+    def _get_stu1_session1_score(self):
+        resp = self.client.get(
+            f'/api/admin/info/stats/submissions/?session_id={self.session1.pk}',
+            HTTP_AUTHORIZATION=f'Token {self.token}',
+        )
+        self.assertEqual(resp.status_code, 200)
+        stu_a = next(s for s in resp.data['students'] if s['display_name'] == '学生A')
+        return stu_a['scores'][0]
+
+    def test_stats_keeps_highest_score_when_retry_is_worse(self):
+        """重做了一次但分数更低：统计仍显示历史最高分"""
+        QuizSubmission.objects.create(
+            user=self.stu1, session=self.session1, grade='七年级',
+            attempt_no=2, score=40.0, correct_count=1, total_count=3,
+            answers_json='{}', current_marker=None,
+        )
+        self.assertEqual(self._get_stu1_session1_score(), 85.0)
+        # 概览/相邻统计口径一致：每人每场只算一条
+        resp = self.client.get('/api/admin/info/stats/overview/', HTTP_AUTHORIZATION=f'Token {self.token}')
+        self.assertEqual(resp.data['total_submissions'], 3)
+
+    def test_stats_takes_newer_score_when_retry_is_better(self):
+        """重做后分数更高：统计显示新的更高分"""
+        QuizSubmission.objects.create(
+            user=self.stu1, session=self.session1, grade='七年级',
+            attempt_no=2, score=95.0, correct_count=3, total_count=3,
+            answers_json='{}', current_marker=None,
+        )
+        self.assertEqual(self._get_stu1_session1_score(), 95.0)
+
+    def test_stats_ignores_reset_attempt(self):
+        """被重置的作答不进入统计"""
+        QuizSubmission.objects.create(
+            user=self.stu1, session=self.session1, grade='七年级',
+            attempt_no=2, status=QuizSubmission.STATUS_RESET,
+            score=100.0, correct_count=3, total_count=3,
+            answers_json='{}', current_marker=None,
+        )
+        self.assertEqual(self._get_stu1_session1_score(), 85.0)
+
+    def test_stats_session_detail_uses_highest_score(self):
+        """小测详细统计也按历史最高分计算"""
+        QuizSubmission.objects.create(
+            user=self.stu2, session=self.session1, grade='七年级',
+            attempt_no=2, score=50.0, correct_count=1, total_count=3,
+            answers_json='{}', current_marker=None,
+        )
+        resp = self.client.get(f'/api/admin/info/stats/sessions/{self.session1.pk}/',
+                                HTTP_AUTHORIZATION=f'Token {self.token}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['total_submissions'], 2)
+        # 学生A 85（最高）、学生B 100（最高）
+        self.assertEqual(resp.data['avg_score'], 92.5)
