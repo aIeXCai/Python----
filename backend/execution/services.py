@@ -7,8 +7,14 @@ from django.utils import timezone
 from ai_courses.models import Submission
 from users.models import CustomUser
 
-from .constants import STATUS_QUEUED, STATUS_RUNNING, TASK_TYPE_GRADE, TASK_TYPE_RUN
-from .models import ExecutionTask
+from .constants import (
+    RUNNER_STATUS_ONLINE,
+    STATUS_QUEUED,
+    STATUS_RUNNING,
+    TASK_TYPE_GRADE,
+    TASK_TYPE_RUN,
+)
+from .models import ExecutionTask, RunnerNode
 from .snapshots import InvalidTestSnapshot, build_test_snapshot, snapshot_digest, validate_test_snapshot
 
 
@@ -54,6 +60,25 @@ def _limits(task_type):
     return {**common, 'wall_seconds': 10, 'task_wall_seconds': 12}
 
 
+def _ensure_runner_available():
+    """Reject new work when no recently heartbeating Runner can consume it."""
+    if not settings.EXECUTION_REQUIRE_HEALTHY_RUNNER:
+        return
+    heartbeat_cutoff = timezone.now() - timezone.timedelta(
+        seconds=settings.RUNNER_NODE_STALE_SECONDS,
+    )
+    if RunnerNode.objects.filter(
+        status=RUNNER_STATUS_ONLINE,
+        last_heartbeat_at__gte=heartbeat_cutoff,
+    ).exists():
+        return
+    raise ExecutionRequestError(
+        '代码执行服务尚未就绪，请稍后重试',
+        status_code=503,
+        code='runner_unavailable',
+    )
+
+
 def _lock_user_and_check_capacity(user):
     CustomUser.objects.select_for_update().get(pk=user.pk)
     tasks = ExecutionTask.objects.filter(user=user)
@@ -92,6 +117,7 @@ def enqueue_run(*, user, code, stdin='', idempotency_key=None):
         existing = _existing_task(user, key, digest)
         if existing:
             return existing, False
+        _ensure_runner_available()
         _lock_user_and_check_capacity(user)
         try:
             with transaction.atomic():
@@ -130,6 +156,7 @@ def enqueue_grade(*, user, problem, code, idempotency_key=None):
         existing = _existing_task(user, key, digest)
         if existing:
             return existing, existing.submission, False
+        _ensure_runner_available()
         _lock_user_and_check_capacity(user)
         try:
             with transaction.atomic():
@@ -181,6 +208,7 @@ def enqueue_quiz_run(
         existing = _existing_task(user, key, digest)
         if existing:
             return existing, False
+        _ensure_runner_available()
         _lock_user_and_check_capacity(user)
         try:
             with transaction.atomic():
@@ -241,6 +269,7 @@ def enqueue_quiz_grade(
         existing = _existing_task(user, key, digest)
         if existing:
             return existing, existing.submission, False
+        _ensure_runner_available()
         _lock_user_and_check_capacity(user)
         try:
             with transaction.atomic():

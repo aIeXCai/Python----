@@ -1,6 +1,6 @@
 # Python 学习平台：在另一台电脑运行
 
-本文只说明一件事：把项目从 GitHub 克隆到另一台电脑，然后使用本地 SQLite 数据库运行。
+本文说明如何把项目从 GitHub 克隆到另一台电脑，然后使用本地 SQLite 和 Local Runner 运行。
 
 这种方式不需要安装 MySQL、Nginx 或 Docker，适合在另一台电脑继续开发、演示和验收网站。
 
@@ -50,7 +50,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install "django>=5.0" djangorestframework django-cors-headers \
-  python-dotenv "cryptography>=44,<47" "openai>=1.0.0" requests
+  python-dotenv "cryptography>=44,<47" "openai>=1.0.0" requests "psutil>=6.1,<8"
 ```
 
 ### Windows PowerShell
@@ -59,7 +59,7 @@ pip install "django>=5.0" djangorestframework django-cors-headers \
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install "django>=5.0" djangorestframework django-cors-headers python-dotenv "cryptography>=44,<47" "openai>=1.0.0" requests
+pip install "django>=5.0" djangorestframework django-cors-headers python-dotenv "cryptography>=44,<47" "openai>=1.0.0" requests "psutil>=6.1,<8"
 ```
 
 这里没有使用根目录的 `requirements.txt`，因为其中包含正式 MySQL 环境需要的 `mysqlclient`；本地 SQLite 运行不需要它，也不需要安装 MySQL 开发库。
@@ -188,50 +188,29 @@ npm ci
 
 `npm ci` 会根据仓库中的 `package-lock.json` 安装前端依赖。
 
-## 8. 启动网站
+## 8. 初始化并启动网站
 
-网站需要同时启动 Django 后端和 Vite 前端。
+首次在项目根目录生成本机 Runner 配置：
 
-### 终端一：启动后端
+```bash
+python scripts/init_local_runner.py
+```
+
+该命令创建被 Git 忽略的 `.env.runner.local`，不覆盖已有配置，也不输出密钥。之后一键启动 Django、Local Runner 和 Vite：
 
 macOS/Linux：
 
 ```bash
-cd Python----
-source .venv/bin/activate
-cd backend
-DJANGO_ENV=development DJANGO_DB_ENGINE=sqlite python manage.py runserver 8080
+bash start_all.sh
 ```
 
-Windows PowerShell：
+Windows：双击 `start_all.bat`，或在 `cmd.exe` 中执行：
 
-```powershell
-cd Python----
-.\.venv\Scripts\Activate.ps1
-cd backend
-$env:DJANGO_ENV = "development"
-$env:DJANGO_DB_ENGINE = "sqlite"
-python manage.py runserver 8080
+```bat
+start_all.bat
 ```
 
-看到下面的地址表示后端已启动：
-
-```text
-http://127.0.0.1:8080/
-```
-
-### 终端二：启动前端
-
-```bash
-cd Python----/frontend
-npm run dev
-```
-
-看到下面的地址表示前端已启动：
-
-```text
-http://localhost:5173/
-```
+脚本只在 Django 存活、Runner 心跳健康、Vite 已监听后才报告启动成功。任一环节失败都会回收本次已启动的进程。
 
 ## 9. 打开网站
 
@@ -252,41 +231,18 @@ http://localhost:5173/
 2. 教师端能够看到信息课单元、题目和 AI 题目。
 3. 教师能够创建测试学生和信息课小测。
 4. 学生能够登录、看到课程并完成一次小测。
-5. 教师端能够看到学生最近一次小测成绩。
-
-当前 Docker Runner 尚未完成，因此学生代码运行和自动评测不可用属于已知限制，不影响上述本地验收。
+5. 学生的 AI 编程题能运行、保存和提交，任务能从排队进入明确终态。
+6. 教师端能够看到学生最近一次小测成绩。
 
 ## 11. 停止网站
 
-分别在两个运行服务的终端按：
-
-```text
-Ctrl + C
-```
-
-即可停止 Django 和 Vite。
+macOS/Linux：`bash stop_all.sh`。Windows：双击或执行 `stop_all.bat`。脚本优先停止 Runner，然后停止 Django 和 Vite，且只回收本项目 PID 文件记录的进程。
 
 ## 12. 下次重新启动
 
 不需要重新执行 migration、`loaddata` 或 `npm ci`。
 
-只需打开两个终端，分别重新启动后端和前端：
-
-```bash
-# 终端一
-cd Python----
-source .venv/bin/activate
-cd backend
-DJANGO_ENV=development DJANGO_DB_ENGINE=sqlite python manage.py runserver 8080
-```
-
-```bash
-# 终端二
-cd Python----/frontend
-npm run dev
-```
-
-Windows 使用对应的虚拟环境激活命令和 PowerShell 环境变量命令。
+不需要重新执行 migration、`loaddata`、`npm ci` 或 Runner 初始化。直接再次执行对应平台的 `start_all` 脚本。
 
 ## 13. 从 GitHub 获取后续更新
 
@@ -296,7 +252,7 @@ Windows 使用对应的虚拟环境激活命令和 PowerShell 环境变量命令
 git pull --ff-only origin main
 source .venv/bin/activate
 pip install "django>=5.0" djangorestframework django-cors-headers \
-  python-dotenv "cryptography>=44,<47" "openai>=1.0.0" requests
+  python-dotenv "cryptography>=44,<47" "openai>=1.0.0" requests "psutil>=6.1,<8"
 cd backend
 DJANGO_ENV=development DJANGO_DB_ENGINE=sqlite python manage.py migrate
 cd ../frontend
@@ -335,7 +291,17 @@ pip install "django>=5.0" djangorestframework django-cors-headers \
 
 ### 出现端口被占用
 
-检查是否已经启动过项目。也可以停止占用 `8080` 或 `5173` 的旧进程后再启动。
+检查是否已经启动过项目。启停脚本不会强杀未记录的其他程序，请确认占用者后再手动释放 `8080` 或 `5173`。
+
+### 学生提交时提示“代码执行服务尚未就绪”
+
+进入 `backend/` 目录执行：
+
+```bash
+python manage.py runner_status
+```
+
+再查看 `logs/runner.log`。无健康心跳时系统会立即拒绝新任务，不会继续创建永久排队的记录。
 
 ### 教师无法创建学生或查看学生密码
 
@@ -365,6 +331,10 @@ Linux 可运行 `stat -c '%a' backend/.env.security.local`，预期权限为 `60
 - `frontend/node_modules/`：前端依赖。
 - `backend/db.sqlite3`：本地账号、题目、作答和成绩数据库。
 - `backend/.env.security.local`：学生密码加密密钥。
+- `.env.runner.local`：Django 与 Local Runner 共用的本机协议配置和密钥。
+- `.server_pids`、`logs/`：一键启停的进程记录与日志。
 - `frontend/dist/`：前端生产构建文件，本地运行 `npm run dev` 时不需要。
 
 如果以后要把新电脑上的学生账号和成绩迁移到另一台电脑，需要单独安全迁移 `backend/db.sqlite3` 和对应的 `backend/.env.security.local`，不能只依赖 Git。
+
+Local Runner 会在本机运行学生代码，不具备 Docker/VM 的强隔离。请只在受控校园网中使用非管理员专用账号启动，不要直接公网开放。完整配置、Windows 机房迁移、故障处理和回退见 `docs/deployment/local-runner-classroom.md`。
