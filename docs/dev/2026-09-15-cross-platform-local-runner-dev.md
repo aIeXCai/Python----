@@ -1,7 +1,7 @@
 # 跨平台本机 Runner 过渡方案 DEV 技术设计
 
 日期：2026-09-15
-状态：用户已确认（2026-09-15）；Step 0–6 已完成，等待进入 Step 7
+状态：用户已确认（2026-09-15）；Step 0–7 已完成，等待进入 Step 8
 对应 PRD：`docs/prd/2026-09-15-cross-platform-local-runner-prd.md`
 
 ## 1. 实施边界
@@ -396,7 +396,7 @@ EXECUTION_REQUIRE_HEALTHY_RUNNER=true
 - Runner 37 项测试全部通过；Django 518 项全部通过、5 项按设计跳过；前端 302 项通过、2 项跳过，生产构建成功。ESLint 为 0 error、33 条既有 React 警告；Django system check、shell 语法与 `git diff --check` 通过。
 - 当前环境未配置 MySQL；MySQL/InnoDB 并发测试按设计跳过，并保留到 Step 8 机房环境执行。Windows 真实行为同样仍需 Step 8 验收。
 
-### Step 7：形成迁移提交并转入 `jifang3`（待实施）
+### Step 7：形成迁移提交并转入 `jifang3`（✅ 已完成，2026-09-15）
 
 - 只提交本功能文件，不夹带其他改动。
 - 在 `jifang3` 合并或挑选 MacBook 功能提交，保留机房分支现有7个文件的跨平台/排序修改。
@@ -404,6 +404,15 @@ EXECUTION_REQUIRE_HEALTHY_RUNNER=true
 - 不在未授权的情况下推送远端。
 
 验证：`git diff MacBook...jifang3` 审计、测试和文档检查。
+
+完成记录：
+
+- `git fetch origin --prune` 后确认用户的新改动为 `origin/jifang3` 的 `cbbe19e`，并已通过合并提交 `afe8999` 进入 `origin/main`。
+- 在 `MacBook` 将 Step 0–6 的 42 个功能文件独立提交为 `45eda5f`（`feat(execution): add cross-platform local runner`），未纳入 `.env.runner.local`、数据库文件、日志或 PID 文件。
+- 本地 `main` 以 fast-forward 更新到 `origin/main` 的 `afe8999`；本地 `jifang3` 从 `origin/jifang3` 创建后以 fast-forward 对齐最新 `main`，因此完整保留信息课成绩按历史最高分统计的改动。
+- 将功能提交 `45eda5f` cherry-pick 到 `jifang3`，形成 `5358ea1`，过程无冲突；未执行覆盖式 checkout/reset，未推送远端。
+- 组合分支验证：Runner 37 项全部通过；Django 522 项全部通过、5 项按设计跳过；前端 306 项通过、2 项跳过，生产构建成功；ESLint 0 error、33 条既有警告。
+- 已执行 `git diff MacBook...jifang3`、提交范围、分支祖先关系和工作区检查；Step 8 仍需在真实 Windows 机房电脑运行，不以当前 macOS 结果替代。
 
 ### Step 8：真实 Windows 机房验收（待实施，依赖机房电脑）
 
