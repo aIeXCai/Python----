@@ -1,14 +1,16 @@
 import uuid
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.cache import cache
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from ai_courses.models import AUDIENCE_ALL_SCHOOL, Problem, ProblemAudience, Submission
 from execution.constants import STATUS_RUNNING, STATUS_SUCCEEDED, TASK_TYPE_GRADE, TASK_TYPE_RUN
-from execution.models import ExecutionTask
+from execution.models import ExecutionTask, RunnerNode
 from users.models import CustomUser
 
 
@@ -186,3 +188,47 @@ class PublicExecutionApiTest(APITestCase):
         response = self.post_run()
         self.assertEqual(response.status_code, 503)
         self.assertEqual(ExecutionTask.objects.count(), 0)
+
+    @override_settings(EXECUTION_REQUIRE_HEALTHY_RUNNER=True)
+    def test_no_healthy_runner_rejects_run_without_creating_task(self):
+        response = self.post_run()
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.data['code'], 'runner_unavailable')
+        self.assertEqual(ExecutionTask.objects.count(), 0)
+
+    @override_settings(EXECUTION_REQUIRE_HEALTHY_RUNNER=True)
+    def test_no_healthy_runner_rejects_grade_without_partial_records(self):
+        response = self.post_grade()
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.data['code'], 'runner_unavailable')
+        self.assertEqual(ExecutionTask.objects.count(), 0)
+        self.assertEqual(Submission.objects.count(), 0)
+
+    @override_settings(EXECUTION_REQUIRE_HEALTHY_RUNNER=True, RUNNER_NODE_STALE_SECONDS=30)
+    def test_stale_or_offline_runner_is_unavailable(self):
+        RunnerNode.objects.create(
+            runner_id='stale-runner', protocol_version='runner.v1',
+            sandbox_image_digest='local-python', capacity=2, active_slots=0,
+            status='online', last_heartbeat_at=timezone.now() - timedelta(seconds=31),
+        )
+        RunnerNode.objects.create(
+            runner_id='offline-runner', protocol_version='runner.v1',
+            sandbox_image_digest='local-python', capacity=2, active_slots=0,
+            status='offline', last_heartbeat_at=timezone.now(),
+        )
+        response = self.post_run()
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.data['code'], 'runner_unavailable')
+        self.assertEqual(ExecutionTask.objects.count(), 0)
+
+    @override_settings(EXECUTION_REQUIRE_HEALTHY_RUNNER=True, RUNNER_NODE_STALE_SECONDS=30)
+    def test_fresh_online_runner_allows_queue_even_when_all_slots_are_active(self):
+        RunnerNode.objects.create(
+            runner_id='busy-runner', protocol_version='runner.v1',
+            sandbox_image_digest='local-python', capacity=2, active_slots=2,
+            status='online', last_heartbeat_at=timezone.now(),
+        )
+        response = self.post_run()
+        self.assertEqual(response.status_code, 202, response.data)
+        self.assertEqual(response.data['status'], 'queued')
+        self.assertEqual(ExecutionTask.objects.count(), 1)

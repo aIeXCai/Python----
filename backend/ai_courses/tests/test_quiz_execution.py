@@ -10,7 +10,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from execution.constants import STATUS_SUCCEEDED
-from execution.models import ExecutionTask
+from execution.models import ExecutionTask, RunnerNode
 from users.models import CustomUser
 
 from ..models import AIQuizAttempt, AIUnit, Problem, Submission
@@ -244,3 +244,16 @@ class AIQuizProgrammingStep5APITest(APITestCase):
         self.assertEqual(detail.data['output'], '1\n')
         self.assertNotIn('code', detail.data)
         self.assertNotIn('test_snapshot', detail.data)
+
+    @override_settings(EXECUTION_REQUIRE_HEALTHY_RUNNER=True)
+    def test_quiz_submit_rejects_without_runner_and_creates_no_submission(self):
+        RunnerNode.objects.all().delete()
+        response = self.client.post(
+            self._url(self.items[0]['item_id'], 'submit/'),
+            {'attempt_id': self.attempt.pk, 'code': 'print(1)'},
+            format='json', **self._auth(self.student),
+        )
+        self.assertEqual(response.status_code, 503, response.data)
+        self.assertEqual(response.data['code'], 'runner_unavailable')
+        self.assertEqual(ExecutionTask.objects.count(), 0)
+        self.assertEqual(Submission.objects.filter(quiz_attempt=self.attempt).count(), 0)
