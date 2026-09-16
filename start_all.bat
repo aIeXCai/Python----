@@ -22,21 +22,21 @@ if not defined PYTHON set "PYTHON=python"
 if errorlevel 1 (
     echo [错误] Python 依赖不完整：%PYTHON%
     echo        请在虚拟环境中安装 requirements.txt。
-    exit /b 1
+    goto :fail
 )
 where npm.cmd >nul 2>&1
 if errorlevel 1 (
     echo [错误] npm 未安装，请先安装 Node.js。
-    exit /b 1
+    goto :fail
 )
 where node.exe >nul 2>&1
 if errorlevel 1 (
     echo [错误] node.exe 不可用。
-    exit /b 1
+    goto :fail
 )
 if not exist "%SCRIPT_DIR%frontend\node_modules" (
     echo [错误] 前端依赖不存在，请先在 frontend 目录执行 npm ci。
-    exit /b 1
+    goto :fail
 )
 echo [ OK ] 环境检查通过：%PYTHON%
 
@@ -45,12 +45,12 @@ for %%P in (8080 5173) do (
     netstat -ano | findstr ":%%P" | findstr "LISTENING" >nul
     if not errorlevel 1 (
         echo [错误] 端口 %%P 已被非本项目进程占用。
-        exit /b 1
+        goto :fail
     )
 )
 
 "%PYTHON%" "%SCRIPT_DIR%scripts\init_local_runner.py"
-if errorlevel 1 exit /b 1
+if errorlevel 1 goto :fail
 if not exist "%SCRIPT_DIR%backend\.env.security.local" (
     echo [警告] 未找到 backend\.env.security.local，教师创建学生/查看密码功能将不可用。
 )
@@ -66,14 +66,20 @@ set "PLATFORM_LOGS=%LOG_DIR%"
 break > "%PID_FILE%"
 
 echo [启动] Django 后端 (127.0.0.1:8080)...
-for /f %%I in ('powershell -NoProfile -Command "$manage=([char]34)+$env:PLATFORM_BACKEND+'\manage.py'+([char]34); $p=Start-Process -FilePath $env:PLATFORM_PYTHON -ArgumentList @($manage,'runserver','127.0.0.1:8080','--noreload') -WorkingDirectory $env:PLATFORM_BACKEND -RedirectStandardOutput ($env:PLATFORM_LOGS+'\django.log') -RedirectStandardError ($env:PLATFORM_LOGS+'\django.error.log') -PassThru; $p.Id"') do set "DJANGO_PID=%%I"
+del /q "%LOG_DIR%\django.pid" >nul 2>&1
+powershell -NoProfile -Command "$manage=([char]34)+$env:PLATFORM_BACKEND+'\manage.py'+([char]34); $p=Start-Process -FilePath $env:PLATFORM_PYTHON -ArgumentList @($manage,'runserver','127.0.0.1:8080','--noreload') -WorkingDirectory $env:PLATFORM_BACKEND -RedirectStandardOutput ($env:PLATFORM_LOGS+'\django.log') -RedirectStandardError ($env:PLATFORM_LOGS+'\django.error.log') -WindowStyle Hidden -PassThru; [IO.File]::WriteAllText($env:PLATFORM_LOGS+'\django.pid',[string]$p.Id)" >nul
+if not exist "%LOG_DIR%\django.pid" goto :start_failed
+set /p DJANGO_PID=<"%LOG_DIR%\django.pid"
 if not defined DJANGO_PID goto :start_failed
 echo django=%DJANGO_PID%>> "%PID_FILE%"
 call :wait_port 8080 Django
 if errorlevel 1 goto :start_failed
 
 echo [启动] Local Runner...
-for /f %%I in ('powershell -NoProfile -Command "$script=([char]34)+$env:PLATFORM_ROOT+'scripts\run_local_runner.py'+([char]34); $p=Start-Process -FilePath $env:PLATFORM_PYTHON -ArgumentList @($script) -WorkingDirectory $env:PLATFORM_ROOT -RedirectStandardOutput ($env:PLATFORM_LOGS+'\runner.log') -RedirectStandardError ($env:PLATFORM_LOGS+'\runner.error.log') -PassThru; $p.Id"') do set "RUNNER_PID=%%I"
+del /q "%LOG_DIR%\runner.pid" >nul 2>&1
+powershell -NoProfile -Command "$script=([char]34)+$env:PLATFORM_ROOT+'scripts\run_local_runner.py'+([char]34); $p=Start-Process -FilePath $env:PLATFORM_PYTHON -ArgumentList @($script) -WorkingDirectory $env:PLATFORM_ROOT -RedirectStandardOutput ($env:PLATFORM_LOGS+'\runner.log') -RedirectStandardError ($env:PLATFORM_LOGS+'\runner.error.log') -WindowStyle Hidden -PassThru; [IO.File]::WriteAllText($env:PLATFORM_LOGS+'\runner.pid',[string]$p.Id)" >nul
+if not exist "%LOG_DIR%\runner.pid" goto :start_failed
+set /p RUNNER_PID=<"%LOG_DIR%\runner.pid"
 if not defined RUNNER_PID goto :start_failed
 echo runner=%RUNNER_PID%>> "%PID_FILE%"
 pushd "%SCRIPT_DIR%backend"
@@ -83,7 +89,10 @@ popd
 if not "%STATUS_RESULT%"=="0" goto :start_failed
 
 echo [启动] Vite 前端 (0.0.0.0:5173)...
-for /f %%I in ('powershell -NoProfile -Command "$script=([char]34)+$env:PLATFORM_FRONTEND+'\node_modules\vite\bin\vite.js'+([char]34); $p=Start-Process -FilePath $env:PLATFORM_NODE -ArgumentList @($script) -WorkingDirectory $env:PLATFORM_FRONTEND -RedirectStandardOutput ($env:PLATFORM_LOGS+'\vite.log') -RedirectStandardError ($env:PLATFORM_LOGS+'\vite.error.log') -PassThru; $p.Id"') do set "VITE_PID=%%I"
+del /q "%LOG_DIR%\vite.pid" >nul 2>&1
+powershell -NoProfile -Command "$script=([char]34)+$env:PLATFORM_FRONTEND+'\node_modules\vite\bin\vite.js'+([char]34); $p=Start-Process -FilePath $env:PLATFORM_NODE -ArgumentList @($script) -WorkingDirectory $env:PLATFORM_FRONTEND -RedirectStandardOutput ($env:PLATFORM_LOGS+'\vite.log') -RedirectStandardError ($env:PLATFORM_LOGS+'\vite.error.log') -WindowStyle Hidden -PassThru; [IO.File]::WriteAllText($env:PLATFORM_LOGS+'\vite.pid',[string]$p.Id)" >nul
+if not exist "%LOG_DIR%\vite.pid" goto :start_failed
+set /p VITE_PID=<"%LOG_DIR%\vite.pid"
 if not defined VITE_PID goto :start_failed
 echo vite=%VITE_PID%>> "%PID_FILE%"
 call :wait_port 5173 Vite
@@ -97,6 +106,18 @@ echo   学生登录：http://localhost:5173/login
 echo   教师登录：http://localhost:5173/teacher-login
 echo   Runner 状态：cd backend ^&^& "%PYTHON%" manage.py runner_status
 echo   停止：stop_all.bat
+echo.
+echo   提示：三个服务已在后台独立运行，关闭本窗口不会停止服务。
+call :wait_key
+exit /b 0
+
+:wait_key
+rem 仅当"双击运行"时停住窗口，供人查看结果；被其他脚本调用时不阻塞。
+echo %cmdcmdline% | find /i "%~nx0" >nul
+if errorlevel 1 exit /b 0
+echo.
+echo   按任意键关闭此窗口...
+pause
 exit /b 0
 
 :wait_port
@@ -114,4 +135,9 @@ exit /b 1
 :start_failed
 echo [错误] 启动未完成，正在回收已启动的本项目进程。
 call "%SCRIPT_DIR%stop_all.bat" --quiet
+goto :fail
+
+:fail
+echo.
+call :wait_key
 exit /b 1
