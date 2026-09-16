@@ -5,6 +5,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 set "SCRIPT_DIR=%~dp0"
 set "LOG_DIR=%SCRIPT_DIR%logs"
 set "PID_FILE=%SCRIPT_DIR%.server_pids"
+set "SELF_NAME=%~nx0"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
 echo.
@@ -113,7 +114,7 @@ exit /b 0
 
 :wait_key
 rem 仅当"双击运行"时停住窗口，供人查看结果；被其他脚本调用时不阻塞。
-echo %cmdcmdline% | find /i "%~nx0" >nul
+echo %cmdcmdline% | find /i "%SELF_NAME%" >nul
 if errorlevel 1 exit /b 0
 echo.
 echo   按任意键关闭此窗口...
