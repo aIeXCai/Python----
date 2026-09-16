@@ -42,6 +42,7 @@ const defaultProps = {
   sForm: { name: '', grade: '七年级', duration: 30, units: [], question_count: 5 },
   setSForm: vi.fn(),
   sMsg: { type: '', text: '' },
+  setSMsg: vi.fn(),
   handleSaveSession: vi.fn(),
   sSaving: false,
 }
@@ -212,6 +213,24 @@ describe('Tab2Sessions', () => {
     const reopenButton = screen.getByRole('button', { name: /重新开放/ })
     await user.click(reopenButton)
     expect(defaultProps.handleStartSession).toHaveBeenCalledWith(2)
+  })
+
+  it('发布失败时把后端返回的原因显示在列表上（不再静默失败）', () => {
+    const reason = '题库只有 0 题，无法生成 10 题的小测'
+    render(<Tab2Sessions {...defaultProps} sMsg={{ type: 'error', text: reason }} />)
+    expect(screen.getByRole('alert')).toHaveTextContent(reason)
+  })
+
+  it('列表提示可以手动关闭', async () => {
+    const user = userEvent.setup()
+    render(<Tab2Sessions {...defaultProps} sMsg={{ type: 'error', text: '开放小测失败' }} />)
+    await user.click(screen.getByRole('button', { name: '关闭提示' }))
+    expect(defaultProps.setSMsg).toHaveBeenCalledWith({ type: '', text: '' })
+  })
+
+  it('没有消息时不渲染列表提示', () => {
+    render(<Tab2Sessions {...defaultProps} />)
+    expect(screen.queryByTestId('session-msg')).not.toBeInTheDocument()
   })
 
   it('进行中和已关闭的小测都提供编辑与删除', async () => {
