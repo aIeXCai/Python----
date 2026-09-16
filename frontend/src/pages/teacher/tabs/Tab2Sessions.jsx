@@ -9,7 +9,7 @@ export default function Tab2Sessions({
   openNewSession, openEditSession, deleteSession,
   handleStartSession, handleEndSession,
   // 弹窗状态
-  sModal, setSModal, sForm, setSForm, sMsg, handleSaveSession, sSaving,
+  sModal, setSModal, sForm, setSForm, sMsg, setSMsg, handleSaveSession, sSaving,
 }) {
   const gradeColor = (g) => ({ '七年级': '#38ef7d', '八年级': '#11999e', '九年级': '#f59e0b' })[g] || '#888'
 
@@ -32,6 +32,10 @@ export default function Tab2Sessions({
           <Plus size={14} /> 新建小测
         </button>
       </div>
+
+      {/* 列表层提示：开始/结束/删除失败时后端会返回具体原因（如题库不足），
+          提示必须显示在这里，否则用户看到的只是“点了没反应”。 */}
+      <MsgBanner sMsg={sMsg} onDismiss={() => setSMsg?.({ type: '', text: '' })} />
 
       {/* 小测表格 */}
       <div style={{ background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -119,7 +123,7 @@ export default function Tab2Sessions({
         <SessionModal
           sModal={sModal} setSModal={setSModal}
           sForm={sForm} setSForm={setSForm}
-          sMsg={sMsg} handleSaveSession={handleSaveSession}
+          sMsg={sMsg} setSMsg={setSMsg} handleSaveSession={handleSaveSession}
           sSaving={sSaving}
           unitGradeFilter={unitGradeFilter}
         />
@@ -128,8 +132,40 @@ export default function Tab2Sessions({
   )
 }
 
+// ── 提示条（列表与弹窗共用） ─────────────────────────────────────────────────
+function MsgBanner({ sMsg, onDismiss, style }) {
+  if (!sMsg?.text) return null
+  const success = sMsg.type === 'success'
+  return (
+    <div
+      role={success ? 'status' : 'alert'}
+      data-testid="session-msg"
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 10,
+        padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+        background: success ? '#d4edda' : '#f8d7da',
+        color: success ? '#155724' : '#721c24',
+        border: `1px solid ${success ? '#c3e6cb' : '#f5c6cb'}`,
+        ...style,
+      }}
+    >
+      <span style={{ flex: 1, lineHeight: 1.6, wordBreak: 'break-all' }}>{sMsg.text}</span>
+      {onDismiss && (
+        <button
+          type="button"
+          aria-label="关闭提示"
+          onClick={onDismiss}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, display: 'inline-flex', flexShrink: 0, opacity: 0.75 }}
+        >
+          <X size={15} />
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ── 小测弹窗 ────────────────────────────────────────────────────────────────
-function SessionModal({ sModal, setSModal, sForm, setSForm, sMsg, handleSaveSession, sSaving, unitGradeFilter }) {
+function SessionModal({ sModal, setSModal, sForm, setSForm, sMsg, setSMsg, handleSaveSession, sSaving, unitGradeFilter }) {
   const [modalUnits, setModalUnits] = useState([])  // 自主管理，不依赖父组件
   const [availableClasses, setAvailableClasses] = useState([])
   const [classDropdownOpen, setClassDropdownOpen] = useState(false)
@@ -177,14 +213,7 @@ function SessionModal({ sModal, setSModal, sForm, setSForm, sMsg, handleSaveSess
           <button onClick={() => setSModal({ open: false, mode: 'create', data: null })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={20} /></button>
         </div>
 
-        {sMsg.text ? (
-          <div style={{
-            padding: '10px 16px', borderRadius: 8, marginBottom: 16, fontSize: 13, fontWeight: 600,
-            background: sMsg.type === 'success' ? '#d4edda' : '#f8d7da',
-            color: sMsg.type === 'success' ? '#155724' : '#721c24',
-            border: `1px solid ${sMsg.type === 'success' ? '#c3e6cb' : '#f5c6cb'}`
-          }}>{sMsg.text}</div>
-        ) : null}
+        <MsgBanner sMsg={sMsg} onDismiss={() => setSMsg?.({ type: '', text: '' })} style={{ marginBottom: 16 }} />
 
         <form onSubmit={handleSaveSession} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>

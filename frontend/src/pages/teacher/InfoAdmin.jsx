@@ -417,6 +417,7 @@ export default function InfoAdmin() {
 
   const deleteSession = async s => {
     if (!confirm(`删除小测“${s.title}”后，它会从教师端和学生端列表移除；已有作答和成绩会安全保留。确定删除吗？`)) return
+    setSMsg({ type: '', text: '' })
     const res = await fetch(`${API}/admin/info/sessions/${s.id}/delete/`, { method: 'DELETE', headers })
     const data = await res.json()
     if (!res.ok) setSMsg({ type: 'error', text: data.error || '删除小测失败' })
@@ -424,6 +425,7 @@ export default function InfoAdmin() {
   }
 
   const handleStartSession = async id => {
+    setSMsg({ type: '', text: '' })
     const target = sessions.find(s => s.id === id)
     const res = await fetch(`${API}/admin/info/sessions/${id}/status/`, {
       method: 'PATCH', headers,
@@ -440,6 +442,7 @@ export default function InfoAdmin() {
 
   const handleEndSession = async id => {
     if (!confirm('关闭后将立即按已保存答案结算所有进行中的作答，确定关闭吗？')) return
+    setSMsg({ type: '', text: '' })
     const res = await fetch(`${API}/admin/info/sessions/${id}/status/`, {
       method: 'PATCH', headers,
       body: JSON.stringify({ status: 'closed' })
@@ -578,7 +581,7 @@ export default function InfoAdmin() {
             handleStartSession={handleStartSession} handleEndSession={handleEndSession}
             sModal={sModal} setSModal={setSModal}
             sForm={sForm} setSForm={setSForm}
-            sMsg={sMsg} handleSaveSession={handleSaveSession} sSaving={sSaving}
+            sMsg={sMsg} setSMsg={setSMsg} handleSaveSession={handleSaveSession} sSaving={sSaving}
           />
         )}
 

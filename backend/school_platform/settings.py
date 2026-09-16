@@ -21,6 +21,10 @@ load_dotenv(BASE_DIR / '.env.security.local')
 load_dotenv(BASE_DIR / '.env')
 
 ENVIRONMENT = get_environment()
+# Local Runner and Django share only the runner protocol settings. Test runs do
+# not load machine-local runtime state; explicit process values keep precedence.
+if ENVIRONMENT != 'test':
+    load_dotenv(BASE_DIR.parent / '.env.runner.local')
 DEVELOPMENT_SECRET_KEY = 'django-insecure-development-only-change-me'
 TEST_SECRET_KEY = 'django-insecure-test-environment-only'
 
@@ -59,6 +63,13 @@ PASSWORD_REVEAL_SECONDS = get_int('DJANGO_PASSWORD_REVEAL_SECONDS', 30, minimum=
 CODE_EXECUTION_ENABLED = get_bool(
     'CODE_EXECUTION_ENABLED',
     default=ENVIRONMENT != 'production',
+)
+# Refuse new tasks when no local Runner has a fresh online heartbeat. Tests
+# and installations without Local Runner remain unchanged unless their explicit
+# Runner configuration opts into this runtime check.
+EXECUTION_REQUIRE_HEALTHY_RUNNER = get_bool(
+    'EXECUTION_REQUIRE_HEALTHY_RUNNER',
+    default=False,
 )
 EXECUTION_CODE_MAX_BYTES = get_int(
     'EXECUTION_CODE_MAX_BYTES', 65536, minimum=1, maximum=1048576,
