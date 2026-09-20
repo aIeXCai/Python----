@@ -154,6 +154,14 @@ describe('FloatingChat — 上下文标签', () => {
     render(<FloatingChat />)
     expect(screen.getByText(/小测：第一单元小测/)).toBeInTheDocument()
   })
+
+  it('自由练习上下文时直接显示自由练习标签', () => {
+    setChat({ isOpen: true, context: { type: 'ai_free_practice', title: '自由练习', code: 'print(1)' } })
+    render(<FloatingChat />)
+    expect(screen.getByText('自由练习')).toBeInTheDocument()
+    expect(screen.queryByText('小测：自由练习')).not.toBeInTheDocument()
+    expect(screen.queryByText('题目：自由练习')).not.toBeInTheDocument()
+  })
 })
 
 describe('FloatingChat — 消息列表', () => {
