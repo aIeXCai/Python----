@@ -74,6 +74,16 @@ class TaskEvaluatorTest(unittest.TestCase):
         self.assertEqual(result['score'], 100)
         self.assertEqual([item['status'] for item in result['detail']['tests']], ['passed', 'passed'])
 
+    def test_multiline_chinese_answer_scores_full_marks(self):
+        # 回归：中文多行输出曾同时踩中「GBK 乱码」与「CRLF 与 LF 不一致」两个坑，
+        # 导致完全正确的程序被判成答案错误。
+        result = self.evaluator.evaluate(grade_envelope(
+            'print("你好")\nprint("我来自白云实验学校")\nprint("我今年上初一了")',
+            [{'number': 1, 'input': '无', 'output': '你好\n我来自白云实验学校\n我今年上初一了'}],
+        ))
+        self.assertEqual(result['status'], 'succeeded')
+        self.assertEqual(result['score'], 100)
+
     def test_partial_wrong_answer_scores_by_total_cases(self):
         result = self.evaluator.evaluate(grade_envelope(
             'print(int(input()) * 2)',

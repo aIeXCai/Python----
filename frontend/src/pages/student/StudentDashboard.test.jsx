@@ -26,6 +26,10 @@ vi.mock('../../contexts/ChatContext.jsx', () => ({
   ChatProvider: ({ children }) => children,
 }))
 
+vi.mock('./ai/FreePracticeWorkspace.jsx', () => ({
+  default: () => <div data-testid="free-practice-workspace">自由练习工作区</div>,
+}))
+
 vi.mock('react-router-dom', () => {
   const Link = ({ to, children }) => <a href={to}>{children}</a>
   const fakeSearchParams = { get: (key) => key === 'course' ? searchParamsState.course : null, [Symbol.iterator]: function* () {} }
@@ -86,11 +90,14 @@ describe('StudentDashboard.jsx', () => {
     await waitFor(() => expect(screen.getByText(/先完成老师发布的小测/)).toBeInTheDocument())
   })
 
-  it('默认显示小测 Tab，并可切换到题库练习', async () => {
+  it('默认显示小测 Tab，并可在三个 AI 学习 Tab 间切换', async () => {
     renderDashboard()
     const quizTab = await screen.findByRole('tab', { name: '我的小测' })
     const practiceTab = screen.getByRole('tab', { name: '题库练习' })
+    const freePracticeTab = screen.getByRole('tab', { name: '自由练习' })
     expect(quizTab).toHaveAttribute('aria-selected', 'true')
+    expect(practiceTab).toHaveAttribute('aria-selected', 'false')
+    expect(freePracticeTab).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('heading', { level: 2, name: '我的小测' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '🔄 切换课程' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2, name: '题库练习' })).not.toBeInTheDocument()
@@ -100,6 +107,22 @@ describe('StudentDashboard.jsx', () => {
     expect(quizTab).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('heading', { level: 2, name: '题库练习' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2, name: '我的小测' })).not.toBeInTheDocument()
+
+    fireEvent.click(freePracticeTab)
+    expect(freePracticeTab).toHaveAttribute('aria-selected', 'true')
+    expect(quizTab).toHaveAttribute('aria-selected', 'false')
+    expect(practiceTab).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByTestId('free-practice-workspace')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: '题库练习' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: '我的小测' })).not.toBeInTheDocument()
+  })
+
+  it('信息科技课不显示自由练习 Tab', async () => {
+    searchParamsState.course = 'info'
+    renderDashboard()
+
+    expect(await screen.findByText('信息科技课')).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '自由练习' })).not.toBeInTheDocument()
   })
 
   it('shows empty state when no problems', async () => {

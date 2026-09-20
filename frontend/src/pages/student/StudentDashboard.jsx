@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Trophy, CheckCircle, BarChart2, BookOpen, RefreshCw, Loader, FileText, Clock } from 'lucide-react'
+import { Trophy, CheckCircle, BarChart2, BookOpen, RefreshCw, Loader, FileText, Clock, Code2 } from 'lucide-react'
 import Navbar from '../../components/Navbar.jsx'
+import FreePracticeWorkspace from './ai/FreePracticeWorkspace.jsx'
 import { getProblems, getScores, getStudentStats } from '../../api/index.js'
 import { getInfoQuizzes } from '../../api/info.js'
 import { getStudentAIQuizzes } from '../../api/aiStudentQuiz.js'
@@ -227,6 +228,7 @@ export default function StudentDashboard() {
           <div className="ai-dashboard-tabs" role="tablist" aria-label="AI 课程学习模块">
             <button id="ai-dashboard-tab-quizzes" type="button" role="tab" aria-selected={aiSection === 'quizzes'} aria-controls="ai-quizzes-panel" className={aiSection === 'quizzes' ? 'active' : ''} onClick={() => setAISection('quizzes')}><FileText size={19} />我的小测</button>
             <button id="ai-dashboard-tab-practice" type="button" role="tab" aria-selected={aiSection === 'practice'} aria-controls="ai-practice-panel" className={aiSection === 'practice' ? 'active' : ''} onClick={() => setAISection('practice')}><BookOpen size={19} />题库练习</button>
+            <button id="ai-dashboard-tab-free-practice" type="button" role="tab" aria-selected={aiSection === 'free-practice'} aria-controls="ai-free-practice-panel" className={aiSection === 'free-practice' ? 'active' : ''} onClick={() => setAISection('free-practice')}><Code2 size={19} />自由练习</button>
           </div>
         )}
 
@@ -318,6 +320,13 @@ export default function StudentDashboard() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* AI课：自由练习 */}
+        {!isInfo && aiSection === 'free-practice' && (
+          <div className="problems-section ai-dashboard-panel free-practice-panel" id="ai-free-practice-panel" role="tabpanel" aria-labelledby="ai-dashboard-tab-free-practice">
+            <FreePracticeWorkspace />
           </div>
         )}
       </main>

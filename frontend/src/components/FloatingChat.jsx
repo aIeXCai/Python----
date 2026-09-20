@@ -105,7 +105,9 @@ export default function FloatingChat() {
   if (isDisabled) return null
 
   const contextLabel = context
-    ? `${['ai_problem', 'ai_quiz_programming'].includes(context.type) ? '题目' : '小测'}：${context.title}`
+    ? context.type === 'ai_free_practice'
+      ? '自由练习'
+      : `${['ai_problem', 'ai_quiz_programming'].includes(context.type) ? '题目' : '小测'}：${context.title}`
     : null
 
   const isChat = view === 'chat'
