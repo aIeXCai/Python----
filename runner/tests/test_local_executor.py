@@ -97,6 +97,33 @@ class LocalProcessExecutorTest(unittest.TestCase):
         self.assertEqual(result.status, 'succeeded')
         self.assertEqual(result.stdout, '\ufffd')
 
+    def test_chinese_output_is_utf8_not_mojibake(self):
+        # 回归：`-I` 隐含 `-E` 会忽略 PYTHONIOENCODING，子进程曾退回 GBK 输出乱码。
+        result = self.executor.execute('print("你好，白云实验学校")', wall_seconds=2)
+        self.assertEqual(result.status, 'succeeded')
+        self.assertEqual(result.stdout, '你好，白云实验学校\n')
+        self.assertNotIn('\ufffd', result.stdout)
+
+    def test_chinese_stdin_and_stderr_are_utf8(self):
+        result = self.executor.execute(
+            'import sys\nname = input()\nprint(name)\nprint("提示：" + name, file=sys.stderr)',
+            '七年级\n',
+            wall_seconds=2,
+        )
+        self.assertEqual(result.status, 'succeeded')
+        self.assertEqual(result.stdout, '七年级\n')
+        self.assertEqual(result.stderr, '提示：七年级\n')
+
+    def test_crlf_output_is_normalized_to_lf(self):
+        # 回归：Windows 上 Python 把 "\n" 写成 "\r\n"，与测试点文件的 "\n" 不一致，
+        # 会把正确的多行程序判成答案错误。
+        result = self.executor.execute(
+            'print("第一行")\nprint("第二行")', wall_seconds=2,
+        )
+        self.assertEqual(result.status, 'succeeded')
+        self.assertEqual(result.stdout, '第一行\n第二行\n')
+        self.assertNotIn('\r', result.stdout)
+
     def test_wall_timeout_kills_process(self):
         result = self.executor.execute('while True: pass', wall_seconds=0.15)
         self.assertEqual(result.status, 'timed_out')

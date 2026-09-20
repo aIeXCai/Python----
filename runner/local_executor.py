@@ -60,6 +60,9 @@ def _student_environment(source: Mapping[str, str] | None = None) -> dict[str, s
         if name.upper() in allowed_names
         and not any(fragment in name.upper() for fragment in SENSITIVE_ENV_FRAGMENTS)
     }
+    # 注意：学生程序是用 `python -I` 启动的，而 `-I`（隔离开启）隐含 `-E`，
+    # 会忽略下面这些 PYTHON* 变量；真正保证 UTF-8 的是 `-X utf8`（见 _spawn）。
+    # 保留这些变量是为了万一将来去掉 -I 时行为不变，同时表明这里的约定。
     result.update({
         'PYTHONIOENCODING': 'utf-8',
         'PYTHONUTF8': '1',
@@ -113,7 +116,11 @@ class _BoundedPipeReader(threading.Thread):
                 pass
 
     def text(self) -> str:
-        return b''.join(self.chunks).decode('utf-8', errors='replace')
+        raw = b''.join(self.chunks).decode('utf-8', errors='replace')
+        # Windows 上 Python 会把写入管道的 "\n" 翻译成 "\r\n"，而测试点期望输出
+        # 从文件读取时已被通用换行归一成 "\n"（见 Problem.get_test_cases）。
+        # 不统一换行的话，完全正确的多行程序也会被判成答案错误。
+        return raw.replace('\r\n', '\n').replace('\r', '\n')
 
 
 class _PipeWriter(threading.Thread):
@@ -259,7 +266,11 @@ class LocalProcessExecutor:
 
     def _spawn(self, source_path: Path, work_dir: Path) -> subprocess.Popen[bytes]:
         return subprocess.Popen(
-            [self.config.python_executable, '-I', '-B', str(source_path)],
+            # `-I`（隔离开启）隐含 `-E`，会让 PYTHONIOENCODING、PYTHONUTF8 等环境变量
+            # 全部失效，所以必须显式加 `-X utf8`：否则中文 Windows 上子进程会退回
+            # ANSI 代码页（GBK）编解码标准流，导致中文输出乱码，遇到 GBK 无法表示的
+            # 字符时还会直接抛 UnicodeEncodeError（学生看到的是"运行出错"）。
+            [self.config.python_executable, '-I', '-B', '-X', 'utf8', str(source_path)],
             cwd=str(work_dir),
             env=_student_environment(),
             stdin=subprocess.PIPE,
