@@ -146,6 +146,55 @@ describe('runCode (src/api/index.js)', () => {
   })
 })
 
+describe('login error handling', () => {
+  it('preserves the backend password error for a student login 401', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: '密码错误' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+    const mod = await import('./index.js?t=' + Math.random())
+
+    await expect(mod.login('', 'wrong', '七年级', '1', '5')).rejects.toMatchObject({
+      message: '密码错误',
+      status: 401,
+      data: { error: '密码错误' },
+    })
+    expect(localStorage.getItem('token')).toBeNull()
+    expect(localStorage.getItem('user')).toBeNull()
+    expect(mockFetch.mock.calls[0][1]).not.toHaveProperty('redirectOnUnauthorized')
+  })
+
+  it('preserves the backend missing-student error for a student login 401', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: '学生信息不存在' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+    const mod = await import('./index.js?t=' + Math.random())
+
+    await expect(mod.login('', 'anything', '七年级', '9', '50')).rejects.toThrow('学生信息不存在')
+  })
+
+  it('keeps clearing credentials for a protected API 401', async () => {
+    localStorage.setItem('token', 'expired-token')
+    localStorage.setItem('user', JSON.stringify({ username: 'student' }))
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ detail: 'Invalid token.' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+    const mod = await import('./index.js?t=' + Math.random())
+
+    await expect(mod.runCode('print(1)')).rejects.toThrow('Unauthorized')
+    expect(localStorage.getItem('token')).toBeNull()
+    expect(localStorage.getItem('user')).toBeNull()
+  })
+})
+
 describe('execution task API', () => {
   it('returns null for the active-task 204 response', async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 204 })

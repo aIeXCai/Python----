@@ -34,15 +34,14 @@
 .aiq-programming { display: grid; gap: 14px; }
 .aiq-problem-description { border-left: 4px solid #667eea; }
 .aiq-editor { overflow: hidden; border: 1px solid #29344b; border-radius: 10px; }
-.aiq-text-button { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; border: 0; background: transparent; color: #667eea; cursor: pointer; }
+.aiq-text-button { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 6px 11px; border: 1px solid #cbd2ff; border-radius: 8px; background: #eef1ff; color: #5267d7; font-weight: 750; cursor: pointer; transition: background .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.aiq-text-button:hover { border-color: #9da8ec; background: #e2e7ff; }
+.aiq-text-button:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(102, 126, 234, .24); }
 .aiq-stdin { display: grid; gap: 7px; margin-top: 14px; color: #596172; font-size: .78rem; font-weight: 700; }
 .aiq-stdin textarea { padding: 10px 12px; border: 1px solid #dfe3ec; border-radius: 8px; resize: vertical; font: 13px/1.5 ui-monospace, monospace; }
 .aiq-code-actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
-.aiq-best-score { margin-left: auto; color: #687083; font-size: .8rem; }
-.aiq-output pre, .aiq-grade-result pre { margin-top: 8px; padding: 12px; border-radius: 8px; background: #121927; color: #e7edff; white-space: pre-wrap; overflow-wrap: anywhere; }
+.aiq-output pre { margin-top: 8px; padding: 12px; border-radius: 8px; background: #121927; color: #e7edff; white-space: pre-wrap; overflow-wrap: anywhere; }
 .aiq-output pre.error { color: #ff9b9b; }
-.aiq-grade-result.success { border-left: 4px solid #33a474; }
-.aiq-grade-result.failed { border-left: 4px solid #d95757; }
 .aiq-prev-next { display: flex; justify-content: space-between; margin-top: 15px; }
 .aiq-prev-next .btn { width: 112px; justify-content: center; }
 .aiq-alert { margin: 12px 0; padding: 12px 15px; border-radius: 9px; }
@@ -91,5 +90,4 @@
   .aiq-nav button { min-width: 130px; }
   .aiq-card { padding: 16px; }
   .aiq-code-actions { flex-wrap: wrap; }
-  .aiq-best-score { width: 100%; margin-left: 0; }
 }

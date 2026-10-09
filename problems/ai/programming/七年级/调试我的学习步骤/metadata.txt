@@ -1,0 +1,3 @@
+problem_id: grade7_unit2_2_1_debug_steps
+title: 调试我的学习步骤
+difficulty: easy
