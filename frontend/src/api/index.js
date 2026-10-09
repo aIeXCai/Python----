@@ -5,17 +5,12 @@ export function getToken() {
 }
 
 export async function request(path, options = {}) {
+  const { redirectOnUnauthorized = true, ...fetchOptions } = options
   const token = getToken()
-  const headers = { 'Content-Type': 'application/json', ...options.headers }
+  const headers = { 'Content-Type': 'application/json', ...fetchOptions.headers }
   if (token) headers['Authorization'] = `Token ${token}`
 
-  const res = await fetch(apiUrl(path), { ...options, headers })
-  if (res.status === 401) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    window.location.href = '/login'
-    throw new Error('Unauthorized')
-  }
+  const res = await fetch(apiUrl(path), { ...fetchOptions, headers })
   let data = null
   if (res.status !== 204) {
     if (typeof res.text === 'function') {
@@ -28,6 +23,12 @@ export async function request(path, options = {}) {
       // Keep compatibility with lightweight Response doubles used by the UI tests.
       data = await res.json()
     }
+  }
+  if (res.status === 401 && redirectOnUnauthorized) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
   }
   if (!res.ok) {
     const message = data?.error || '请求失败'
@@ -53,6 +54,7 @@ export async function login(username, password, grade, class_num, student_number
   const data = await request('/auth/login/', {
     method: 'POST',
     body: JSON.stringify(body),
+    redirectOnUnauthorized: false,
   })
   localStorage.setItem('token', data.token)
   if (data.user) {

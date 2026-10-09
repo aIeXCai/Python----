@@ -71,11 +71,11 @@ export default function AIQuizPage() {
   const finish = useCallback(async ({ automatic = false } = {}) => {
     if (submitting || locked || !attemptIdRef.current) return
     const unanswered = choiceItems.filter(item => !answersRef.current[item.item_id]).length
-    const unsubmitted = programmingItems.filter(item => programmingScores[item.item_id] === null || programmingScores[item.item_id] === undefined).length
-    if (!automatic && (unanswered || unsubmitted)) {
+    const unrun = programmingItems.filter(item => programmingScores[item.item_id] === null || programmingScores[item.item_id] === undefined).length
+    if (!automatic && (unanswered || unrun)) {
       const parts = []
       if (unanswered) parts.push(`${unanswered} 道选择题未答`)
-      if (unsubmitted) parts.push(`${unsubmitted} 道编程题尚无有效提交`)
+      if (unrun) parts.push(`${unrun} 道编程题尚未运行`)
       if (!window.confirm(`还有${parts.join('、')}，确定交卷吗？`)) return
     }
     clearTimeout(saveTimerRef.current)
@@ -177,7 +177,7 @@ export default function AIQuizPage() {
           const choiceDone = item.type === 'choice' && Boolean(answers[item.item_id])
           const score = programmingScores[item.item_id]
           return <button key={item.item_id} type="button" className={`${index === currentIndex ? 'active' : ''} ${choiceDone || score !== undefined ? 'done' : ''}`} onClick={() => setCurrentIndex(index)} aria-current={index === currentIndex ? 'step' : undefined}>
-            <span className="aiq-nav-number">{index + 1}</span><span>{item.type === 'choice' ? <BookOpen size={15} /> : <Code2 size={15} />}{item.type === 'choice' ? '选择题' : '编程题'}<small>{item.type === 'choice' ? (choiceDone ? '已作答' : '未作答') : (score === undefined ? '尚未提交' : `最高 ${score} 分`)}</small></span>
+            <span className="aiq-nav-number">{index + 1}</span><span>{item.type === 'choice' ? <BookOpen size={15} /> : <Code2 size={15} />}{item.type === 'choice' ? '选择题' : '编程题'}<small>{item.type === 'choice' ? (choiceDone ? '已作答' : '未作答') : (score === undefined ? '尚未运行' : '已运行')}</small></span>
           </button>
         })}</aside>
         <section className="aiq-workarea">
