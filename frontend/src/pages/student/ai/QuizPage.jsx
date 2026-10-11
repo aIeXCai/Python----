@@ -7,6 +7,7 @@ import { getCurrentUser } from '../../../api/index.js'
 import { saveAIQuizAnswers, startAIQuizAttempt, submitAIQuizAttempt } from '../../../api/aiStudentQuiz.js'
 import { useChat } from '../../../contexts/ChatContext.jsx'
 import ProgrammingWorkspace from './ProgrammingWorkspace.jsx'
+import { gradeLocalPython, prepareLocalPython } from './localPython.js'
 import './aiQuiz.css'
 
 const SAVE_DELAY_MS = 1200
@@ -23,7 +24,6 @@ export default function AIQuizPage() {
   const [attempt, setAttempt] = useState(null)
   const [answers, setAnswers] = useState({})
   const [drafts, setDrafts] = useState({})
-  const [programmingScores, setProgrammingScores] = useState({})
   const [currentIndex, setCurrentIndex] = useState(0)
   const [timeLeft, setTimeLeft] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -32,6 +32,7 @@ export default function AIQuizPage() {
   const [saveStatus, setSaveStatus] = useState('')
   const [error, setError] = useState('')
   const answersRef = useRef({})
+  const draftsRef = useRef({})
   const revisionRef = useRef(0)
   const attemptIdRef = useRef(null)
   const lastSavedRef = useRef('{}')
@@ -71,11 +72,11 @@ export default function AIQuizPage() {
   const finish = useCallback(async ({ automatic = false } = {}) => {
     if (submitting || locked || !attemptIdRef.current) return
     const unanswered = choiceItems.filter(item => !answersRef.current[item.item_id]).length
-    const unrun = programmingItems.filter(item => programmingScores[item.item_id] === null || programmingScores[item.item_id] === undefined).length
-    if (!automatic && (unanswered || unrun)) {
+    const unwritten = programmingItems.filter(item => !(draftsRef.current[item.item_id] ?? item.template_code ?? '').trim()).length
+    if (!automatic && (unanswered || unwritten)) {
       const parts = []
       if (unanswered) parts.push(`${unanswered} 道选择题未答`)
-      if (unrun) parts.push(`${unrun} 道编程题尚未运行`)
+      if (unwritten) parts.push(`${unwritten} 道编程题未写代码`)
       if (!window.confirm(`还有${parts.join('、')}，确定交卷吗？`)) return
     }
     clearTimeout(saveTimerRef.current)
@@ -84,8 +85,20 @@ export default function AIQuizPage() {
       try { await persistAnswers() } catch (reason) {
         if (reason.code === 'attempt_revision_conflict') throw reason
       }
+      const programming = {}
+      for (const item of programmingItems) {
+        const code = draftsRef.current[item.item_id] ?? item.template_code ?? ''
+        try {
+          const grade = await gradeLocalPython(code, item.test_cases || [])
+          programming[item.item_id] = { code, score: grade.score }
+        } catch (reason) {
+          if (!automatic) throw new Error(`第 ${item.position} 题本地评分失败：${reason.message}`)
+          programming[item.item_id] = { code, score: null }
+        }
+      }
       await submitAIQuizAttempt(sessionId, {
         attempt_id: attemptIdRef.current, revision: revisionRef.current, answers: answersRef.current,
+        programming,
       })
       navigate(`/student/ai-quiz-result/${sessionId}`, { replace: true })
     } catch (reason) {
@@ -94,7 +107,7 @@ export default function AIQuizPage() {
       }
       setError(`交卷失败：${reason.message}`); setSubmitting(false); setLocked(false); autoSubmittedRef.current = false
     }
-  }, [choiceItems, locked, navigate, persistAnswers, programmingItems, programmingScores, sessionId, submitting])
+  }, [choiceItems, locked, navigate, persistAnswers, programmingItems, sessionId, submitting])
 
   useEffect(() => {
     let alive = true
@@ -107,7 +120,13 @@ export default function AIQuizPage() {
       serverOffsetRef.current = new Date(data.server_time).getTime() - Date.now()
       deadlineRef.current = data.deadline_at ? new Date(data.deadline_at).getTime() : null
       setTimeLeft(data.remaining_seconds)
-      try { setDrafts(JSON.parse(localStorage.getItem(`ai-quiz-drafts:${data.attempt_id}`) || '{}')) } catch { setDrafts({}) }
+      // Warm the interpreter while students read the quiz, before their first run.
+      void prepareLocalPython().catch(() => undefined)
+      try {
+        const restoredDrafts = JSON.parse(localStorage.getItem(`ai-quiz-drafts:${data.attempt_id}`) || '{}')
+        draftsRef.current = restoredDrafts
+        setDrafts(restoredDrafts)
+      } catch { draftsRef.current = {}; setDrafts({}) }
     }).catch(reason => {
       if (!alive) return
       if (reason.code === 'attempt_completed' || reason.code === 'quiz_deadline_passed' || reason.data?.result_available) {
@@ -129,7 +148,7 @@ export default function AIQuizPage() {
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((deadlineRef.current - (Date.now() + serverOffsetRef.current)) / 1000))
       setTimeLeft(remaining)
-      if (remaining === 0 && !autoSubmittedRef.current) { autoSubmittedRef.current = true; setLocked(true); void finish({ automatic: true }) }
+      if (remaining === 0 && !autoSubmittedRef.current) { autoSubmittedRef.current = true; void finish({ automatic: true }) }
     }
     tick(); const timer = window.setInterval(tick, 1000)
     return () => window.clearInterval(timer)
@@ -148,16 +167,14 @@ export default function AIQuizPage() {
     clearTimeout(saveTimerRef.current)
     saveTimerRef.current = window.setTimeout(() => void persistAnswers().catch(() => undefined), SAVE_DELAY_MS)
   }
-  const updateDraft = useCallback((itemId, value) => setDrafts(previous => {
-    const next = { ...previous, [itemId]: value }
+  const updateDraft = useCallback((itemId, value) => {
+    const next = { ...draftsRef.current, [itemId]: value }
+    draftsRef.current = next
+    setDrafts(next)
     if (attemptIdRef.current) {
       try { localStorage.setItem(`ai-quiz-drafts:${attemptIdRef.current}`, JSON.stringify(next)) } catch { /* local draft cache is best-effort */ }
     }
-    return next
-  }), [])
-  const updateScore = useCallback((itemId, score) => setProgrammingScores(previous => ({
-    ...previous, [itemId]: previous[itemId] === undefined ? score : Math.max(previous[itemId], score),
-  })), [])
+  }, [])
 
   if (loading) return <div className="page-bg"><Navbar username={cachedUser.display_name || cachedUser.username} grade={cachedUser.grade} class_num={cachedUser.class_num} /><div className="aiq-loading page"><Loader className="spin" />正在生成/恢复你的试卷…</div></div>
   if (!attempt) return <div className="page-bg"><Navbar username={cachedUser.display_name || cachedUser.username} grade={cachedUser.grade} class_num={cachedUser.class_num} /><div className="aiq-fatal"><p role="alert">{error}</p><Link className="btn btn-secondary" to="/student/dashboard?course=ai">返回 AI 课程</Link></div></div>
@@ -175,9 +192,9 @@ export default function AIQuizPage() {
       <div className="aiq-layout">
         <aside className="aiq-nav" aria-label="试题导航"><h2>试题导航</h2>{items.map((item, index) => {
           const choiceDone = item.type === 'choice' && Boolean(answers[item.item_id])
-          const score = programmingScores[item.item_id]
-          return <button key={item.item_id} type="button" className={`${index === currentIndex ? 'active' : ''} ${choiceDone || score !== undefined ? 'done' : ''}`} onClick={() => setCurrentIndex(index)} aria-current={index === currentIndex ? 'step' : undefined}>
-            <span className="aiq-nav-number">{index + 1}</span><span>{item.type === 'choice' ? <BookOpen size={15} /> : <Code2 size={15} />}{item.type === 'choice' ? '选择题' : '编程题'}<small>{item.type === 'choice' ? (choiceDone ? '已作答' : '未作答') : (score === undefined ? '尚未运行' : '已运行')}</small></span>
+          const hasCode = Boolean((drafts[item.item_id] ?? item.template_code ?? '').trim())
+          return <button key={item.item_id} type="button" className={`${index === currentIndex ? 'active' : ''} ${choiceDone || hasCode ? 'done' : ''}`} onClick={() => setCurrentIndex(index)} aria-current={index === currentIndex ? 'step' : undefined}>
+            <span className="aiq-nav-number">{index + 1}</span><span>{item.type === 'choice' ? <BookOpen size={15} /> : <Code2 size={15} />}{item.type === 'choice' ? '选择题' : '编程题'}<small>{item.type === 'choice' ? (choiceDone ? '已作答' : '未作答') : (hasCode ? '已写代码' : '未写代码')}</small></span>
           </button>
         })}</aside>
         <section className="aiq-workarea">
@@ -186,7 +203,7 @@ export default function AIQuizPage() {
             <RichQuestionText value={current.text} className="aiq-stem" />
             <div className="aiq-options">{['A', 'B', 'C', 'D'].map(option => <button key={option} type="button" disabled={locked || submitting} className={answers[current.item_id] === option ? 'selected' : ''} onClick={() => select(current.item_id, option)}><span className="aiq-option-letter">{option}</span><RichQuestionText value={current.options?.[option] || ''} /></button>)}</div>
           </div>}
-          {current?.type === 'programming' && <ProgrammingWorkspace key={current.item_id} sessionId={sessionId} attemptId={attempt.attempt_id} item={current} draft={drafts[current.item_id]} onDraftChange={updateDraft} onScore={updateScore} />}
+          {current?.type === 'programming' && <ProgrammingWorkspace key={current.item_id} sessionId={sessionId} item={current} draft={drafts[current.item_id]} onDraftChange={updateDraft} />}
           <div className="aiq-prev-next"><button type="button" className="btn btn-secondary" disabled={currentIndex === 0} onClick={() => setCurrentIndex(index => index - 1)}>上一题</button><button type="button" className="btn btn-primary" disabled={currentIndex === items.length - 1} onClick={() => setCurrentIndex(index => index + 1)}>下一题</button></div>
         </section>
       </div>

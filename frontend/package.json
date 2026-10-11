@@ -15,6 +15,7 @@
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
     "lucide-react": "^1.8.0",
+    "pyodide": "^314.0.7",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.14.1"
@@ -33,6 +34,7 @@
     "globals": "^17.5.0",
     "jsdom": "^29.0.2",
     "vite": "^8.0.9",
+    "vite-plugin-static-copy": "^3.4.0",
     "vitest": "^4.1.5"
   }
 }

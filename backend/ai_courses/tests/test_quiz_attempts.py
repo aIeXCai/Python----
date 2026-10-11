@@ -365,8 +365,9 @@ class AIQuizAttemptStep4APITest(APITestCase):
             item for item in response.data['items'] if item['type'] == 'programming'
         )
         self.assertEqual(
-            set(programming), {'item_id', 'type', 'position', 'title', 'points'},
+            set(programming), {'item_id', 'type', 'position', 'title', 'points', 'test_cases'},
         )
+        self.assertEqual(programming['test_cases'][0]['input'], 'secret input')
         attempt = AIQuizAttempt.objects.get(pk=response.data['attempt_id'])
         snapshot_item = next(
             item for item in attempt.snapshot_json['items']

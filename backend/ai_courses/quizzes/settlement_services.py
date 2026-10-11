@@ -2,6 +2,7 @@
 
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
@@ -27,6 +28,7 @@ FINAL_STATUS_BY_REASON = {
     'timed_out': AIQuizAttempt.STATUS_TIMED_OUT,
     'closed': AIQuizAttempt.STATUS_CLOSED,
 }
+BROWSER_SCORE_GRACE_SECONDS = 60
 
 
 def _points(value):
@@ -71,13 +73,59 @@ def _best_submission(attempt, item_id):
 
 
 def _item_has_system_issue(attempt, item_id):
-    return ExecutionTask.objects.filter(
+    return Submission.objects.filter(
+        quiz_attempt=attempt, quiz_item_id=item_id,
+        counts_for_quiz=True, status='error', score__isnull=True,
+    ).exists() or ExecutionTask.objects.filter(
         quiz_attempt=attempt,
         quiz_item_id=item_id,
         task_type=TASK_TYPE_GRADE,
         status__in=(STATUS_SYSTEM_ERROR, STATUS_CANCELLED),
         submission__counts_for_quiz=True,
     ).exists()
+
+
+def _store_local_programming(attempt, results):
+    """Store classroom reference scores supplied by the student's browser."""
+    items = {
+        item.get('item_id'): item
+        for item in _snapshot_items(attempt, 'programming')
+    }
+    if set(results) != set(items):
+        raise AIQuizServiceError(
+            '编程答案与试卷题目不一致', code='invalid_programming_answers', status_code=400,
+        )
+    blueprint = {
+        item.get('item_id'): item
+        for item in (attempt.session.blueprint_json or {}).get('programming_items', [])
+    }
+    problems = {}
+    for item_id, result in results.items():
+        code = result['code']
+        if len(code.encode('utf-8')) > settings.EXECUTION_CODE_MAX_BYTES:
+            raise AIQuizServiceError('代码超出大小上限', code='code_too_large', status_code=413)
+        source = blueprint.get(item_id)
+        if not source or source.get('source_problem_id') != items[item_id].get('source_problem_id'):
+            raise AIQuizServiceError('编程题快照校验失败', code='quiz_blueprint_invalid', status_code=409)
+        try:
+            problems[item_id] = Problem.objects.get(problem_id=source['source_problem_id'], course='ai')
+        except Problem.DoesNotExist as exc:
+            raise AIQuizServiceError('编程题来源不存在', code='quiz_problem_unavailable', status_code=409) from exc
+
+    # A local final-code score supersedes any legacy server-side practice grades.
+    Submission.objects.filter(quiz_attempt=attempt, counts_for_quiz=True).update(counts_for_quiz=False)
+    for item_id, result in results.items():
+        code = result['code']
+        if not code.strip():
+            continue
+        score = result.get('score')
+        Submission.objects.create(
+            user=attempt.user, problem=problems[item_id], code=code,
+            score=score, quiz_attempt=attempt, quiz_item_id=item_id,
+            counts_for_quiz=True,
+            status='error' if score is None else ('accepted' if score == 100 else 'wrong_answer'),
+            error_message='本地评分未完成' if score is None else '',
+        )
 
 
 @transaction.atomic
@@ -153,7 +201,7 @@ def finalize_attempt(attempt_id):
 
 def request_settlement(
     *, user, session_id, attempt_id, reason='submitted',
-    final_answers=None, revision=None,
+    final_answers=None, revision=None, local_programming=None,
 ):
     """Lock the paper immediately, then finalize now or after accepted grading finishes."""
     _ensure_student(user)
@@ -170,10 +218,28 @@ def request_settlement(
             raise AIQuizServiceError(
                 '作答不存在', code='attempt_not_found', status_code=404,
             ) from exc
+        received_late_browser_score = False
         if attempt.status in FINAL_STATUS_BY_REASON.values():
-            return attempt
+            can_receive_late_browser_score = (
+                reason == 'submitted'
+                and local_programming is not None
+                and attempt.status in (AIQuizAttempt.STATUS_TIMED_OUT, AIQuizAttempt.STATUS_CLOSED)
+                and attempt.settled_at is not None
+                and timezone.now() <= attempt.settled_at + timezone.timedelta(seconds=BROWSER_SCORE_GRACE_SECONDS)
+                and attempt.result_revision == 1
+                and not Submission.objects.filter(
+                    quiz_attempt=attempt, counts_for_quiz=True, execution_task__isnull=True,
+                ).exists()
+            )
+            if not can_receive_late_browser_score:
+                return attempt
+            _store_local_programming(attempt, local_programming)
+            attempt.status = AIQuizAttempt.STATUS_SETTLING
+            attempt.save(update_fields=['status', 'updated_at'])
+            received_late_browser_score = True
         if attempt.status == AIQuizAttempt.STATUS_SETTLING:
-            pass
+            if reason == 'submitted' and local_programming is not None and not received_late_browser_score:
+                _store_local_programming(attempt, local_programming)
         elif attempt.status != AIQuizAttempt.STATUS_IN_PROGRESS:
             raise AIQuizServiceError(
                 '本次作答不可交卷', code='attempt_not_active', status_code=409,
@@ -197,6 +263,8 @@ def request_settlement(
                         )
                     attempt.answers_json = _normalize_answers(attempt, final_answers)
                     attempt.answer_revision += 1
+                if local_programming is not None:
+                    _store_local_programming(attempt, local_programming)
             attempt.status = AIQuizAttempt.STATUS_SETTLING
             attempt.final_reason = effective_reason
             attempt.settlement_requested_at = now

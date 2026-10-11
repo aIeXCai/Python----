@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(), start: vi.fn(), save: vi.fn(), submit: vi.fn(),
+  grade: vi.fn(),
   setContext: vi.fn(), setDisabled: vi.fn(), close: vi.fn(),
 }))
 
@@ -18,8 +19,12 @@ vi.mock('../../../api/aiStudentQuiz.js', () => ({
 vi.mock('../../../contexts/ChatContext.jsx', () => ({
   useChat: () => ({ setContext: mocks.setContext, setDisabled: mocks.setDisabled, close: mocks.close }),
 }))
+vi.mock('./localPython.js', () => ({
+  gradeLocalPython: (...args) => mocks.grade(...args),
+  prepareLocalPython: () => Promise.resolve(),
+}))
 vi.mock('../../../components/Navbar.jsx', () => ({ default: () => <div data-testid="navbar" /> }))
-vi.mock('./ProgrammingWorkspace.jsx', () => ({ default: ({ item, onScore }) => <div>编程工作区：{item.title}<button type="button" onClick={() => onScore(item.item_id, 0)}>模拟运行</button></div> }))
+vi.mock('./ProgrammingWorkspace.jsx', () => ({ default: ({ item, onDraftChange }) => <div>编程工作区：{item.title}<button type="button" onClick={() => onDraftChange(item.item_id, 'print(1)')}>写代码</button></div> }))
 
 import AIQuizPage from './QuizPage.jsx'
 
@@ -28,7 +33,7 @@ const attempt = {
   saved_answers: {}, quiz: { id: 12, title: '代码阅读小测', choice_count: 1, programming_count: 1, total_points: '100.0' },
   items: [
     { item_id: 'choice-1', type: 'choice', position: 1, text: '运行代码：\n```python\nif x < 3:\n    print("<ok>")\n```', options: { A: '`print("<A>")`', B: '不输出', C: '报错', D: '无限循环' } },
-    { item_id: 'program-1', type: 'programming', position: 2, title: '输入输出', points: '60.0' },
+    { item_id: 'program-1', type: 'programming', position: 2, title: '输入输出', points: '60.0', test_cases: [{ number: 1, input: '', output: '1\n' }] },
   ],
 }
 
@@ -39,6 +44,7 @@ describe('AIQuizPage Step 9', () => {
     mocks.start.mockResolvedValue(attempt)
     mocks.save.mockResolvedValue({ revision: 3, saved_answers: { 'choice-1': 'A' } })
     mocks.submit.mockResolvedValue({ status: 'submitted' })
+    mocks.grade.mockResolvedValue({ score: 100, passed: 1, total: 1 })
     vi.spyOn(window, 'confirm').mockReturnValue(true)
   })
   afterEach(() => vi.restoreAllMocks())
@@ -58,7 +64,7 @@ describe('AIQuizPage Step 9', () => {
     await screen.findByText('代码阅读小测')
     expect(mocks.setDisabled).toHaveBeenCalledWith(true, expect.stringContaining('选择题'))
     fireEvent.click(screen.getByRole('button', { name: /A.*print/ }))
-    fireEvent.click(screen.getByRole('button', { name: /编程题.*尚未运行/ }))
+    fireEvent.click(screen.getByRole('button', { name: /编程题.*未写代码/ }))
     expect(await screen.findByText('编程工作区：输入输出')).toBeInTheDocument()
     expect(mocks.setDisabled).toHaveBeenCalledWith(false)
     window.dispatchEvent(new Event('pagehide'))
@@ -67,22 +73,26 @@ describe('AIQuizPage Step 9', () => {
     expect(mocks.save.mock.calls[0][2]).toEqual({ keepalive: true })
   })
 
-  it('交卷前同时提示未答选择题和尚未运行的编程题', async () => {
+  it('交卷前提示未答选择题和未写代码的编程题', async () => {
     render(<AIQuizPage />)
     await screen.findByText('代码阅读小测')
     fireEvent.click(screen.getByRole('button', { name: '交卷' }))
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/1 道选择题未答.*1 道编程题尚未运行/))
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/1 道选择题未答.*1 道编程题未写代码/))
     await waitFor(() => expect(mocks.submit).toHaveBeenCalled())
     expect(mocks.navigate).toHaveBeenCalledWith('/student/ai-quiz-result/12', { replace: true })
   })
 
-  it('后台成绩为 0 分时仍将编程题标记为已运行', async () => {
+  it('写完代码但从未点击运行，交卷仍按最终代码评分', async () => {
     render(<AIQuizPage />)
     await screen.findByText('代码阅读小测')
-    fireEvent.click(screen.getByRole('button', { name: /编程题.*尚未运行/ }))
-    fireEvent.click(screen.getByRole('button', { name: '模拟运行' }))
-    expect(screen.getByRole('button', { name: /编程题.*已运行/ })).toHaveClass('done')
-    expect(screen.queryByText(/最高 0 分/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /编程题.*未写代码/ }))
+    fireEvent.click(screen.getByRole('button', { name: '写代码' }))
+    expect(screen.getByRole('button', { name: /编程题.*已写代码/ })).toHaveClass('done')
+    fireEvent.click(screen.getByRole('button', { name: '交卷' }))
+    await waitFor(() => expect(mocks.grade).toHaveBeenCalledWith('print(1)', [{ number: 1, input: '', output: '1\n' }]))
+    await waitFor(() => expect(mocks.submit).toHaveBeenCalledWith('12', expect.objectContaining({
+      programming: { 'program-1': { code: 'print(1)', score: 100 } },
+    })))
   })
 
   it('上一题和下一题按钮使用相同宽度', async () => {

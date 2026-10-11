@@ -100,7 +100,7 @@ def _locked_active_context(user, session_id, attempt_id, item_id):
 
 def programming_item_payload(user, session_id, item_id):
     attempt = get_current_attempt(user, session_id)
-    attempt_item, _blueprint_item, _problem = _programming_context(attempt, item_id)
+    attempt_item, blueprint_item, _problem = _programming_context(attempt, item_id)
     best_score = Submission.objects.filter(
         user=user,
         quiz_attempt=attempt,
@@ -118,6 +118,7 @@ def programming_item_payload(user, session_id, item_id):
         'template_code': attempt_item.get('template_code', ''),
         'points': attempt_item.get('points', '0.0'),
         'best_score': best_score,
+        'test_cases': (blueprint_item.get('test_snapshot') or {}).get('cases', []),
     }
 
 

@@ -45,7 +45,7 @@ export default function AIQuizResult() {
   return <div className="page-bg aiq-page"><Navbar username={user.display_name || user.username} grade={user.grade} class_num={user.class_num} />
     <main className="aiq-result-shell">
       <section className="aiq-card aiq-result-overview">
-        <Award size={46} color="#667eea" /><h1>{result.quiz.title}</h1><p>{reasonLabel[result.final_reason] || '已完成'} · 第 {result.attempt_no} 次作答</p>
+        <Award size={46} color="#667eea" /><h1>{result.quiz.title}</h1><p>{reasonLabel[result.final_reason] || '已完成'} · 第 {result.attempt_no} 次作答 · 课堂练习参考成绩</p>
         <div className="aiq-total-score"><strong>{total.toFixed(1)}</strong><span>/ 100</span></div>
         <div className="aiq-score-parts"><span>选择题 <strong>{result.scores.choice ?? '0.0'}</strong> 分</span><span>编程题 <strong>{result.scores.programming ?? '0.0'}</strong> 分</span><span>选择题正确 <strong>{result.choice_summary.correct_count ?? 0}/{result.choice_summary.question_count ?? 0}</strong></span></div>
       </section>

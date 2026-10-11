@@ -108,7 +108,8 @@ class AIQuizProgrammingStep5APITest(APITestCase):
         self.assertEqual(response.data['description'], item['description'])
         self.assertEqual(response.data['template_code'], item['template_code'])
         body = str(response.data)
-        for secret in ('test_snapshot', 'test_snapshot_hash', 'source_problem_id', 'cases'):
+        self.assertEqual(response.data['test_cases'][0]['output'], 'frozen output')
+        for secret in ('test_snapshot', 'test_snapshot_hash', 'source_problem_id'):
             self.assertNotIn(secret, body)
 
     def test_run_is_idempotent_and_active_task_can_be_recovered(self):

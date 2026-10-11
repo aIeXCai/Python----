@@ -142,6 +142,7 @@ class AIQuizAttemptSubmitView(APIView):
                 reason='submitted',
                 final_answers=values['answers'],
                 revision=values['revision'],
+                local_programming=values.get('programming'),
             )
             return Response(get_student_result(request.user, pk))
         except AIQuizServiceError as exc:

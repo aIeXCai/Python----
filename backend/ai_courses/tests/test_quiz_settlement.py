@@ -22,7 +22,7 @@ from users.models import CustomUser
 
 from ..models import AIChoiceQuestion, AIQuizAttempt, AIQuizSession, AIUnit, Problem, Submission
 from ..quizzes.services import blueprint_digest, create_quiz, publish_quiz
-from ..quizzes.settlement_services import request_settlement
+from ..quizzes.settlement_services import request_settlement, request_system_settlement
 
 
 @override_settings(CODE_EXECUTION_ENABLED=True, EXECUTION_USER_QUEUED_LIMIT=20)
@@ -125,16 +125,57 @@ class AIQuizSettlementStep6APITest(APITestCase):
     def _programming_items(self, attempt):
         return [item for item in attempt.snapshot_json['items'] if item['type'] == 'programming']
 
-    def _submit(self, session, attempt, answers=None, revision=0):
+    def _submit(self, session, attempt, answers=None, revision=0, programming=None):
+        payload = {
+            'attempt_id': attempt.pk,
+            'revision': revision,
+            'answers': answers if answers is not None else {},
+        }
+        if programming is not None:
+            payload['programming'] = programming
         return self.client.post(
             f'/api/ai/quizzes/{session.pk}/attempt/submit/',
-            {
-                'attempt_id': attempt.pk,
-                'revision': revision,
-                'answers': answers if answers is not None else {},
-            },
+            payload,
             format='json', **self._auth(self.student),
         )
+
+    def test_final_code_is_scored_without_prior_run(self):
+        session = self._publish(choice_points='0.0')
+        attempt = self._start(session)
+        items = self._programming_items(attempt)
+        self.assertFalse(Submission.objects.filter(quiz_attempt=attempt).exists())
+        response = self._submit(session, attempt, programming={
+            items[0]['item_id']: {'code': 'print(1)', 'score': 100},
+            items[1]['item_id']: {'code': 'print(2)', 'score': 0},
+        })
+        self.assertEqual(response.status_code, 200, response.data)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.status, AIQuizAttempt.STATUS_SUBMITTED)
+        self.assertEqual(attempt.programming_score, Decimal('50.0'))
+        self.assertEqual(Submission.objects.filter(quiz_attempt=attempt, counts_for_quiz=True).count(), 2)
+
+    def test_final_code_rejects_unknown_programming_item(self):
+        session = self._publish(choice_points='0.0')
+        attempt = self._start(session)
+        response = self._submit(session, attempt, programming={
+            'other-item': {'code': 'print(1)', 'score': 100},
+        })
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertFalse(Submission.objects.filter(quiz_attempt=attempt).exists())
+
+    def test_browser_score_arriving_just_after_timeout_is_counted(self):
+        session = self._publish(choice_points='0.0')
+        attempt = self._start(session)
+        items = self._programming_items(attempt)
+        request_system_settlement(attempt.pk, 'timed_out')
+        response = self._submit(session, attempt, programming={
+            items[0]['item_id']: {'code': 'print(1)', 'score': 100},
+            items[1]['item_id']: {'code': '', 'score': 0},
+        })
+        self.assertEqual(response.status_code, 200, response.data)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.status, AIQuizAttempt.STATUS_TIMED_OUT)
+        self.assertEqual(attempt.programming_score, Decimal('50.0'))
 
     def _complete_success(self, task):
         token = 'step6-lease-token'
