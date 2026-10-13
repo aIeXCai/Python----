@@ -157,6 +157,14 @@ def attempt_student_payload(attempt, *, created=False):
     snapshot = attempt.snapshot_json or {}
     session_data = snapshot.get('session') or {}
     choice_count, programming_count = _snapshot_counts(snapshot)
+    blueprint_items = {
+        item.get('item_id'): item for item in (attempt.session.blueprint_json or {}).get('programming_items', [])
+    }
+    student_items = student_snapshot_items(snapshot)
+    for item in student_items:
+        if item.get('type') == 'programming':
+            source = blueprint_items.get(item.get('item_id')) or {}
+            item['test_cases'] = (source.get('test_snapshot') or {}).get('cases', [])
     return {
         'attempt_id': attempt.pk,
         'created': created,
@@ -175,7 +183,7 @@ def attempt_student_payload(attempt, *, created=False):
             'time_limit': session_data.get('time_limit'),
             'blueprint_hash': snapshot.get('blueprint_hash', ''),
         },
-        'items': student_snapshot_items(snapshot),
+        'items': student_items,
         'saved_answers': attempt.answers_json or {},
     }
 
