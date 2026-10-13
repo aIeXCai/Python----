@@ -147,6 +147,38 @@ describe('runCode (src/api/index.js)', () => {
 })
 
 describe('login error handling', () => {
+  it('does not send a stale token when logging in with another account', async () => {
+    localStorage.setItem('token', 'expired-token')
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ token: 'new-token', user: { role: 'student' } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+    const mod = await import('./index.js?t=' + Math.random())
+
+    await mod.login('', 'password', '七年级', '1', '5')
+
+    expect(mockFetch.mock.calls[0][1].headers.Authorization).toBeUndefined()
+    expect(mockFetch.mock.calls[0][1]).not.toHaveProperty('includeToken')
+    expect(localStorage.getItem('token')).toBe('new-token')
+  })
+
+  it('does not send a stale token when registering', async () => {
+    localStorage.setItem('token', 'expired-token')
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ token: 'new-token' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+    const mod = await import('./index.js?t=' + Math.random())
+
+    await mod.register({ grade: '七年级', class_num: '1', student_number: '5', password: 'password' })
+
+    expect(mockFetch.mock.calls[0][1].headers.Authorization).toBeUndefined()
+  })
+
   it('preserves the backend password error for a student login 401', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: false,
