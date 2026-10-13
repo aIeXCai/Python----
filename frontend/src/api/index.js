@@ -5,8 +5,8 @@ export function getToken() {
 }
 
 export async function request(path, options = {}) {
-  const { redirectOnUnauthorized = true, ...fetchOptions } = options
-  const token = getToken()
+  const { redirectOnUnauthorized = true, includeToken = true, ...fetchOptions } = options
+  const token = includeToken ? getToken() : null
   const headers = { 'Content-Type': 'application/json', ...fetchOptions.headers }
   if (token) headers['Authorization'] = `Token ${token}`
 
@@ -55,6 +55,7 @@ export async function login(username, password, grade, class_num, student_number
     method: 'POST',
     body: JSON.stringify(body),
     redirectOnUnauthorized: false,
+    includeToken: false,
   })
   localStorage.setItem('token', data.token)
   if (data.user) {
@@ -67,6 +68,7 @@ export async function register(payload) {
   return request('/auth/register/', {
     method: 'POST',
     body: JSON.stringify(payload),
+    includeToken: false,
   })
 }
 
