@@ -80,7 +80,7 @@ class TypingHomeTests(APITestCase):
         template = self.start(self.student, activity['id'])
         original = TypingAttempt.objects.get(pk=template['id'])
 
-        def add_score(student, language, score, *, trial=True):
+        def add_score(student, language, score, *, trial=True, settled_at=now):
             score_activity = original.activity
             if not trial:
                 score_activity = TypingActivity.objects.create(
@@ -91,7 +91,7 @@ class TypingHomeTests(APITestCase):
                 article_sequence=original.article_sequence, first_article=original.first_article,
                 started_at=now, deadline_at=now + timedelta(minutes=5),
             )
-            TypingPointSubmission.objects.create(attempt=attempt, score=score, settled_at=now)
+            TypingPointSubmission.objects.create(attempt=attempt, score=score, settled_at=settled_at)
 
         add_score(self.student, 'zh', '87.4')
         add_score(self.student, 'zh', '6.2')
@@ -101,5 +101,15 @@ class TypingHomeTests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.data, {'zh': '87.4', 'en': '0.0'})
         self.assertIn('no-store', response['Cache-Control'])
+        start = datetime(2026, 11, 19, 16, tzinfo=timezone.utc)
+        add_score(self.student, 'zh', '98.1', settled_at=start - timedelta(seconds=1))
+        add_score(self.student, 'en', '62.0', settled_at=start)
+        with patch('django.utils.timezone.now', return_value=now):
+            today = self.client.get(url + '&period=today').data
+            self.assertEqual(today, {'zh': '87.4', 'en': '62.0', 'rotation_in_ms': 43_200_000})
+        with patch('django.utils.timezone.now', return_value=start + timedelta(days=1)):
+            tomorrow = self.client.get(url + '&period=today').data
+            self.assertEqual(tomorrow, {'zh': None, 'en': None, 'rotation_in_ms': 86_400_000})
+        self.assertEqual(self.client.get(url).data['zh'], '98.1')
         self.client.force_authenticate(self.teacher)
         self.assertEqual(self.client.get(url).status_code, 403)

@@ -54,6 +54,9 @@ export default function TypingStudent() {
             send(attempt)
             break
           }
+          case 'today-bests':
+            send(await typingApi.todayBests(signal))
+            break
           case 'board':
             send(await typingApi.board(data.activity, data.language, signal))
             break

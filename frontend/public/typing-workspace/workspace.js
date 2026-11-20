@@ -296,7 +296,7 @@ const unit = () => lang === 'en' ? 'WPM' : '字/分钟';
 const languageName = () => lang === 'zh' ? '中文' : '英文';
 let activity, attempt, result, deadline, syncDue = 0, busy = false, starting = false;
 let controlling = false;
-let rotationTimer;
+let rotationTimer, bestsTimer, bestsRequest = 0;
 let sequenceNumber = 0, segments = [], goals = [];
 let rendered = -1, correct = 0, matchedCharacters = 0, typedCharacters = 0, announced = false;
 const notice = text => { $('connection').textContent = text; };
@@ -345,6 +345,20 @@ function renderRank(entries) {
   list.scrollTop = scroll;
 }
 
+async function refreshTodayBests() {
+  clearTimeout(bestsTimer);
+  const request = ++bestsRequest;
+  try {
+    const scores = await rpc('today-bests');
+    if (request !== bestsRequest) return;
+    $('todayZh').textContent = scores.zh == null ? '暂无成绩' : scores.zh + ' 分';
+    $('todayEn').textContent = scores.en == null ? '暂无成绩' : scores.en + ' 分';
+    bestsTimer = setTimeout(refreshTodayBests, scores.rotation_in_ms + 250);
+  } catch {
+    if (request === bestsRequest) bestsTimer = setTimeout(refreshTodayBests, 15000);
+  }
+}
+
 function routeHeader() {
   $('zh').setAttribute('aria-pressed', lang === 'zh');
   $('en').setAttribute('aria-pressed', lang === 'en');
@@ -354,8 +368,8 @@ function routeHeader() {
   $('peak').textContent = activeRoute().peak;
   $('peakInfo').setAttribute('aria-label', activeRoute().peak+'介绍');
   $('unit').textContent = unit();
-  $('headerScope').textContent = activity ? gradeLabels[activity.grade]+'年级 '+activity.class_num+' 班' : '';
-  $('rankscope').textContent = [$('headerScope').textContent,languageName()].filter(Boolean).join(' · ');
+  const classScope = activity ? gradeLabels[activity.grade]+'年级 '+activity.class_num+' 班' : '';
+  $('rankscope').textContent = [classScope,languageName()].filter(Boolean).join(' · ');
   canvas.setAttribute('aria-label', activeRoute().name+'，'+activeRoute().camps.map(camp=>camp.label).join(' → '));
   loadArt();
 }
@@ -482,6 +496,7 @@ function openAttempt(record, focus) {
   deadline = performance.now() + record.remaining_ms;
   seconds = clamp(300 - record.remaining_ms / 1000, 0, 300);
   result = record.result;
+  if (result) refreshTodayBests();
   summitAt = record.summit_seconds;
   mode = result ? 'done' : record.paused ? 'paused' : record.expired ? 'finishing' : 'typing';
   composing = false;
@@ -573,6 +588,7 @@ async function sync() {
       if (reply.summit_seconds !== null) summitAt = reply.summit_seconds;
       if (reply.result) {
         result = reply.result;
+        refreshTodayBests();
         mode = 'done';
         updateControls();
         $('answer').disabled = true;
@@ -697,4 +713,5 @@ $('answer').ondrop=event=>event.preventDefault();
 $('answer').onkeydown=event=>{if(event.key==='Enter'&&!composing&&!event.isComposing&&event.keyCode!==229)event.preventDefault();};
 showLobby();
 load();
+refreshTodayBests();
 requestAnimationFrame(update);

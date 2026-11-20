@@ -6,6 +6,7 @@ export const typingApi = {
   teacherSettings: (query, signal) => request('/typing/teacher/activities/?' + new URLSearchParams(query), { signal }),
   publish: payload => request('/typing/teacher/activities/', { method: 'POST', body: JSON.stringify(payload) }),
   bests: signal => request('/typing/me/bests/', { signal, redirectOnUnauthorized: false }),
+  todayBests: signal => request('/typing/me/bests/?period=today', { signal }),
   activities: signal => request('/typing/activities/', { signal }),
   attempt: (id, signal) => request(`/typing/attempts/${id}/`, { signal }),
   start: (payload, signal) => request('/typing/attempts/', { method: 'POST', body: JSON.stringify(payload), signal }),

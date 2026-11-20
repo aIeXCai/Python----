@@ -10,7 +10,8 @@ button,select,textarea{font:inherit}button{cursor:pointer}button:focus-visible,s
 button:disabled{cursor:default;opacity:.55} [hidden]{display:none!important}
 header{max-width:1440px;margin:auto;padding:19px 32px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line)}
 .mark{display:grid;place-items:center;background:#18352b;color:var(--accent);width:38px;height:38px;font-size:22px;border-radius:9px}
-header strong{font-size:19px;letter-spacing:.06em}header small{color:var(--muted);margin-left:auto}
+header strong{font-size:19px;letter-spacing:.06em;white-space:nowrap}header small{color:var(--muted);margin-left:auto}
+header .today-bests{text-align:right;font-size:13px}.today-bests span{white-space:nowrap}.today-bests b{color:var(--ink);font-variant-numeric:tabular-nums}
 main{max-width:1440px;margin:auto;padding:22px 32px 24px}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:17px}
 .tabs,.actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -70,7 +71,7 @@ button.ref{border:0;border-radius:2px;padding:0 1px;color:#4e665b;line-height:in
 .diagnostics{display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
 .diagnostics label{display:inline-flex;align-items:center;gap:4px}.diagnostics b{font-family:var(--mono);color:var(--ink)}
 @media(max-width:850px){header,main{padding-left:15px;padding-right:15px}.grid{grid-template-columns:170px minmax(0,1fr)}.row,.rankcols{padding-inline:8px;gap:4px}.mountain{min-height:285px}}
-@media(max-width:640px){header small{max-width:135px;text-align:right}.grid{grid-template-columns:1fr}.stage{grid-row:1}.mountain{min-height:266px}.peak{padding-left:13px}.watch{right:9px;top:12px}.mapfoot{gap:10px}.mapfoot strong{font-size:14px}.typing{padding:12px}.rows{max-height:210px}}
+@media(max-width:640px){header .today-bests{max-width:205px;font-size:12px}.grid{grid-template-columns:1fr}.stage{grid-row:1}.mountain{min-height:266px}.peak{padding-left:13px}.watch{right:9px;top:12px}.mapfoot{gap:10px}.mapfoot strong{font-size:14px}.typing{padding:12px}.rows{max-height:210px}}
 @media(min-width:641px) and (max-height:800px){header{padding-block:13px}main{padding-block:15px}.toolbar{margin-bottom:12px}.mountain{min-height:275px}#passage{height:132px}.replay{margin-top:4px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
@@ -85,7 +86,7 @@ button.ref{border:0;border-radius:2px;padding:0 1px;color:#4e665b;line-height:in
 
 </style>
 <body>
-<header><span class="mark" aria-hidden="true">▲</span><strong>打字登山</strong><small id="headerScope"></small></header>
+<header><span class="mark" aria-hidden="true">▲</span><strong>打字登山</strong><small class="today-bests" aria-live="polite">今日最高分：<span>中文 <b id="todayZh">—</b></span>；<span>英文 <b id="todayEn">—</b></span></small></header>
 <main>
 <div class="toolbar">
   <div class="tabs" role="group" aria-label="练习语言">
