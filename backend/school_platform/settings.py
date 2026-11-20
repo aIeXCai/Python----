@@ -161,6 +161,7 @@ INSTALLED_APPS = [
     'chat',
     'platform_ops',
     'execution',
+    'typing_practice',
 ]
 
 MIDDLEWARE = [
