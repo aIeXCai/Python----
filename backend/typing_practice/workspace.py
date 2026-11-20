@@ -59,10 +59,11 @@ def finish(attempt, now):
     count, accuracy, progress = calculate(attempt, session_articles(attempt), attempt.checkpoint)
     score = score_for(progress)
     setup = attempt.activity.languages[attempt.language]
+    elapsed_seconds = max(1, min(DURATION_SECONDS, DURATION_SECONDS - (attempt.deadline_at - now).total_seconds()))
     attempt.result = {
         'score': str(score), 'points': str(score), 'progress': float(progress),
         'altitude': altitude(setup['peak'], attempt.progress),
-        'speed': round(count / (5 if attempt.language == Language.ENGLISH else 1) / (DURATION_SECONDS / 60), 1),
+        'speed': round(count / (5 if attempt.language == Language.ENGLISH else 1) / (elapsed_seconds / 60), 1),
         'accuracy': accuracy, 'summit': progress == 1,
         'summit_seconds': summit_seconds(attempt) if progress == 1 else None,
     }
@@ -109,7 +110,13 @@ def sync_attempt(student, pk, data, *, action=None):
         attempt.checkpoint = segments
         attempt.checkpoint_seq = data['seq']
         attempt.save(update_fields=['checkpoint', 'checkpoint_seq', 'progress', 'summit_at', 'summit_elapsed'])
-    if now >= attempt.deadline_at:
+    if action == 'complete' and now < attempt.deadline_at:
+        articles = session_articles(attempt)
+        if (not attempt.checkpoint or len(attempt.checkpoint) != 1
+                or len(attempt.checkpoint[0]['text']) != len(articles[0].body)):
+            raise ValidationError('请先打完整篇文章。')
+        finish(attempt, now)
+    elif now >= attempt.deadline_at:
         finish(attempt, now)
     elif action == 'pause':
         attempt.paused_at = now

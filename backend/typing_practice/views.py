@@ -10,7 +10,7 @@ from users.permissions import IsStudent, IsTeacher
 
 from .activities import (
     TRIAL_GRADES, close_activity, current_activity, managed_grades, publish_activity, require_class, start_attempt, student_activities,
-    next_rotation_at, teacher_activities, trial_speed_rules,
+    next_rotation_at, ordered_difficulties, teacher_activities,
 )
 from .article_pool import require_article_pool
 from .models import ArticleMode, GRADE_LABELS, Language, TypingArticleRevision, TypingAttempt
@@ -91,9 +91,8 @@ class TeacherArticlesView(APIView):
         require_class(request.user, grade, data['class_num'])
         if data['pinyin'] and language != Language.CHINESE:
             raise APIValidationError('英文练习不提供拼音。')
-        difficulties = trial_speed_rules(grade, language).order_by('difficulty').values_list('difficulty', flat=True).distinct()
         options = []
-        for difficulty in difficulties:
+        for difficulty in ordered_difficulties(grade, language):
             try:
                 pool = require_article_pool(grade=grade, language=language, difficulty=difficulty, pinyin=data['pinyin'])
             except ValidationError as exc:
@@ -180,7 +179,8 @@ class StudentSyncAttemptView(APIView):
     def post(self, request, attempt_id):
         body = SyncAttemptSerializer(data=request.data)
         body.is_valid(raise_exception=True)
-        attempt = sync_attempt(request.user, attempt_id, body.validated_data)
+        attempt = sync_attempt(request.user, attempt_id, body.validated_data,
+                               action='complete' if body.validated_data['complete'] else None)
         return Response({
             'ack': attempt.checkpoint_seq, 'result': attempt.result,
             'summit_seconds': summit_seconds(attempt),

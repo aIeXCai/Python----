@@ -112,7 +112,7 @@ export default function CourseSelect() {
           </CourseCard>
           <CourseCard name="typing" title="打字训练" icon={Keyboard} to="/student/typing"
             footer={<TypingBests scores={scores} status={scoreStatus} />}>
-            中英文打字登山<br />每次练习 5 分钟
+            中英文打字登山<br />每次最长 5 分钟
           </CourseCard>
         </div>
       </main>

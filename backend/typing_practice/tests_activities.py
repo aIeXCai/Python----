@@ -95,7 +95,7 @@ class TypingActivityTests(APITestCase):
         self.assertEqual(english.data['article']['id'], choices[1]['id'])
         self.assertIsNone(english.data['article']['pinyin'])
         attempt = TypingAttempt.objects.get(pk=english.data['id'])
-        self.assertEqual(attempt.article_sequence, [choices[1]['id'], choices[0]['id']])
+        self.assertEqual(attempt.article_sequence, [choices[1]['id']])
 
     def test_activity_visibility_access_and_stop_joining(self):
         activity = self.publish().data['id']
@@ -196,7 +196,7 @@ class TypingActivityTests(APITestCase):
         self.assertEqual(sync.data['board'][1]['id'], self.bob.id)
         reloaded = self.client.get(f'/api/typing/attempts/{attempt_id}/').data
         self.assertEqual(reloaded['checkpoint'], checkpoint['segments'])
-        self.assertEqual(len(reloaded['articles']), 2)
+        self.assertEqual(len(reloaded['articles']), 1)
 
         self.client.force_authenticate(self.bob)
         boards = f'/api/typing/activities/{activity}/leaderboard/'
@@ -218,6 +218,29 @@ class TypingActivityTests(APITestCase):
             self.assertEqual(TypingPointSubmission.objects.filter(attempt_id=attempt_id).count(), 1)
             self.assertIsNone(TypingAttempt.objects.get(pk=attempt_id).active_student_id)
         self.assertNotEqual(second['id'], attempt_id)
+
+    def test_finishing_single_article_settles_early_with_actual_speed(self):
+        activity = self.publish().data['id']
+        started = self.start(self.alice, activity).data
+        text = ''.join(started['article']['paragraphs'])
+        url = f'/api/typing/attempts/{started["id"]}/sync/'
+        self.client.force_authenticate(self.alice)
+        premature = self.client.post(url, {
+            'seq': 1, 'segments': [{'text': text[:2], 'first': text[:2]}], 'complete': True,
+        }, format='json')
+        self.assertEqual(premature.status_code, 400)
+        self.assertEqual(TypingPointSubmission.objects.filter(attempt_id=started['id']).count(), 0)
+
+        with patch('typing_practice.workspace.timezone.now',
+                   return_value=started['started_at'] + timedelta(seconds=60)):
+            completed = self.client.post(url, {
+                'seq': 2, 'segments': [{'text': text, 'first': text}], 'complete': True,
+            }, format='json')
+        self.assertEqual(completed.status_code, 200, completed.data)
+        self.assertIsNotNone(completed.data['result'])
+        self.assertEqual(completed.data['result']['speed'],
+                         sum('\u4e00' <= char <= '\u9fff' for char in text))
+        self.assertEqual(TypingPointSubmission.objects.filter(attempt_id=started['id']).count(), 1)
 
     def test_pause_preserves_checkpoint_through_original_deadline(self):
         activity = self.publish().data['id']

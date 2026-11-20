@@ -7,9 +7,10 @@ from tempfile import TemporaryDirectory
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 
-from .article_pool import require_article_pool
+from .activities import current_activity
+from .article_pool import FORMAL_BANK_SOURCE, require_article_pool
 from .models import TypingArticle, TypingArticleRevision, TypingSpeedRule
 from .scoring import progress_for, score_for, target_seconds
 
@@ -80,6 +81,12 @@ class TypingBankTests(TestCase):
         self.assertEqual(revision.body, 'Good morning. How are you?')
         self.assertEqual(revision.source_metadata['lesson_no'], 0)
 
+    def test_draft_difficulty_maps_to_trial_pool(self):
+        self.import_bank(bank_record(difficulty_draft='L5 中'))
+        revision = TypingArticleRevision.objects.get()
+        self.assertEqual(revision.difficulty, '进阶')
+        self.assertEqual(revision.source_metadata['difficulty_draft'], 'L5 中')
+
     def test_changed_source_id_requires_confirmation_and_preserves_versions(self):
         self.import_bank(bank_record())
         initial = TypingArticleRevision.objects.get()
@@ -125,6 +132,34 @@ class TypingBankTests(TestCase):
             with self.subTest(scope=other_scope):
                 with self.assertRaisesMessage(ValidationError, '该文章不在本场'):
                     require_article_pool(**other_scope, article_revision_id=pool.first().pk)
+
+
+    @override_settings(TYPING_PRACTICE_FORMAL=True)
+    def test_formal_release_opens_reviewed_articles_and_preserves_pinyin(self):
+        rows = [
+            bank_record(id='7-en', edition_check_status='已核对', difficulty_draft='L4 易'),
+            bank_record(id='7-zh', language='zh', paragraphs=['七年级训练。'],
+                        edition_check_status='已核对', difficulty_draft='L5 中'),
+            bank_record(id='8-en', grade=8, grade_label='八年级', edition_check_status='已核对',
+                        difficulty_draft='L5 中'),
+            bank_record(id='8-zh-mid', grade=8, grade_label='八年级', language='zh',
+                        paragraphs=['八年级训练。'], edition_check_status='已核对', difficulty_draft='L5 中'),
+            bank_record(id='8-zh-high', grade=8, grade_label='八年级', language='zh',
+                        paragraphs=['高难度训练。'], edition_check_status='已核对', difficulty_draft='L6 难'),
+            bank_record(id='8-zh-pending', grade=8, grade_label='八年级', language='zh',
+                        paragraphs=['继续校对。'], difficulty_draft='L5 中'),
+        ]
+        self.bank_path.write_text(''.join(json.dumps(row) + '\n' for row in rows), encoding='utf-8')
+        for _ in range(2):
+            call_command('release_typing_bank', str(self.bank_path), stdout=StringIO())
+        released = TypingArticleRevision.objects.filter(article__source=FORMAL_BANK_SOURCE)
+        self.assertEqual(released.count(), 6)
+        self.assertEqual(released.filter(review_status='approved').count(), 5)
+        current = current_activity(8, '1')
+        self.assertFalse(current.is_trial)
+        self.assertEqual(current.languages['zh']['difficulty'], '进阶')
+        self.assertEqual(len(current.languages['zh']['article_ids']), 1)
+        self.assertEqual(require_article_pool(grade=7, language='zh', difficulty='基础', pinyin=True).count(), 2)
 
 
 class TypingScoringTests(SimpleTestCase):

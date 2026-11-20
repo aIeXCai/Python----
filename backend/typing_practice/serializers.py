@@ -52,3 +52,4 @@ class CheckpointSegmentSerializer(serializers.Serializer):
 class SyncAttemptSerializer(serializers.Serializer):
     seq = serializers.IntegerField(min_value=1, max_value=2147483647)
     segments = CheckpointSegmentSerializer(many=True, max_length=200)
+    complete = serializers.BooleanField(required=False, default=False)

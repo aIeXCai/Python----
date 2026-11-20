@@ -18,7 +18,7 @@ class StudentBestScoresView(APIView):
     def get(self, request):
         scores = TypingPointSubmission.objects.filter(
             attempt__student=request.user,
-            attempt__activity__is_trial=not settings.IS_PRODUCTION,
+            attempt__activity__is_trial=not settings.TYPING_PRACTICE_FORMAL,
         )
         bests = dict.fromkeys(Language.values)
         if request.query_params.get('period') == 'today':

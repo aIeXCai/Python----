@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import unicodedata
 
 from django.core.exceptions import ValidationError
@@ -78,10 +79,18 @@ def normalize_article(record):
         raise ValueError('正文缺少可练习的文字')
 
     source_id = required_text(record, 'id', 100)
+    draft_difficulty = required_text(record, 'difficulty_draft', 30)
+    match = re.fullmatch(r'L\d+\s+(易|中|难)', draft_difficulty)
+    difficulty = {'易': '基础', '中': '进阶', '难': '挑战'}[match.group(1)] if match else draft_difficulty
+    metadata['difficulty_draft'] = draft_difficulty
+    for key in ('alignment_level', 'note'):
+        if record.get(key):
+            metadata[key] = required_text(record, key)
+
     fields = {
         'grade': grade,
         'language': language,
-        'difficulty': required_text(record, 'difficulty_draft', 30),
+        'difficulty': difficulty,
         'title': required_text(record, 'title', 200),
         'paragraphs': paragraphs,
         'body_digest': hashlib.sha256(body.encode('utf-8')).hexdigest(),

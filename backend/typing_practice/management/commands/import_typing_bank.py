@@ -12,7 +12,7 @@ from typing_practice.models import Language, TypingArticle, TypingArticleRevisio
 
 # 编制规格的五分钟篇幅参考值（汉字数、英文字符数），仅供审阅报告。
 REFERENCE_LENGTHS = {3: (75, 250), 4: (85, 290), 5: (95, 330),
-                     6: (110, 380), 7: (130, 440), 8: (150, 500)}
+                     6: (110, 380), 7: (130, 450), 8: (150, 500)}
 
 
 class Command(BaseCommand):

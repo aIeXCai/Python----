@@ -1,6 +1,7 @@
 import random
 from datetime import datetime, time, timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -20,7 +21,7 @@ from .scoring import DURATION_SECONDS
 
 TRIAL_GRADES = (7, 8)
 User = get_user_model()
-DEFAULT_DIFFICULTY = '基础'
+DIFFICULTY_ORDER = ('基础', '进阶', '挑战')
 
 
 class AttemptConflict(APIException):
@@ -54,15 +55,22 @@ def student_activities(student):
     return TypingActivity.objects.filter(grade__in=grades, class_num=student.class_num)
 
 
-def trial_speed_rules(grade, language):
-    return TypingSpeedRule.objects.filter(grade=grade, language=language, is_trial=True)
+def speed_rules(grade, language):
+    return TypingSpeedRule.objects.filter(grade=grade, language=language, is_trial=not settings.TYPING_PRACTICE_FORMAL)
+
+
+def ordered_difficulties(grade, language):
+    available = set(speed_rules(grade, language).values_list('difficulty', flat=True))
+    return [difficulty for difficulty in DIFFICULTY_ORDER if difficulty in available] + sorted(
+        available.difference(DIFFICULTY_ORDER),
+    )
 
 
 def language_snapshot(grade, language, setup, peak):
     difficulty = setup['difficulty']
-    speed = trial_speed_rules(grade, language).filter(difficulty=difficulty).order_by('-pk').first()
+    speed = speed_rules(grade, language).filter(difficulty=difficulty).order_by('-pk').first()
     if speed is None:
-        raise APIValidationError(f'请先配置{Language(language).label}该难度的试用速度线。')
+        raise APIValidationError(f'请先配置{Language(language).label}该难度的速度线。')
     try:
         pool = require_article_pool(
             grade=grade, language=language, difficulty=difficulty,
@@ -78,8 +86,8 @@ def language_snapshot(grade, language, setup, peak):
 
 
 def lock_class_settings(grade, class_num):
-    settings, _ = TypingClassSettings.objects.get_or_create(grade=grade, class_num=class_num)
-    return TypingClassSettings.objects.select_for_update().get(pk=settings.pk)
+    class_settings, _ = TypingClassSettings.objects.get_or_create(grade=grade, class_num=class_num)
+    return TypingClassSettings.objects.select_for_update().get(pk=class_settings.pk)
 
 
 def next_rotation_at(now):
@@ -91,7 +99,8 @@ def current_activity(grade, class_num):
     current = TypingClassSettings.objects.select_related('activity').filter(
         grade=grade, class_num=class_num, activity__isnull=False, activity__closed_at__isnull=True,
     ).first()
-    if current and timezone.localdate(current.activity.published_at) == timezone.localdate():
+    if (current and current.activity.is_trial != settings.TYPING_PRACTICE_FORMAL
+            and timezone.localdate(current.activity.published_at) == timezone.localdate()):
         return current.activity
     return ensure_current_activity(grade, class_num)
 
@@ -99,17 +108,18 @@ def current_activity(grade, class_num):
 def latest_activity(grade, class_num):
     return TypingActivity.objects.filter(
         grade=grade, class_num=class_num, closed_at__isnull=True,
+        is_trial=not settings.TYPING_PRACTICE_FORMAL,
     ).order_by('-published_at', '-pk').first()
 
 
-def activate_class_activity(settings, activity, now):
-    if settings.activity_id == activity.pk:
+def activate_class_activity(class_settings, activity, now):
+    if class_settings.activity_id == activity.pk:
         return
     TypingActivity.objects.filter(
         grade=activity.grade, class_num=activity.class_num, closed_at__isnull=True,
     ).exclude(pk=activity.pk).update(closed_at=now)
-    settings.activity = activity
-    settings.save(update_fields=['activity'])
+    class_settings.activity = activity
+    class_settings.save(update_fields=['activity'])
 
 
 def daily_peaks(previous, now):
@@ -123,7 +133,7 @@ def daily_peaks(previous, now):
 
 @transaction.atomic
 def ensure_current_activity(grade, class_num):
-    settings = lock_class_settings(grade, class_num)
+    class_settings = lock_class_settings(grade, class_num)
     activity = latest_activity(grade, class_num)
     now = timezone.now()
     if activity is not None:
@@ -138,11 +148,8 @@ def ensure_current_activity(grade, class_num):
             )
     else:
         languages = {}
-        for language, peak in zip(Language.values, daily_peaks(settings.activity, now), strict=True):
-            difficulties = list(trial_speed_rules(grade, language).order_by('difficulty')
-                                .values_list('difficulty', flat=True).distinct())
-            difficulties.sort(key=lambda value: value != DEFAULT_DIFFICULTY)
-            for difficulty in difficulties:
+        for language, peak in zip(Language.values, daily_peaks(class_settings.activity, now), strict=True):
+            for difficulty in ordered_difficulties(grade, language):
                 try:
                     languages[language] = language_snapshot(grade, language, {
                         'mode': ArticleMode.RANDOM, 'difficulty': difficulty, 'pinyin': False,
@@ -156,9 +163,10 @@ def ensure_current_activity(grade, class_num):
                 return None
         activity = TypingActivity.objects.create(
             grade=grade, class_num=class_num, title='打字训练', languages=languages,
+            is_trial=not settings.TYPING_PRACTICE_FORMAL,
         )
 
-    activate_class_activity(settings, activity, now)
+    activate_class_activity(class_settings, activity, now)
     return activity
 
 
@@ -166,17 +174,18 @@ def ensure_current_activity(grade, class_num):
 def publish_activity(teacher, data):
     grade, class_num = data['grade'], data['class_num']
     require_class(teacher, grade, class_num)
-    settings = lock_class_settings(grade, class_num)
+    class_settings = lock_class_settings(grade, class_num)
     now = timezone.now()
-    previous = latest_activity(grade, class_num) or settings.activity
+    previous = latest_activity(grade, class_num) or class_settings.activity
     languages = {
         language: language_snapshot(grade, language, data[language], peak)
         for language, peak in zip(Language.values, daily_peaks(previous, now), strict=True)
     }
     activity = TypingActivity.objects.create(
         teacher=teacher, grade=grade, class_num=class_num, title=data['title'], languages=languages,
+        is_trial=not settings.TYPING_PRACTICE_FORMAL,
     )
-    activate_class_activity(settings, activity, now)
+    activate_class_activity(class_settings, activity, now)
     return activity
 
 
@@ -207,7 +216,8 @@ def start_attempt(student, data):
         if active.activity_id == activity.pk and active.language == language:
             return active, False
         raise AttemptConflict('已有一场训练正在计时，请先返回该场。')
-    if activity.closed_at or timezone.localdate(activity.published_at) != timezone.localdate(now):
+    if (activity.closed_at or activity.is_trial == settings.TYPING_PRACTICE_FORMAL
+            or timezone.localdate(activity.published_at) != timezone.localdate(now)):
         raise AttemptConflict('训练已更新，请重新开始。')
 
     setup = activity.languages[language]
@@ -216,15 +226,11 @@ def start_attempt(student, data):
     if setup['mode'] == ArticleMode.FREE:
         if selected not in article_ids:
             raise APIValidationError('请选择本场年级、语言和难度内的文章。')
-        remaining = [article_id for article_id in article_ids if article_id != selected]
-        random.shuffle(remaining)
-        sequence = [selected, *remaining]
+        sequence = [selected]
     else:
         if selected is not None:
             raise APIValidationError('当前模式由教师或系统分配文章。')
-        sequence = list(article_ids)
-        if setup['mode'] == ArticleMode.RANDOM:
-            random.shuffle(sequence)
+        sequence = [random.choice(article_ids)] if setup['mode'] == ArticleMode.RANDOM else list(article_ids[:1])
     if not sequence:
         raise AttemptConflict('本场暂无可用文章。')
 

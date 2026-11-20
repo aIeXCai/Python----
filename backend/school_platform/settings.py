@@ -247,6 +247,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Production security. Local development stays on HTTP; production is expected
 # to run behind an HTTPS reverse proxy.
 IS_PRODUCTION = ENVIRONMENT == 'production'
+TYPING_PRACTICE_FORMAL = get_bool('TYPING_PRACTICE_FORMAL', default=IS_PRODUCTION)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if IS_PRODUCTION else None
 SECURE_SSL_REDIRECT = get_bool('DJANGO_SECURE_SSL_REDIRECT', default=IS_PRODUCTION)
 SESSION_COOKIE_SECURE = get_bool('DJANGO_SESSION_COOKIE_SECURE', default=IS_PRODUCTION)

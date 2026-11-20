@@ -1,14 +1,23 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db.models import OuterRef, Subquery
+from django.db.models import OuterRef, Q, Subquery
 
 from .models import GRADE_LABELS, Language, TypingArticleRevision
 
+
+FORMAL_BANK_SOURCE = 'workbuddy-typing-bank2'
+ANNOTATED_SAMPLE_SOURCE = 'original-trial-v1'
 
 def require_article_pool(*, grade, language, difficulty, article_revision_id=None, pinyin=False):
     if type(grade) is not int or grade not in GRADE_LABELS or language not in Language.values:
         raise ValidationError('请选择有效的年级和语言。', code='invalid_article_scope')
 
     approved = TypingArticleRevision.objects.filter(review_status=TypingArticleRevision.Review.APPROVED)
+    if settings.TYPING_PRACTICE_FORMAL:
+        source = Q(article__source=FORMAL_BANK_SOURCE)
+        if pinyin:
+            source |= Q(article__source=ANNOTATED_SAMPLE_SOURCE, pinyin__isnull=False)
+        approved = approved.filter(source)
     latest_approved = approved.filter(article_id=OuterRef('article_id')).order_by('-version').values('pk')[:1]
     pool = approved.filter(
         grade=grade, language=language, difficulty=difficulty, pk=Subquery(latest_approved),
