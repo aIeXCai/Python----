@@ -25,9 +25,9 @@ aside{overflow:hidden}.rankhead{padding:17px 16px 11px}.rankhead h2,h2{font-size
 .rankcols,.row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:7px}
 .rankcols{padding:8px 13px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--line)}
 .rows{max-height:350px;overflow:auto;scrollbar-width:thin}.row{padding:9px 13px;min-height:49px;border-bottom:1px solid #e6ebe0;font-size:13px}
-.row.self{background:#e5f0d7}.rank{color:var(--muted);font:13px var(--mono)}.alt{font:600 13px var(--mono);white-space:nowrap}
+.row.self{position:sticky;top:0;bottom:0;z-index:1;background:#e5f0d7}.rank{color:var(--muted);font:13px var(--mono)}.alt{font:600 13px var(--mono);white-space:nowrap}
 .bar{height:3px;background:#e0e9d9;margin-top:5px;max-width:86px;border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;background:#749867;transition:width .24s}
-#pinned{border-top:1px solid var(--line)}.boardfoot{padding:10px 14px;font-size:11px;color:var(--muted)}
+.boardfoot{padding:10px 14px;font-size:11px;color:var(--muted)}
 .stage{min-width:0;display:grid;gap:14px}.mountain{position:relative;overflow:hidden;border-radius:12px;background:#183d34;color:white;min-height:312px;isolation:isolate}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .peak{position:relative;pointer-events:none;padding:21px 23px;text-shadow:0 1px 12px #17342b;max-width:58%}
@@ -102,7 +102,7 @@ button.ref{border:0;border-radius:2px;padding:0 1px;color:#4e665b;line-height:in
   <aside aria-label="班级榜">
     <div class="rankhead"><h2>班级海拔榜</h2><p id="rankscope">正在加载…</p></div>
     <div class="rankcols"><span>排名</span><span>学生</span><span>海拔</span></div>
-    <div class="rows" id="rows"></div><div id="pinned"></div>
+    <div class="rows" id="rows"></div>
     <div class="boardfoot">每 2 秒更新</div>
   </aside>
   <div class="stage">

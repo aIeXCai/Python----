@@ -325,7 +325,6 @@ function countInput() {
 function renderRank(entries) {
   const list = $('rows'), scroll = list.scrollTop;
   list.replaceChildren();
-  $('pinned').replaceChildren();
   for (const item of entries) {
     const row = document.createElement('div');
     row.className = item.self ? 'row self' : 'row';
@@ -338,7 +337,6 @@ function renderRank(entries) {
     name.append(bar);
     row.append(n, name, Object.assign(document.createElement('span'), {className:'alt',textContent:fmt(item.altitude)+' m'}));
     list.append(row);
-    if (item.self) $('pinned').append(row.cloneNode(true));
   }
   if (!entries.length) list.append(Object.assign(document.createElement('div'), {
     className:'boardfoot',textContent:'本组暂无练习记录。',
