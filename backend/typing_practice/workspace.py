@@ -17,23 +17,26 @@ def session_articles(attempt):
 
 
 def calculate(attempt, articles, segments):
-    count = first_correct = first_total = 0
+    count = matching = typed = 0
     for index, segment in enumerate(segments):
         goal = articles[index % len(articles)].body
         text, first = segment['text'], segment['first']
         if not len(text) <= len(first) <= len(goal) or (index < len(segments) - 1 and len(text) != len(goal)):
             raise ValidationError('练习字位与原文不匹配。')
-        count += sum(
-            char == expected and (attempt.language == Language.ENGLISH or is_han_character(expected))
-            for char, expected in zip(text, goal)
-        )
-        first_correct += sum(char == expected for char, expected in zip(first, goal))
-        first_total += len(first)
+        for char, expected in zip(text, goal):
+            if char == expected:
+                matching += 1
+                if attempt.language == Language.ENGLISH or is_han_character(expected):
+                    count += 1
+        typed += len(text)
     setup = attempt.activity.languages[attempt.language]
     progress = progress_for(target_seconds(
         language=attempt.language, correct_count=count, target_per_minute=setup['rule']['target_per_minute'],
     ))
-    return count, (first_correct * 100 / first_total if first_total else 0), progress
+    accuracy = (matching * 200 + typed) // (2 * typed) if typed else 0
+    if matching < typed:
+        accuracy = min(accuracy, 99)
+    return count, accuracy, progress
 
 
 def altitude(peak, progress):
@@ -60,7 +63,7 @@ def finish(attempt, now):
         'score': str(score), 'points': str(score), 'progress': float(progress),
         'altitude': altitude(setup['peak'], attempt.progress),
         'speed': round(count / (5 if attempt.language == Language.ENGLISH else 1) / (DURATION_SECONDS / 60), 1),
-        'accuracy': round(accuracy), 'summit': progress == 1,
+        'accuracy': accuracy, 'summit': progress == 1,
         'summit_seconds': summit_seconds(attempt) if progress == 1 else None,
     }
     attempt.active_student = None

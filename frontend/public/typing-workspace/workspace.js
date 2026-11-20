@@ -298,7 +298,7 @@ let activity, attempt, result, deadline, syncDue = 0, busy = false, starting = f
 let controlling = false;
 let rotationTimer;
 let sequenceNumber = 0, segments = [], goals = [];
-let rendered = -1, correct = 0, firstCorrect = 0, firstCount = 0, announced = false;
+let rendered = -1, correct = 0, matchedCharacters = 0, typedCharacters = 0, announced = false;
 const notice = text => { $('connection').textContent = text; };
 const currentIndex = () => segments.length - 1;
 const goalAt = index => goals[index % goals.length];
@@ -308,16 +308,16 @@ const isHan = character => /\p{Unified_Ideograph}|〇/u.test(character);
 
 function countInput() {
   correct = 0;
-  firstCorrect = 0;
-  firstCount = 0;
+  matchedCharacters = 0;
+  typedCharacters = 0;
   segments.forEach((segment, index) => {
     const expected = goalAt(index).chars;
     [...segment.text].forEach((character, position) => {
-      if (character === expected[position] && (lang === 'en' || isHan(character))) correct++;
-    });
-    [...segment.first].forEach((character, position) => {
-      if (character === expected[position]) firstCorrect++;
-      firstCount++;
+      typedCharacters++;
+      if (character === expected[position]) {
+        matchedCharacters++;
+        if (lang === 'en' || isHan(character)) correct++;
+      }
     });
   });
   if (lang === 'en') correct /= 5;
@@ -367,7 +367,7 @@ function showLobby() {
   $('pause').textContent = '暂停';
   attempt = result = null;
   summitAt = null;
-  seconds = shown = correct = firstCorrect = firstCount = 0;
+  seconds = shown = correct = matchedCharacters = typedCharacters = 0;
   rendered = -1;
   announced = false;
   $('reviewResult').hidden = true;
@@ -604,7 +604,9 @@ function update(t) {
   $('timer').textContent=clock(Math.ceil(300-seconds));
   $('progress').textContent=(p*100).toFixed(1)+'%';
   $('speed').textContent=result ? Number(result.speed).toFixed(1) : seconds>0?(correct/(Math.max(1,seconds)/60)).toFixed(1):'—';
-  $('accuracy').textContent=result ? result.accuracy+'%' : firstCount?Math.round(100*firstCorrect/firstCount)+'%':'—';
+  const accuracy = matchedCharacters === typedCharacters ? 100
+    : Math.min(99, Math.round(100 * matchedCharacters / typedCharacters));
+  $('accuracy').textContent = result ? result.accuracy + '%' : typedCharacters ? accuracy + '%' : '—';
   if (t>=syncDue && !busy) {
     syncDue=t+2000;
     sync();

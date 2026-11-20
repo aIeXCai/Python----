@@ -214,7 +214,7 @@ class TypingActivityTests(APITestCase):
             self.assertEqual(finished['result'], replay['result'])
             self.assertEqual(finished['ack'], 1)
             self.assertEqual(finished['result']['score'], finished['result']['points'])
-            self.assertLess(finished['result']['accuracy'], 100)
+            self.assertEqual(finished['result']['accuracy'], 100)
             self.assertEqual(TypingPointSubmission.objects.filter(attempt_id=attempt_id).count(), 1)
             self.assertIsNone(TypingAttempt.objects.get(pk=attempt_id).active_student_id)
         self.assertNotEqual(second['id'], attempt_id)
