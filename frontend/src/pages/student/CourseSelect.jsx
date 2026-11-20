@@ -1,118 +1,121 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Brain, Keyboard, Monitor } from 'lucide-react'
-import Navbar from '../../components/Navbar.jsx'
 import { useEffect, useState } from 'react'
+import { getCurrentUser, getToken } from '../../api/index.js'
+import { typingApi } from '../../api/typing.js'
+import Navbar from '../../components/Navbar.jsx'
+import './CourseSelect.css'
 
-export default function CourseSelect() {
-  const navigate = useNavigate()
-  const [username, setUsername] = useState('')
-  const [grade, setGrade] = useState('')
-  const [classNum, setClassNum] = useState('')
-  useEffect(() => {
-    const raw = localStorage.getItem('user')
-    if (!raw) { navigate('/login'); return }
-    try {
-      const u = JSON.parse(raw)
-      setUsername(u.display_name || u.username || '')
-      setGrade(u.grade || '')
-      setClassNum(u.class_num || '')
-    } catch { navigate('/login') }
-  }, [])
+function CourseCard({ name, title, icon: Icon, to, onClick, children, footer }) {
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className={`course-card course-card--${name}`}
+      aria-labelledby={`course-title-${name}`}
+    >
+      <Icon size={58} aria-hidden="true" />
+      <h2 id={`course-title-${name}`}>{title}</h2>
+      <p>{children}</p>
+      <div className="course-card-footer">{footer}</div>
+    </Link>
+  )
+}
 
-  const selectCourse = (course) => {
-    // 同步写入 localStorage，确保 StudentDashboard 能读到
-    localStorage.setItem('selected_course', course)
-    // 带着当前课程参数导航，下次进来就知道在哪个课
-    navigate(`/student/dashboard?course=${course}`)
+function TypingBests({ scores, status }) {
+  const display = language => {
+    if (status === 'loading') return '载入中'
+    if (status === 'error') return '暂不可用'
+    const score = scores?.[language]
+    return score == null ? '暂无成绩' : `${score} 分`
   }
 
   return (
-    <div className="page-bg">
-      <Navbar username={username} grade={grade} class_num={classNum} />
+    <dl className="course-card-bests" aria-busy={status === 'loading'}>
+      <div><dt>中文最佳成绩</dt><dd>{display('zh')}</dd></div>
+      <div><dt>英文最佳成绩</dt><dd>{display('en')}</dd></div>
+    </dl>
+  )
+}
 
+export default function CourseSelect() {
+  const navigate = useNavigate()
+  const [user, setUser] = useState(() => getCurrentUser() || {})
+  const [scores, setScores] = useState(null)
+  const [scoreStatus, setScoreStatus] = useState('loading')
+
+  useEffect(() => {
+    let controller
+
+    function load() {
+      controller?.abort()
+      const activeUser = getCurrentUser() || {}
+      if (!localStorage.getItem('user') || (!activeUser.username && !activeUser.display_name)) {
+        navigate('/login')
+        return
+      }
+      setUser(activeUser)
+      setScores(null)
+      if (!getToken()) {
+        setScoreStatus('ready')
+        return
+      }
+      setScoreStatus('loading')
+      controller = new AbortController()
+      const { signal } = controller
+      typingApi.bests(signal)
+        .then(data => {
+          if (signal.aborted) return
+          setScores(data)
+          setScoreStatus('ready')
+        })
+        .catch(() => { if (!signal.aborted) setScoreStatus('error') })
+    }
+
+    function updateSession(event) {
+      if (event.key === 'user' || event.key === 'token' || event.key === null) load()
+    }
+    function restorePage(event) {
+      if (event.persisted) load()
+    }
+
+    load()
+    window.addEventListener('storage', updateSession)
+    window.addEventListener('pageshow', restorePage)
+    return () => {
+      controller?.abort()
+      window.removeEventListener('storage', updateSession)
+      window.removeEventListener('pageshow', restorePage)
+    }
+  }, [navigate])
+
+  const username = user.display_name || user.username || ''
+  return (
+    <div className="page-bg">
+      <Navbar username={username} grade={user.grade || ''} class_num={user.class_num || ''} />
       <main className="main-content">
         <div className="welcome-section">
           <h1>欢迎回来，{username}！</h1>
           <p>请选择你要进入的课程</p>
         </div>
 
-        <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '32px' }}>
-          {/* AI课 */}
-          <div
-            className="course-card"
-            onClick={() => selectCourse('ai')}
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: '16px',
-              padding: '40px 32px',
-              color: '#fff',
-              cursor: 'pointer',
-              minWidth: '280px',
-              textAlign: 'center',
-              boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-            }}
-          >
-            <Brain size={64} style={{ marginBottom: '16px' }} />
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>人工智能课</h2>
-            <p style={{ opacity: 0.9, fontSize: '0.95rem', lineHeight: 1.6 }}>
-              Python 编程学习<br />透过代码挑战提升演算法思维
-            </p>
-            <div style={{
-              marginTop: '20px',
-              background: 'rgba(255,255,255,0.2)',
-              borderRadius: '8px',
-              padding: '10px',
-              fontSize: '0.85rem',
-            }}>
-              授课教师：Alex
-            </div>
-          </div>
-
-          {/* 信息课 */}
-          <div
-            className="course-card"
-            onClick={() => selectCourse('info')}
-            style={{
-              background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
-              borderRadius: '16px',
-              padding: '40px 32px',
-              color: '#fff',
-              cursor: 'pointer',
-              minWidth: '280px',
-              textAlign: 'center',
-              boxShadow: '0 8px 32px rgba(17, 153, 142, 0.3)',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-            }}
-          >
-            <Monitor size={64} style={{ marginBottom: '16px' }} />
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>信息科技课</h2>
-            <p style={{ opacity: 0.9, fontSize: '0.95rem', lineHeight: 1.6 }}>
-              在线测验学习<br />选择题与综合题强化资讯素养
-            </p>
-            <div style={{
-              marginTop: '20px',
-              background: 'rgba(255,255,255,0.2)',
-              borderRadius: '8px',
-              padding: '10px',
-              fontSize: '0.85rem',
-            }}>
-              授课教师：Alex
-            </div>
-          </div>
-          <Link className="typing-entry" to="/student/typing">
-            <Keyboard size={52} aria-hidden="true" />
-            <span>打字训练</span>
-          </Link>
+        <div className="course-card-grid">
+          <CourseCard name="ai" title="人工智能课" icon={Brain}
+            to="/student/dashboard?course=ai" onClick={() => localStorage.setItem('selected_course', 'ai')}
+            footer="授课教师：Alex">
+            Python 编程学习<br />透过代码挑战提升演算法思维
+          </CourseCard>
+          <CourseCard name="info" title="信息科技课" icon={Monitor}
+            to="/student/dashboard?course=info" onClick={() => localStorage.setItem('selected_course', 'info')}
+            footer="授课教师：Alex">
+            在线测验学习<br />选择题与综合题强化资讯素养
+          </CourseCard>
+          <CourseCard name="typing" title="打字训练" icon={Keyboard} to="/student/typing"
+            footer={<TypingBests scores={scores} status={scoreStatus} />}>
+            中英文打字登山<br />每次练习 5 分钟
+          </CourseCard>
         </div>
       </main>
-
-      <style>{`
-        .course-card:hover {
-          transform: translateY(-4px) !important;
-          box-shadow: 0 12px 40px rgba(0,0,0,0.2) !important;
-        }
-      `}</style>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import random
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -82,22 +82,63 @@ def lock_class_settings(grade, class_num):
     return TypingClassSettings.objects.select_for_update().get(pk=settings.pk)
 
 
+def next_rotation_at(now):
+    midnight = datetime.combine(timezone.localdate(now) + timedelta(days=1), time.min)
+    return timezone.make_aware(midnight, timezone.get_current_timezone())
+
+
 def current_activity(grade, class_num):
     current = TypingClassSettings.objects.select_related('activity').filter(
         grade=grade, class_num=class_num, activity__isnull=False, activity__closed_at__isnull=True,
     ).first()
-    return current.activity if current else ensure_current_activity(grade, class_num)
+    if current and timezone.localdate(current.activity.published_at) == timezone.localdate():
+        return current.activity
+    return ensure_current_activity(grade, class_num)
+
+
+def latest_activity(grade, class_num):
+    return TypingActivity.objects.filter(
+        grade=grade, class_num=class_num, closed_at__isnull=True,
+    ).order_by('-published_at', '-pk').first()
+
+
+def activate_class_activity(settings, activity, now):
+    if settings.activity_id == activity.pk:
+        return
+    TypingActivity.objects.filter(
+        grade=activity.grade, class_num=activity.class_num, closed_at__isnull=True,
+    ).exclude(pk=activity.pk).update(closed_at=now)
+    settings.activity = activity
+    settings.save(update_fields=['activity'])
+
+
+def daily_peaks(previous, now):
+    if previous is None:
+        return select_peak_pair()
+    if timezone.localdate(previous.published_at) == timezone.localdate(now):
+        return [previous.languages[language]['peak'] for language in Language.values]
+    previous_ids = [previous.languages[language]['peak']['id'] for language in Language.values]
+    return select_peak_pair(exclude=previous_ids)
 
 
 @transaction.atomic
 def ensure_current_activity(grade, class_num):
     settings = lock_class_settings(grade, class_num)
-    activity = TypingActivity.objects.filter(
-        grade=grade, class_num=class_num, closed_at__isnull=True,
-    ).order_by('-published_at', '-pk').first()
-    if activity is None:
+    activity = latest_activity(grade, class_num)
+    now = timezone.now()
+    if activity is not None:
+        if timezone.localdate(activity.published_at) != timezone.localdate(now):
+            languages = {
+                language: {**activity.languages[language], 'peak': peak}
+                for language, peak in zip(Language.values, daily_peaks(activity, now), strict=True)
+            }
+            activity = TypingActivity.objects.create(
+                grade=grade, class_num=class_num, title=activity.title,
+                teacher_id=activity.teacher_id, is_trial=activity.is_trial, languages=languages,
+            )
+    else:
         languages = {}
-        for language, peak in zip(Language.values, select_peak_pair(), strict=True):
+        for language, peak in zip(Language.values, daily_peaks(settings.activity, now), strict=True):
             difficulties = list(trial_speed_rules(grade, language).order_by('difficulty')
                                 .values_list('difficulty', flat=True).distinct())
             difficulties.sort(key=lambda value: value != DEFAULT_DIFFICULTY)
@@ -117,13 +158,7 @@ def ensure_current_activity(grade, class_num):
             grade=grade, class_num=class_num, title='打字训练', languages=languages,
         )
 
-    # Preserve the latest previously published configuration on upgrade.
-    if settings.activity_id != activity.pk:
-        TypingActivity.objects.filter(grade=grade, class_num=class_num, closed_at__isnull=True).exclude(
-            pk=activity.pk,
-        ).update(closed_at=timezone.now())
-        settings.activity = activity
-        settings.save(update_fields=['activity'])
+    activate_class_activity(settings, activity, now)
     return activity
 
 
@@ -131,19 +166,17 @@ def ensure_current_activity(grade, class_num):
 def publish_activity(teacher, data):
     grade, class_num = data['grade'], data['class_num']
     require_class(teacher, grade, class_num)
+    settings = lock_class_settings(grade, class_num)
+    now = timezone.now()
+    previous = latest_activity(grade, class_num) or settings.activity
     languages = {
         language: language_snapshot(grade, language, data[language], peak)
-        for language, peak in zip(Language.values, select_peak_pair(), strict=True)
+        for language, peak in zip(Language.values, daily_peaks(previous, now), strict=True)
     }
-    settings = lock_class_settings(grade, class_num)
-    TypingActivity.objects.filter(grade=grade, class_num=class_num, closed_at__isnull=True).update(
-        closed_at=timezone.now(),
-    )
     activity = TypingActivity.objects.create(
         teacher=teacher, grade=grade, class_num=class_num, title=data['title'], languages=languages,
     )
-    settings.activity = activity
-    settings.save(update_fields=['activity'])
+    activate_class_activity(settings, activity, now)
     return activity
 
 
@@ -174,8 +207,8 @@ def start_attempt(student, data):
         if active.activity_id == activity.pk and active.language == language:
             return active, False
         raise AttemptConflict('已有一场训练正在计时，请先返回该场。')
-    if activity.closed_at:
-        raise AttemptConflict('训练设置已更新，请返回列表后重新开始。')
+    if activity.closed_at or timezone.localdate(activity.published_at) != timezone.localdate(now):
+        raise AttemptConflict('训练已更新，请重新开始。')
 
     setup = activity.languages[language]
     article_ids = setup['article_ids']

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from io import StringIO
 from unittest.mock import patch
 
@@ -44,7 +44,7 @@ class TypingActivityTests(APITestCase):
         en = activity['languages']['en']['peak']['id']
         self.assertNotEqual(zh, en)
         self.assertEqual(len(PEAKS), 14)
-        clock = datetime(2026, 11, 20, 13, tzinfo=timezone.utc)
+        clock = activity['published_at']
         with patch('typing_practice.activities.timezone.now', return_value=clock):
             alice = self.start(self.alice, activity['id'])
         with patch('typing_practice.activities.timezone.now', return_value=clock + timedelta(seconds=22)):

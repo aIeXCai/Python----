@@ -296,6 +296,7 @@ const unit = () => lang === 'en' ? 'WPM' : '字/分钟';
 const languageName = () => lang === 'zh' ? '中文' : '英文';
 let activity, attempt, result, deadline, syncDue = 0, busy = false, starting = false;
 let controlling = false;
+let rotationTimer;
 let sequenceNumber = 0, segments = [], goals = [];
 let rendered = -1, correct = 0, firstCorrect = 0, firstCount = 0, announced = false;
 const notice = text => { $('connection').textContent = text; };
@@ -465,6 +466,7 @@ function updateControls() {
 }
 
 function openAttempt(record, focus) {
+  clearTimeout(rotationTimer);
   attempt = record;
   activity = record.activity;
   lang = record.language;
@@ -631,6 +633,12 @@ async function load() {
       activity = data.activity;
       if (activity) for (const language of ['zh','en']) peakPair[language] = activity.languages[language].peak.id;
       showLobby();
+      clearTimeout(rotationTimer);
+      if (Number.isFinite(data.rotationInMs)) {
+        rotationTimer = setTimeout(() => {
+          if (!attempt && !starting) load();
+        }, data.rotationInMs + 250);
+      }
     }
   } catch(error) {notice(error.message);}
 }

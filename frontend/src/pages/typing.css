@@ -43,5 +43,3 @@
 .typing-article { line-height: 1.9; }
 .typing-page .typing-character { border: 0; border-radius: 3px; padding: 0; line-height: inherit; }
 .typing-character:hover, .typing-character[aria-pressed=true] { text-decoration: underline; background: #e0eee6; }
-.typing-entry { display: grid; gap: 12px; align-content: center; justify-items: center; min-height: 230px; min-width: 280px; border-radius: 16px; background: #185b48; color: #fff; font-weight: 700; text-decoration: none; box-shadow: 0 6px 22px #185b4830; }
-.typing-entry:hover { background: #124a3a; }

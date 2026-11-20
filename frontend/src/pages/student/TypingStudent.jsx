@@ -44,7 +44,7 @@ export default function TypingStudent() {
               setCurrentAttempt(attempt.id)
               send({ attempt })
             } else {
-              send({ activity: state.activities[0] ?? null })
+              send({ activity: state.activities[0] ?? null, rotationInMs: state.rotation_in_ms })
             }
             break
           }

@@ -20,9 +20,10 @@ PEAKS = (
 )
 
 
-def select_peak_pair():
+def select_peak_pair(exclude=()):
     keys = ('id', 'name', 'base_altitude', 'summit_altitude', 'route')
+    candidates = [peak for peak in PEAKS if peak[0] not in exclude]
     return [
         dict(zip(keys, peak, strict=True), route_version='demo-v1')
-        for peak in random.sample(PEAKS, 2)
+        for peak in random.sample(candidates, 2)
     ]

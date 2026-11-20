@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from .bests import StudentBestScoresView
 
 
 urlpatterns = [
@@ -8,6 +9,7 @@ urlpatterns = [
     path('teacher/articles/', views.TeacherArticlesView.as_view()),
     path('teacher/activities/', views.TeacherActivitiesView.as_view()),
     path('teacher/activities/<int:activity_id>/close/', views.TeacherCloseActivityView.as_view()),
+    path('me/bests/', StudentBestScoresView.as_view()),
     path('activities/', views.StudentActivitiesView.as_view()),
     path('activities/<int:activity_id>/leaderboard/', views.StudentLeaderboardView.as_view()),
     path('attempts/<int:attempt_id>/sync/', views.StudentSyncAttemptView.as_view()),

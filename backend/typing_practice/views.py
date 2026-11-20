@@ -10,7 +10,7 @@ from users.permissions import IsStudent, IsTeacher
 
 from .activities import (
     TRIAL_GRADES, close_activity, current_activity, managed_grades, publish_activity, require_class, start_attempt, student_activities,
-    teacher_activities, trial_speed_rules,
+    next_rotation_at, teacher_activities, trial_speed_rules,
 )
 from .article_pool import require_article_pool
 from .models import ArticleMode, GRADE_LABELS, Language, TypingArticleRevision, TypingAttempt
@@ -142,7 +142,9 @@ class StudentActivitiesView(APIView):
             Q(paused_at__isnull=False) | Q(deadline_at__gt=timezone.now()),
             active_student=request.user, activity__in=visible,
         ).values_list('pk', flat=True).first()
+        now = timezone.now()
         return Response({
+            'rotation_in_ms': max(0, round((next_rotation_at(now) - now).total_seconds() * 1000)),
             'activities': [activity_data(activity, include_options=True)] if activity else [],
             'active_attempt_id': active,
         })
