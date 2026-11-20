@@ -5,12 +5,14 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError as APIValidationError, APIException
 
 from users.scopes import TeacherScopeError, require_teacher_grade
 
 from .article_pool import require_article_pool
+from .importing import is_han_character
 from .models import (
     ArticleMode, GRADE_LABELS, Language, TypingActivity, TypingArticleRevision,
     TypingAttempt, TypingClassSettings, TypingSpeedRule,
@@ -66,6 +68,17 @@ def ordered_difficulties(grade, language):
     )
 
 
+def chinese_random_articles(articles):
+    prose = list(articles.filter(
+        Q(source_metadata__genre__isnull=True) | ~Q(source_metadata__genre='诗歌'),
+    ))
+    longer = [
+        article for article in prose
+        if sum(is_han_character(char) for char in article.body) >= 180
+    ]
+    return longer or prose
+
+
 def language_snapshot(grade, language, setup, peak):
     difficulty = setup['difficulty']
     speed = speed_rules(grade, language).filter(difficulty=difficulty).order_by('-pk').first()
@@ -78,10 +91,18 @@ def language_snapshot(grade, language, setup, peak):
         )
     except ValidationError as exc:
         raise APIValidationError(exc.messages[0], code=exc.code) from exc
+    chinese_random = language == Language.CHINESE and setup['mode'] == ArticleMode.RANDOM
+    if chinese_random:
+        article_ids = [article.pk for article in chinese_random_articles(pool)]
+        if not article_ids:
+            raise APIValidationError('该难度暂无可随机抽取的中文文章。', code='empty_article_pool')
+    else:
+        article_ids = list(pool.values_list('pk', flat=True))
     return {
         'mode': setup['mode'], 'difficulty': difficulty, 'pinyin': setup['pinyin'],
-        'article_ids': list(pool.values_list('pk', flat=True)), 'peak': peak,
+        'article_ids': article_ids, 'peak': peak,
         'rule': {'version': speed.version, 'target_per_minute': str(speed.target_per_minute)},
+        **({'long_prose_pool': True} if chinese_random else {}),
     }
 
 
@@ -230,7 +251,14 @@ def start_attempt(student, data):
     else:
         if selected is not None:
             raise APIValidationError('当前模式由教师或系统分配文章。')
-        sequence = [random.choice(article_ids)] if setup['mode'] == ArticleMode.RANDOM else list(article_ids[:1])
+        if language == Language.CHINESE and setup['mode'] == ArticleMode.RANDOM and not setup.get('long_prose_pool'):
+            candidates = TypingArticleRevision.objects.filter(
+                pk__in=article_ids, grade=activity.grade, language=language,
+            )
+            article_ids = [article.pk for article in chinese_random_articles(candidates)]
+        if not article_ids:
+            raise AttemptConflict('本场暂无可用文章。')
+        sequence = [random.choice(article_ids)] if setup['mode'] == ArticleMode.RANDOM else article_ids[:1]
     if not sequence:
         raise AttemptConflict('本场暂无可用文章。')
 

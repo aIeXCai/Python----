@@ -9,7 +9,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import SimpleTestCase, TestCase, override_settings
 
-from .activities import current_activity
+from .activities import chinese_random_articles, current_activity
 from .article_pool import FORMAL_BANK_SOURCE, require_article_pool
 from .models import TypingArticle, TypingArticleRevision, TypingSpeedRule
 from .scoring import progress_for, score_for, target_seconds
@@ -133,6 +133,21 @@ class TypingBankTests(TestCase):
                 with self.assertRaisesMessage(ValidationError, '该文章不在本场'):
                     require_article_pool(**other_scope, article_revision_id=pool.first().pk)
 
+
+    def test_chinese_random_prefers_long_prose_and_keeps_poetry_available_for_manual_selection(self):
+        self.import_bank(
+            bank_record(id='long', language='zh', paragraphs=['青' * 180], genre='说明文'),
+            bank_record(id='short', language='zh', paragraphs=['绿' * 160], genre='说明文'),
+            bank_record(id='poem', language='zh', paragraphs=['风' * 240], genre='诗歌'),
+        )
+        TypingArticleRevision.objects.update(review_status='approved')
+        pool = require_article_pool(grade=7, language='zh', difficulty='基础')
+        self.assertEqual(pool.count(), 3)
+        self.assertEqual([item.article.source_id for item in chinese_random_articles(pool)], ['long'])
+        self.assertEqual(
+            [item.article.source_id for item in chinese_random_articles(pool.exclude(article__source_id='long'))],
+            ['short'],
+        )
 
     @override_settings(TYPING_PRACTICE_FORMAL=True)
     def test_formal_release_opens_reviewed_articles_and_preserves_pinyin(self):

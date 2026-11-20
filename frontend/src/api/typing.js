@@ -17,7 +17,7 @@ export const typingApi = {
 }
 
 export const LANGUAGE_NAMES = { zh: '中文', en: '英文' }
-export const ARTICLE_MODES = { fixed: '固定文章', random: '随机文章', free: '学生自选文章' }
+export const ARTICLE_MODES = { fixed: '固定文章', random: '随机选择', free: '自由练习' }
 
 export function typingError(error) {
   const detail = error.data?.detail
