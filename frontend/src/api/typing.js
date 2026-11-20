@@ -1,10 +1,9 @@
 import { request } from './index.js'
 
 export const typingApi = {
-  teacherClasses: signal => request('/typing/teacher/classes/', { signal }),
-  teacherArticles: (query, signal) => request('/typing/teacher/articles/?' + new URLSearchParams(query), { signal }),
-  teacherSettings: (query, signal) => request('/typing/teacher/activities/?' + new URLSearchParams(query), { signal }),
-  publish: payload => request('/typing/teacher/activities/', { method: 'POST', body: JSON.stringify(payload) }),
+  teacherSettings: signal => request('/typing/teacher/settings/', { signal }),
+  teacherArticles: (pinyin, signal) => request('/typing/teacher/settings/articles/?' + new URLSearchParams({ pinyin }), { signal }),
+  updateTeacherSettings: payload => request('/typing/teacher/settings/', { method: 'POST', body: JSON.stringify(payload) }),
   bests: signal => request('/typing/me/bests/', { signal, redirectOnUnauthorized: false }),
   todayBests: signal => request('/typing/me/bests/?period=today', { signal }),
   activities: signal => request('/typing/activities/', { signal }),

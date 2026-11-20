@@ -6,7 +6,6 @@ import Login from './pages/auth/Login.jsx'
 import TeacherLogin from './pages/auth/TeacherLogin.jsx'
 import CourseSelect from './pages/student/CourseSelect.jsx'
 import TypingStudent from './pages/student/TypingStudent.jsx'
-import TypingTeacher from './pages/teacher/TypingTeacher.jsx'
 import StudentDashboard from './pages/student/StudentDashboard.jsx'
 import QuizPage from './pages/student/info/QuizPage.jsx'
 import QuizResult from './pages/student/info/QuizResult.jsx'
@@ -76,7 +75,7 @@ export default function App() {
           />
 
           {/* 老师端 */}
-          <Route path="/teacher/typing" element={<ProtectedRoute><TypingTeacher /></ProtectedRoute>} />
+          <Route path="/teacher/typing" element={<ProtectedRoute><Navigate to="/teacher/dashboard?typing=settings" replace /></ProtectedRoute>} />
           <Route
             path="/teacher/dashboard"
             element={

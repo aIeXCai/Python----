@@ -52,7 +52,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .ref{color:#4e665b}.typed{background:#e9efe2;border-bottom:2px solid #d3ded0;color:#193128;overflow:hidden}
 .pair.ok .typed{color:#256044;background:#dcebd5;border-color:#82ae76}
 .pair.bad .typed{color:#92321f;background:#f8dfda;border-color:#c56654}
-.pair.current .ref,.pair.current .typed{background:#f3e6a8}.pair.current .typed{border-color:#756832}
+.pair.current .ref,.pair.current:not(.ok):not(.bad) .typed{background:#f3e6a8}
+.pair.current .typed{position:relative;border-color:#756832}
+#desk[data-input-focused=true] .pair.current .typed::after{content:"";position:absolute;left:0;top:2px;bottom:2px;width:2px;background:#174733;animation:typing-caret 1s step-end infinite}
+@keyframes typing-caret{0%,100%{opacity:1}50%{opacity:0}}
+@media(prefers-reduced-motion:reduce){#desk[data-input-focused=true] .pair.current .typed::after{animation:none}}
 button.ref{border:0;border-radius:2px;padding:0 1px;color:#4e665b;line-height:inherit;background:transparent}button.ref:hover{background:#dbebce}
 .word{display:inline-block;white-space:nowrap}
 #pinyin{min-height:24px;margin:0;color:var(--muted);font-size:12px}#pinyin b{color:#214f3a;font-size:14px}

@@ -24,6 +24,7 @@ vi.mock('lucide-react', () => ({
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
 // Mock AuthContext
@@ -36,6 +37,10 @@ vi.mock('../../contexts/AuthContext.jsx', () => ({
 const mockGetAdminDashboard = vi.fn()
 vi.mock('../../api/index.js', () => ({
   getAdminDashboard: (...args) => mockGetAdminDashboard(...args),
+}))
+
+vi.mock('./TypingTeacher.jsx', () => ({
+  default: ({ open }) => open ? <div role="dialog">打字训练参数设置</div> : null,
 }))
 
 import TeacherDashboard from './TeacherDashboard.jsx'
@@ -136,11 +141,12 @@ describe('TeacherDashboard (老师仪表盘)', () => {
     await user.click(cards[0])
   })
 
-  it('点击打字训练管理卡片跳转到训练发布', async () => {
+  it('点击打字训练卡片在教师首页打开弹窗', async () => {
     const user = userEvent.setup()
     render(<TeacherDashboard />)
     await user.click(await screen.findByRole('button', { name: /打字训练/ }))
-    expect(mockNavigate).toHaveBeenCalledWith('/teacher/typing')
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 
   it('显示退出按钮', async () => {

@@ -299,6 +299,7 @@ let controlling = false;
 let rotationTimer, bestsTimer, bestsRequest = 0;
 let sequenceNumber = 0, segments = [], goals = [];
 let completedArticle = false, singleArticle = true;
+let caretPair = null, composition = null;
 let rendered = -1, correct = 0, matchedCharacters = 0, typedCharacters = 0, announced = false;
 const notice = text => { $('connection').textContent = text; };
 const currentIndex = () => segments.length - 1;
@@ -416,6 +417,15 @@ function positionInput(follow = false) {
   $('answer').style.top=clamp(caret.top-desk.top,5,desk.height-24)+'px';
 }
 
+function renderCaret(follow = true) {
+  const answer = $('answer');
+  const index = [...input.slice(0, answer.selectionStart)].length;
+  caretPair?.classList.remove('current');
+  caretPair = chars[index]?.pair;
+  caretPair?.classList.add('current');
+  positionInput(follow);
+}
+
 function passage() {
   const index = currentIndex();
   const article = goalAt(index);
@@ -445,6 +455,7 @@ function passage() {
       const pair = Object.assign(document.createElement('span'), {className:'pair'});
       const typed = Object.assign(document.createElement('span'), {className:'typed'});
       typed.setAttribute('aria-hidden','true');
+      pair.dataset.position = i;
       pair.append(glyph,typed);
       if (lang==='en' && c!==' ') {
         if (!group) { group=Object.assign(document.createElement('span'),{className:'word'});p.append(group); }
@@ -458,10 +469,10 @@ function passage() {
     p.scrollTop = 0;
   }
   chars.forEach(({pair,typed},i) => {
-    pair.className='pair'+(i<value.length ? (value[i]===article.chars[i] ? ' ok' : ' bad') : i===value.length ? ' current' : '');
+    pair.className='pair'+(i<value.length ? (value[i]===article.chars[i] ? ' ok' : ' bad') : '');
     typed.textContent=value[i]??' ';
   });
-  positionInput(true);
+  renderCaret();
 }
 
 function focusInput() {
@@ -482,6 +493,7 @@ function updateControls() {
 
 function openAttempt(record, focus) {
   clearTimeout(rotationTimer);
+  const previousCaret = attempt?.id === record.id ? $('answer').selectionStart : null;
   attempt = record;
   activity = record.activity;
   lang = record.language;
@@ -506,6 +518,7 @@ function openAttempt(record, focus) {
   summitAt = record.summit_seconds;
   mode = result ? 'done' : record.paused ? 'paused' : record.expired || completedArticle ? 'finishing' : 'typing';
   composing = false;
+  composition = null;
   syncDue = 0;
   shown = 0;
   rendered = -1;
@@ -513,16 +526,15 @@ function openAttempt(record, focus) {
   $('articlePicker').hidden = true;
   $('answer').disabled = mode !== 'typing';
   $('answer').value = input;
+  const caret = Math.min(previousCaret ?? input.length, input.length);
+  $('answer').setSelectionRange(caret, caret);
   $('tip').textContent = mode === 'paused'
     ? '练习已暂停，点击「继续练习」回到原位置。'
-    : '点一下打字区或「点此输入」，对照上行原文输入。红色标出错字，按退格修改。';
+    : '点一下字位或用方向键移动光标即可修改。对照上行原文输入，红色标出错字。';
   routeHeader();
   countInput();
   passage();
-  if (focus) {
-    $('answer').setSelectionRange(input.length, input.length);
-    focusInput();
-  }
+  if (focus) focusInput();
 }
 
 function acceptInput() {
@@ -532,7 +544,11 @@ function acceptInput() {
   const segment = segments.at(-1);
   let value = [...$('answer').value.replace(/[\r\n]/g,' ')].slice(0, goal.chars.length);
   input = value.join('');
-  if ($('answer').value !== input) $('answer').value = input;
+  if ($('answer').value !== input) {
+    const caret = Math.min($('answer').selectionStart, input.length);
+    $('answer').value = input;
+    $('answer').setSelectionRange(caret, caret);
+  }
   const first = [...segment.first];
   for (let index = first.length; index < value.length; index++) first[index] = value[index];
   segment.first = first.join('');
@@ -711,21 +727,71 @@ $('start').onclick=async()=>{
 $('peakInfo').onclick=openPeakInfo;
 $('peakDialog').onclose=focusInput;
 $('reviewResult').onclick=showResult;
-$('desk').onpointerdown=event=>{
-  if (mode==='typing' && event.pointerType === 'mouse' && !event.target.closest('button')) {
-    event.preventDefault();
-    focusInput();
+$('desk').onclick = event => {
+  if (mode !== 'typing') return;
+  const pair = event.target.closest('.pair');
+  if (pair && !event.target.closest('button')) {
+    const index = Number(pair.dataset.position);
+    const caret = [...input].slice(0, index).join('').length;
+    $('answer').setSelectionRange(caret, caret);
   }
+  focusInput();
+  renderCaret();
 };
-$('desk').onclick=focusInput;
 $('passage').onscroll=()=>positionInput();
 window.onresize=()=>positionInput();
-$('answer').addEventListener('compositionstart', () => { composing=true; });
-$('answer').addEventListener('compositionend', () => { composing=false; acceptInput(); });
-$('answer').oninput=event=>{if(!event.isComposing)acceptInput();};
-$('answer').onpaste=event=>{event.preventDefault();$('tip').textContent='请用键盘输入，粘贴内容不计入练习。';};
-$('answer').ondrop=event=>event.preventDefault();
-$('answer').onkeydown=event=>{if(event.key==='Enter'&&!composing&&!event.isComposing&&event.keyCode!==229)event.preventDefault();};
+const answer = $('answer');
+answer.addEventListener('focus', () => {
+  $('desk').dataset.inputFocused = true;
+  renderCaret(false);
+});
+answer.addEventListener('blur', () => { $('desk').dataset.inputFocused = false; });
+answer.addEventListener('select', () => { if (mode === 'typing' && !composing) renderCaret(); });
+answer.addEventListener('keyup', () => { if (mode === 'typing' && !composing) renderCaret(); });
+answer.addEventListener('beforeinput', event => {
+  if (mode !== 'typing' || controlling || composing || event.isComposing
+      || event.inputType !== 'insertText' || !event.data || !event.cancelable) return;
+  const start = answer.selectionStart;
+  if (start === answer.selectionEnd && start < answer.value.length) {
+    const overwritten = [...answer.value.slice(start)].slice(0, [...event.data].length).join('');
+    event.preventDefault();
+    answer.setRangeText(event.data, start, start + overwritten.length, 'end');
+    acceptInput();
+  }
+});
+answer.addEventListener('compositionstart', () => {
+  composing = true;
+  composition = { text: answer.value, start: answer.selectionStart, end: answer.selectionEnd };
+});
+answer.addEventListener('compositionend', event => {
+  const original = composition;
+  composing = false;
+  composition = null;
+  if (original && event.data && original.start === original.end) {
+    const before = original.text.slice(0, original.start);
+    const suffix = original.text.slice(original.end);
+    if (suffix && answer.value === before + event.data + suffix) {
+      const caret = original.start + event.data.length;
+      const overwritten = [...suffix].slice(0, [...event.data].length).join('');
+      answer.setRangeText('', caret, caret + overwritten.length);
+      answer.setSelectionRange(caret, caret);
+    }
+  }
+  acceptInput();
+});
+answer.oninput = event => { if (!event.isComposing) acceptInput(); };
+answer.onpaste = event => { event.preventDefault(); $('tip').textContent='请用键盘输入，粘贴内容不计入练习。'; };
+answer.ondrop = event => event.preventDefault();
+answer.onkeydown = event => {
+  if (composing || event.isComposing || event.keyCode === 229) return;
+  if (event.key === 'Enter') event.preventDefault();
+  if (!event.shiftKey && ['Home', 'End'].includes(event.key)) {
+    event.preventDefault();
+    const start = event.key === 'Home' ? 0 : answer.value.length;
+    answer.setSelectionRange(start, start);
+    renderCaret();
+  }
+};
 showLobby();
 load();
 refreshTodayBests();

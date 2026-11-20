@@ -1,12 +1,27 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Users, BookOpen, BarChart3, Upload, LogOut, Bot, ChevronRight, GraduationCap, Keyboard, ListChecks } from 'lucide-react'
 import { getAdminDashboard } from '../../api/index.js'
 import { useAuth } from '../../contexts/AuthContext.jsx'
+import TypingTeacher from './TypingTeacher.jsx'
 
 export default function TeacherDashboard() {
   const navigate = useNavigate()
   const { logout } = useAuth()
+  const [params, setParams] = useSearchParams()
+  const [typingOpen, setTypingOpen] = useState(false)
+  const [typingSaved, setTypingSaved] = useState(false)
+  const typingLinked = params.get('typing') === 'settings'
+
+  function closeTyping(saved) {
+    setTypingOpen(false)
+    if (saved) setTypingSaved(true)
+    if (typingLinked) {
+      const next = new URLSearchParams(params)
+      next.delete('typing')
+      setParams(next, { replace: true })
+    }
+  }
   const [stats, setStats] = useState({ total_students: 0, total_problems: 0, today_submissions: 0, avg_score: 0 })
 
   useEffect(() => {
@@ -97,12 +112,13 @@ export default function TeacherDashboard() {
           {[
             { label: 'AI课管理', desc: '题库·成绩统计', icon: Bot, color: '#667eea', path: '/teacher/ai' },
             { label: '信息课管理', desc: '题库·小测·成绩统计', icon: ListChecks, color: '#38ef7d', path: '/teacher/info' },
-            { label: '打字训练', desc: '配置班级练习', icon: Keyboard, color: '#185b48', path: '/teacher/typing' },
+            { label: '打字训练', desc: '文章模式与拼音', icon: Keyboard, color: '#185b48', dialog: true },
             { label: '学生管理', desc: '管理学生帐号', icon: Users, color: '#f59e0b', path: '/teacher/students' },
-          ].map(({ label, desc, icon: Icon, color, path }) => (
+          ].map(({ label, desc, icon: Icon, color, path, dialog }) => (
             <button
               key={label}
-              onClick={() => navigate(path)}
+              onClick={() => dialog ? setTypingOpen(true) : navigate(path)}
+              aria-haspopup={dialog ? 'dialog' : undefined}
               style={{
                 background: 'white', border: 'none', borderRadius: 16, padding: '28px',
                 boxShadow: '0 4px 16px rgba(0,0,0,0.08)', cursor: 'pointer', textAlign: 'left',
@@ -128,12 +144,14 @@ export default function TeacherDashboard() {
                 <div style={{ fontSize: 13, color: '#888', lineHeight: 1.5 }}>{desc}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, color, fontSize: 13, fontWeight: 600, marginTop: 4 }}>
-                进入管理 <ChevronRight size={14} />
+                {dialog ? '参数设置' : '进入管理'} <ChevronRight size={14} />
               </div>
             </button>
           ))}
         </div>
+        {typingSaved && <p role="status">打字训练设置已保存，对新开始的练习生效。</p>}
       </div>
+      <TypingTeacher open={typingOpen || typingLinked} onClose={closeTyping} />
     </div>
   )
 }

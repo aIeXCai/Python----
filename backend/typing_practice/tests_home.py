@@ -113,3 +113,33 @@ class TypingHomeTests(APITestCase):
         self.assertEqual(self.client.get(url).data['zh'], '98.1')
         self.client.force_authenticate(self.teacher)
         self.assertEqual(self.client.get(url).status_code, 403)
+
+    def test_global_settings_apply_to_every_class_and_keep_an_active_attempt(self):
+        User = get_user_model()
+        same_grade = User.objects.create_user(
+            username='class-two', grade='七年级', class_num='2', student_number='1',
+        )
+        other_grade = User.objects.create_user(
+            username='grade-eight', grade='八年级', class_num='1', student_number='1',
+        )
+        before, _ = self.current(self.student)
+        attempt = self.start(self.student, before['id'])
+
+        endpoint = '/api/typing/teacher/settings/'
+        self.assertEqual(self.client.get(endpoint).status_code, 403)
+        self.client.force_authenticate(self.teacher)
+        saved = self.client.post(endpoint, {'mode': 'free', 'pinyin': True}, format='json')
+        self.assertEqual(saved.status_code, 200, saved.data)
+        self.assertEqual(self.client.get(endpoint).data, saved.data)
+
+        for student in (self.student, same_grade, other_grade):
+            activity, _ = self.current(student)
+            self.assertEqual(activity['languages']['zh']['mode'], 'free')
+            self.assertTrue(activity['languages']['zh']['pinyin'])
+            self.assertEqual(activity['languages']['en']['mode'], 'free')
+            self.assertFalse(activity['languages']['en']['pinyin'])
+            self.assertEqual(activity['class_num'], student.class_num)
+        self.client.force_authenticate(self.student)
+        original = self.client.get(f"/api/typing/attempts/{attempt['id']}/").data
+        self.assertEqual(original['activity']['id'], before['id'])
+        self.assertEqual(original['activity']['languages']['zh']['mode'], 'random')

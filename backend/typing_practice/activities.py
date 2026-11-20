@@ -15,7 +15,7 @@ from .article_pool import require_article_pool
 from .importing import is_han_character
 from .models import (
     ArticleMode, GRADE_LABELS, Language, TypingActivity, TypingArticleRevision,
-    TypingAttempt, TypingClassSettings, TypingSpeedRule,
+    TypingAttempt, TypingClassSettings, TypingPracticeSettings, TypingSpeedRule,
 )
 from .peaks import select_peak_pair
 from .scoring import DURATION_SECONDS
@@ -116,11 +116,21 @@ def next_rotation_at(now):
     return timezone.make_aware(midnight, timezone.get_current_timezone())
 
 
+def practice_settings():
+    return TypingPracticeSettings.objects.filter(is_trial=not settings.TYPING_PRACTICE_FORMAL).first()
+
+
+def practice_revision(config):
+    return config.revision if config else int(settings.TYPING_PRACTICE_FORMAL)
+
+
 def current_activity(grade, class_num):
     current = TypingClassSettings.objects.select_related('activity').filter(
         grade=grade, class_num=class_num, activity__isnull=False, activity__closed_at__isnull=True,
     ).first()
+    revision = practice_revision(practice_settings())
     if (current and current.activity.is_trial != settings.TYPING_PRACTICE_FORMAL
+            and current.activity.settings_revision == revision
             and timezone.localdate(current.activity.published_at) == timezone.localdate()):
         return current.activity
     return ensure_current_activity(grade, class_num)
@@ -157,35 +167,36 @@ def ensure_current_activity(grade, class_num):
     class_settings = lock_class_settings(grade, class_num)
     activity = latest_activity(grade, class_num)
     now = timezone.now()
-    if activity is not None:
-        if timezone.localdate(activity.published_at) != timezone.localdate(now):
-            languages = {
-                language: {**activity.languages[language], 'peak': peak}
-                for language, peak in zip(Language.values, daily_peaks(activity, now), strict=True)
-            }
-            activity = TypingActivity.objects.create(
-                grade=grade, class_num=class_num, title=activity.title,
-                teacher_id=activity.teacher_id, is_trial=activity.is_trial, languages=languages,
-            )
-    else:
-        languages = {}
-        for language, peak in zip(Language.values, daily_peaks(class_settings.activity, now), strict=True):
-            for difficulty in ordered_difficulties(grade, language):
-                try:
-                    languages[language] = language_snapshot(grade, language, {
-                        'mode': ArticleMode.RANDOM, 'difficulty': difficulty, 'pinyin': False,
-                    }, peak)
-                except APIValidationError as exc:
-                    if exc.get_codes() != ['empty_article_pool']:
-                        raise
-                else:
-                    break
-            if language not in languages:
-                return None
-        activity = TypingActivity.objects.create(
-            grade=grade, class_num=class_num, title='打字训练', languages=languages,
-            is_trial=not settings.TYPING_PRACTICE_FORMAL,
-        )
+    config = practice_settings()
+    revision = practice_revision(config)
+    same_settings = activity is not None and activity.settings_revision == revision
+    if same_settings and timezone.localdate(activity.published_at) == timezone.localdate(now):
+        activate_class_activity(class_settings, activity, now)
+        return activity
+
+    pools = activity.languages if same_settings else config.pools.get(str(grade)) if config else None
+    languages = {}
+    for language, peak in zip(Language.values, daily_peaks(activity or class_settings.activity, now), strict=True):
+        if pools is not None:
+            languages[language] = {**pools[language], 'peak': peak}
+            continue
+        for difficulty in ordered_difficulties(grade, language):
+            try:
+                languages[language] = language_snapshot(grade, language, {
+                    'mode': ArticleMode.RANDOM, 'difficulty': difficulty, 'pinyin': False,
+                }, peak)
+            except APIValidationError as exc:
+                if exc.get_codes() != ['empty_article_pool']:
+                    raise
+            else:
+                break
+        if language not in languages:
+            return None
+    activity = TypingActivity.objects.create(
+        grade=grade, class_num=class_num, title=activity.title if same_settings else '打字训练',
+        teacher_id=activity.teacher_id if same_settings else None, languages=languages,
+        is_trial=not settings.TYPING_PRACTICE_FORMAL, settings_revision=revision,
+    )
 
     activate_class_activity(class_settings, activity, now)
     return activity
@@ -195,6 +206,8 @@ def ensure_current_activity(grade, class_num):
 def publish_activity(teacher, data):
     grade, class_num = data['grade'], data['class_num']
     require_class(teacher, grade, class_num)
+    if practice_revision(practice_settings()):
+        raise PermissionDenied('请在教师首页修改统一训练设置。')
     class_settings = lock_class_settings(grade, class_num)
     now = timezone.now()
     previous = latest_activity(grade, class_num) or class_settings.activity
@@ -215,6 +228,8 @@ def close_activity(teacher, activity_id):
     activity = teacher_activities(teacher).filter(pk=activity_id).first()
     if activity is None:
         raise NotFound('没有找到该场打字训练。')
+    if practice_revision(practice_settings()):
+        raise PermissionDenied('打字训练统一开放。')
     lock_class_settings(activity.grade, activity.class_num)
     activity.refresh_from_db(fields=['closed_at'])
     if activity.closed_at is None:
@@ -238,6 +253,7 @@ def start_attempt(student, data):
             return active, False
         raise AttemptConflict('已有一场训练正在计时，请先返回该场。')
     if (activity.closed_at or activity.is_trial == settings.TYPING_PRACTICE_FORMAL
+            or activity.settings_revision != practice_revision(practice_settings())
             or timezone.localdate(activity.published_at) != timezone.localdate(now)):
         raise AttemptConflict('训练已更新，请重新开始。')
 

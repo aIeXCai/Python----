@@ -101,6 +101,7 @@ class TypingActivity(models.Model):
     class_num = models.CharField(max_length=20)
     title = models.CharField(max_length=100)
     languages = models.JSONField()
+    settings_revision = models.PositiveIntegerField(default=0)
     published_at = models.DateTimeField(auto_now_add=True)
     closed_at = models.DateTimeField(null=True)
     is_trial = models.BooleanField(default=True)
@@ -109,6 +110,15 @@ class TypingActivity(models.Model):
         indexes = [
             models.Index(fields=['grade', 'class_num', 'closed_at'], name='typing_activity_class_idx'),
         ]
+
+
+class TypingPracticeSettings(models.Model):
+    is_trial = models.BooleanField(unique=True)
+    revision = models.PositiveIntegerField(default=1)
+    mode = models.CharField(max_length=6, choices=ArticleMode.choices, default=ArticleMode.RANDOM)
+    pinyin = models.BooleanField(default=False)
+    fixed_articles = models.JSONField(default=dict)
+    pools = models.JSONField(default=dict)
 
 
 class TypingClassSettings(models.Model):

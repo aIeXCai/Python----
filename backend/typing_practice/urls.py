@@ -2,9 +2,12 @@ from django.urls import path
 
 from . import views
 from .bests import StudentBestScoresView
+from .global_settings import TeacherGlobalArticlesView, TeacherGlobalSettingsView
 
 
 urlpatterns = [
+    path('teacher/settings/', TeacherGlobalSettingsView.as_view()),
+    path('teacher/settings/articles/', TeacherGlobalArticlesView.as_view()),
     path('teacher/classes/', views.TeacherClassesView.as_view()),
     path('teacher/articles/', views.TeacherArticlesView.as_view()),
     path('teacher/activities/', views.TeacherActivitiesView.as_view()),
