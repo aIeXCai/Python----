@@ -9,6 +9,8 @@ export const typingApi = {
   attempt: (id, signal) => request(`/typing/attempts/${id}/`, { signal }),
   start: (payload, signal) => request('/typing/attempts/', { method: 'POST', body: JSON.stringify(payload), signal }),
   board: (activity, language, signal) => request(`/typing/activities/${activity}/leaderboard/?` + new URLSearchParams({ language }), { signal }),
+  pause: (attempt, payload, signal) => request(`/typing/attempts/${attempt}/pause/`, { method: 'POST', body: JSON.stringify(payload), signal }),
+  resume: (attempt, signal) => request(`/typing/attempts/${attempt}/resume/`, { method: 'POST', signal }),
   sync: (attempt, payload, signal) => request(`/typing/attempts/${attempt}/sync/`, { method: 'POST', body: JSON.stringify(payload), signal }),
 }
 

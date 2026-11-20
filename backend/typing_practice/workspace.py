@@ -44,6 +44,12 @@ def altitude(peak, progress):
     return min(peak_m - 1, raw) if progress < 1 else peak_m
 
 
+def summit_seconds(attempt):
+    if attempt.summit_elapsed is not None:
+        return attempt.summit_elapsed
+    return (attempt.summit_at - attempt.started_at).total_seconds() if attempt.summit_at else None
+
+
 def finish(attempt, now):
     if attempt.result is not None:
         return
@@ -55,7 +61,7 @@ def finish(attempt, now):
         'altitude': altitude(setup['peak'], attempt.progress),
         'speed': round(count / (5 if attempt.language == Language.ENGLISH else 1) / (DURATION_SECONDS / 60), 1),
         'accuracy': round(accuracy), 'summit': progress == 1,
-        'summit_seconds': (attempt.summit_at - attempt.started_at).total_seconds() if progress == 1 and attempt.summit_at else None,
+        'summit_seconds': summit_seconds(attempt) if progress == 1 else None,
     }
     attempt.active_student = None
     attempt.save(update_fields=['result', 'active_student'])
@@ -63,7 +69,7 @@ def finish(attempt, now):
 
 
 @transaction.atomic
-def sync_attempt(student, pk, data):
+def sync_attempt(student, pk, data, *, action=None):
     attempt = TypingAttempt.objects.select_for_update().select_related('activity').filter(
         pk=pk, student=student, activity__in=student_activities(student),
     ).first()
@@ -71,6 +77,12 @@ def sync_attempt(student, pk, data):
         raise NotFound('没有找到该次练习。')
     now = timezone.now()
     if attempt.result is not None:
+        return attempt
+    if attempt.paused_at:
+        if action == 'resume':
+            attempt.deadline_at += now - attempt.paused_at
+            attempt.paused_at = None
+            attempt.save(update_fields=['deadline_at', 'paused_at'])
         return attempt
     if data is not None and now <= attempt.deadline_at and data['seq'] > attempt.checkpoint_seq:
         segments = data['segments']
@@ -90,11 +102,15 @@ def sync_attempt(student, pk, data):
             attempt.progress = min(attempt.progress, Decimal('0.999999999999999999'))
         elif attempt.summit_at is None:
             attempt.summit_at = now
+            attempt.summit_elapsed = DURATION_SECONDS - (attempt.deadline_at - now).total_seconds()
         attempt.checkpoint = segments
         attempt.checkpoint_seq = data['seq']
-        attempt.save(update_fields=['checkpoint', 'checkpoint_seq', 'progress', 'summit_at'])
+        attempt.save(update_fields=['checkpoint', 'checkpoint_seq', 'progress', 'summit_at', 'summit_elapsed'])
     if now >= attempt.deadline_at:
         finish(attempt, now)
+    elif action == 'pause':
+        attempt.paused_at = now
+        attempt.save(update_fields=['paused_at'])
     return attempt
 
 

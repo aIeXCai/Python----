@@ -295,6 +295,7 @@ const gradeLabels = {3:'三',4:'四',5:'五',6:'六',7:'七',8:'八'};
 const unit = () => lang === 'en' ? 'WPM' : '字/分钟';
 const languageName = () => lang === 'zh' ? '中文' : '英文';
 let activity, attempt, result, deadline, syncDue = 0, busy = false, starting = false;
+let controlling = false;
 let sequenceNumber = 0, segments = [], goals = [];
 let rendered = -1, correct = 0, firstCorrect = 0, firstCount = 0, announced = false;
 const notice = text => { $('connection').textContent = text; };
@@ -362,6 +363,9 @@ function routeHeader() {
 
 function showLobby() {
   mode = 'idle';
+  $('desk').dataset.paused = false;
+  $('pause').disabled = true;
+  $('pause').textContent = '暂停';
   attempt = result = null;
   summitAt = null;
   seconds = shown = correct = firstCorrect = firstCount = 0;
@@ -421,7 +425,7 @@ function passage() {
         glyph.onmousedown = event => event.preventDefault();
         glyph.onclick = () => {
           $('pinyin').replaceChildren(c+'　',Object.assign(document.createElement('b'),{textContent:pronunciation}));
-          if (mode === 'typing') $('answer').focus({preventScroll:true});
+          focusInput();
         };
       }
       const pair = Object.assign(document.createElement('span'), {className:'pair'});
@@ -446,6 +450,22 @@ function passage() {
   positionInput(true);
 }
 
+function focusInput() {
+  if (mode !== 'typing') return;
+  const answer = $('answer');
+  window.focus();
+  answer.focus({preventScroll:true});
+}
+
+function updateControls() {
+  const paused = mode === 'paused';
+  $('desk').dataset.paused = paused;
+  $('pause').disabled = controlling || (mode !== 'typing' && !paused);
+  $('pause').textContent = paused ? '继续练习' : '暂停';
+  $('start').disabled = controlling || paused || mode === 'finishing';
+  $('start').textContent = mode === 'done' ? '返回训练' : mode === 'typing' ? '点此输入' : paused ? '训练已暂停' : '结算中';
+}
+
 function openAttempt(record, focus) {
   attempt = record;
   activity = record.activity;
@@ -459,27 +479,33 @@ function openAttempt(record, focus) {
   const current = segments.at(-1);
   if ([...current.text].length === goalAt(currentIndex()).chars.length && !record.result) segments.push({text:'',first:''});
   input = segments.at(-1).text;
-  deadline = performance.now() + Date.parse(record.deadline_at) - Date.parse(record.server_now);
+  deadline = performance.now() + record.remaining_ms;
+  seconds = clamp(300 - record.remaining_ms / 1000, 0, 300);
   result = record.result;
   summitAt = record.summit_seconds;
-  mode = result ? 'done' : record.expired ? 'finishing' : 'typing';
+  mode = result ? 'done' : record.paused ? 'paused' : record.expired ? 'finishing' : 'typing';
+  composing = false;
   syncDue = 0;
   shown = 0;
   rendered = -1;
-  $('start').disabled = !result;
-  $('start').textContent = result ? '返回训练' : '训练进行中';
+  updateControls();
   $('articlePicker').hidden = true;
   $('answer').disabled = mode !== 'typing';
   $('answer').value = input;
-  $('tip').textContent = '对照上行原文输入。红色标出错字，按退格修改。';
+  $('tip').textContent = mode === 'paused'
+    ? '练习已暂停，点击「继续练习」回到原位置。'
+    : '点一下打字区或「点此输入」，对照上行原文输入。红色标出错字，按退格修改。';
   routeHeader();
   countInput();
   passage();
-  if (focus && mode === 'typing') $('answer').focus({preventScroll:true});
+  if (focus) {
+    $('answer').setSelectionRange(input.length, input.length);
+    focusInput();
+  }
 }
 
 function acceptInput() {
-  if (mode !== 'typing' || composing || performance.now() >= deadline) return;
+  if (mode !== 'typing' || controlling || composing || performance.now() >= deadline) return;
   const started = performance.now();
   const goal = goalAt(currentIndex());
   const segment = segments.at(-1);
@@ -512,21 +538,43 @@ function showResult() {
   if (!$('result').open) $('result').showModal();
 }
 
+async function setPaused() {
+  if (controlling || (mode !== 'typing' && mode !== 'paused')) return;
+  const paused = mode === 'paused';
+  controlling = true;
+  updateControls();
+  $('answer').disabled = true;
+  try {
+    const record = await rpc(paused ? 'resume' : 'pause', {
+      attempt: attempt.id,
+      ...(paused ? {} : { seq: ++sequenceNumber, segments }),
+    });
+    openAttempt(record, paused);
+    notice('');
+  } catch (error) {
+    $('answer').disabled = mode !== 'typing';
+    focusInput();
+    notice(error.message);
+  } finally {
+    controlling = false;
+    updateControls();
+  }
+}
+
 async function sync() {
-  if (busy || !activity) return;
+  if (busy || controlling || !activity) return;
   busy = true;
   const syncedAttempt = attempt;
   const syncedLang = lang;
   try {
-    if (syncedAttempt && mode !== 'done') {
+    if (syncedAttempt && (mode === 'typing' || mode === 'finishing')) {
       const reply = await rpc('sync', { attempt: syncedAttempt.id, seq: ++sequenceNumber, segments });
       renderRank(reply.board);
       if (reply.summit_seconds !== null) summitAt = reply.summit_seconds;
       if (reply.result) {
         result = reply.result;
         mode = 'done';
-        $('start').disabled = false;
-        $('start').textContent = '返回训练';
+        updateControls();
         $('answer').disabled = true;
       }
     } else {
@@ -547,6 +595,7 @@ function update(t) {
   if (mode==='typing' && t>=deadline) {
     mode='finishing';
     $('answer').disabled=true;
+    updateControls();
     syncDue=0;
   }
   const p=fraction();
@@ -592,8 +641,13 @@ for(const language of ['zh','en']) $(language).onclick=()=>{
   lang=language;
   showLobby();
 };
+$('pause').onclick = setPaused;
 $('start').onclick=async()=>{
-  if (starting) return;
+  if (mode === 'typing') {
+    focusInput();
+    return;
+  }
+  if (starting || controlling) return;
   starting=true;
   $('start').disabled=true;
   try {
@@ -603,6 +657,7 @@ $('start').onclick=async()=>{
       return;
     }
     if (!activity) return;
+    $('start').textContent = '正在开始…';
     const selected = $('articleSelect').value;
     const record = await rpc('start',{
       activity_id:activity.id, language:lang,
@@ -615,13 +670,19 @@ $('start').onclick=async()=>{
   } finally {starting=false;}
 };
 $('peakInfo').onclick=openPeakInfo;
-$('peakDialog').onclose=()=>{if(mode==='typing')$('answer').focus({preventScroll:true});};
+$('peakDialog').onclose=focusInput;
 $('reviewResult').onclick=showResult;
-$('desk').onclick=()=>{if(mode==='typing')$('answer').focus({preventScroll:true});};
+$('desk').onpointerdown=event=>{
+  if (mode==='typing' && event.pointerType === 'mouse' && !event.target.closest('button')) {
+    event.preventDefault();
+    focusInput();
+  }
+};
+$('desk').onclick=focusInput;
 $('passage').onscroll=()=>positionInput();
 window.onresize=()=>positionInput();
-$('answer').oncompositionstart=()=>{composing=true;};
-$('answer').oncompositionend=()=>{composing=false;acceptInput();};
+$('answer').addEventListener('compositionstart', () => { composing=true; });
+$('answer').addEventListener('compositionend', () => { composing=false; acceptInput(); });
 $('answer').oninput=event=>{if(!event.isComposing)acceptInput();};
 $('answer').onpaste=event=>{event.preventDefault();$('tip').textContent='请用键盘输入，粘贴内容不计入练习。';};
 $('answer').ondrop=event=>event.preventDefault();

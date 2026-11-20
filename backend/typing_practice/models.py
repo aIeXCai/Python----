@@ -133,9 +133,11 @@ class TypingAttempt(models.Model):
     first_article = models.ForeignKey(TypingArticleRevision, on_delete=models.PROTECT)
     started_at = models.DateTimeField()
     deadline_at = models.DateTimeField()
+    paused_at = models.DateTimeField(null=True)
     checkpoint = models.JSONField(default=list)
     checkpoint_seq = models.PositiveIntegerField(default=0)
     summit_at = models.DateTimeField(null=True)
+    summit_elapsed = models.FloatField(null=True)
     progress = models.DecimalField(max_digits=20, decimal_places=18, default=0)
     result = models.JSONField(null=True)
 

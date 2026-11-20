@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError as APIValidationError
 from rest_framework.response import Response
@@ -17,7 +18,7 @@ from .serializers import (
     ArticleOptionsSerializer, ClassSettingsSerializer, PublishActivitySerializer, StartAttemptSerializer,
     SyncAttemptSerializer,
 )
-from .workspace import leaderboard, session_articles, sync_attempt
+from .workspace import leaderboard, session_articles, summit_seconds, sync_attempt
 
 
 def article_summary(article):
@@ -52,11 +53,13 @@ def attempt_data(attempt):
     return {
         'id': attempt.pk, 'language': attempt.language, 'activity': activity_data(attempt.activity),
         'started_at': attempt.started_at, 'deadline_at': attempt.deadline_at, 'server_now': now,
-        'expired': attempt.deadline_at <= now,
+        'expired': attempt.paused_at is None and attempt.deadline_at <= now,
+        'paused': attempt.paused_at is not None,
+        'remaining_ms': max(0, round((attempt.deadline_at - (attempt.paused_at or now)).total_seconds() * 1000)),
         'article': articles[0], 'articles': articles, 'target': settings['rule']['target_per_minute'],
         'checkpoint': attempt.checkpoint, 'checkpoint_seq': attempt.checkpoint_seq,
         'result': attempt.result,
-        'summit_seconds': (attempt.summit_at - attempt.started_at).total_seconds() if attempt.summit_at else None,
+        'summit_seconds': summit_seconds(attempt),
     }
 
 
@@ -136,7 +139,8 @@ class StudentActivitiesView(APIView):
         grade = next((number for number in TRIAL_GRADES if GRADE_LABELS[number] == request.user.grade), None)
         activity = current_activity(grade, request.user.class_num) if grade and request.user.class_num else None
         active = TypingAttempt.objects.filter(
-            active_student=request.user, activity__in=visible, deadline_at__gt=timezone.now(),
+            Q(paused_at__isnull=False) | Q(deadline_at__gt=timezone.now()),
+            active_student=request.user, activity__in=visible,
         ).values_list('pk', flat=True).first()
         return Response({
             'activities': [activity_data(activity, include_options=True)] if activity else [],
@@ -163,7 +167,7 @@ class StudentAttemptView(APIView):
         ).first()
         if attempt is None:
             raise NotFound('没有找到该次练习。')
-        if not attempt.result and attempt.deadline_at <= timezone.now():
+        if not attempt.result and not attempt.paused_at and attempt.deadline_at <= timezone.now():
             attempt = sync_attempt(request.user, attempt_id, None)
         return Response(attempt_data(attempt))
 
@@ -177,7 +181,7 @@ class StudentSyncAttemptView(APIView):
         attempt = sync_attempt(request.user, attempt_id, body.validated_data)
         return Response({
             'ack': attempt.checkpoint_seq, 'result': attempt.result,
-            'summit_seconds': (attempt.summit_at - attempt.started_at).total_seconds() if attempt.summit_at else None,
+            'summit_seconds': summit_seconds(attempt),
             'board': leaderboard(request.user, attempt.activity, attempt.language),
         })
 
@@ -193,3 +197,16 @@ class StudentLeaderboardView(APIView):
         if language not in Language.values:
             raise APIValidationError('请选择中文或英文。')
         return Response(leaderboard(request.user, activity, language))
+
+
+class StudentAttemptControlView(APIView):
+    permission_classes = [IsStudent]
+
+    def post(self, request, attempt_id, action):
+        checkpoint = None
+        if action == 'pause':
+            body = SyncAttemptSerializer(data=request.data)
+            body.is_valid(raise_exception=True)
+            checkpoint = body.validated_data
+        attempt = sync_attempt(request.user, attempt_id, checkpoint, action=action)
+        return Response(attempt_data(attempt))

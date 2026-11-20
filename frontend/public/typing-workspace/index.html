@@ -73,7 +73,16 @@ button.ref{border:0;border-radius:2px;padding:0 1px;color:#4e665b;line-height:in
 @media(max-width:640px){header small{max-width:135px;text-align:right}.grid{grid-template-columns:1fr}.stage{grid-row:1}.mountain{min-height:266px}.peak{padding-left:13px}.watch{right:9px;top:12px}.mapfoot{gap:10px}.mapfoot strong{font-size:14px}.typing{padding:12px}.rows{max-height:210px}}
 @media(min-width:641px) and (max-height:800px){header{padding-block:13px}main{padding-block:15px}.toolbar{margin-bottom:12px}.mountain{min-height:275px}#passage{height:132px}.replay{margin-top:4px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
-.nav{color:var(--muted);font-size:13px;margin:0 7px}#connection{color:#92321f}#articleSelect{max-width:22em}
+
+.actions .toolbar-button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;min-width:93px;margin:0;border-radius:7px;padding:7px 13px;font:inherit;line-height:1.35;text-decoration:none}
+.actions .home,.actions #start{width:155px}
+.actions .home{background:#345a70;color:#fff;border:1px solid #345a70}
+.actions .home:hover{background:#24465a}
+.actions .home:focus-visible{outline:2px solid #3e7957;outline-offset:3px}
+.actions .pause{background:#f3e6bd;color:#46350b;border:1px solid #b9a465}
+#connection{color:#92321f}#articleSelect{max-width:22em}
+#desk[data-paused=true]{cursor:default}
+
 </style>
 <body>
 <header><span class="mark" aria-hidden="true">▲</span><strong>打字登山</strong><small id="headerScope"></small></header>
@@ -83,9 +92,10 @@ button.ref{border:0;border-radius:2px;padding:0 1px;color:#4e665b;line-height:in
     <button id="zh" aria-pressed="true">中文练习</button><button id="en" aria-pressed="false">英文练习</button>
   </div>
   <div class="actions">
-    <a class="nav" id="back" href="../course-select" target="_top">返回欢迎页</a>
+    <a class="toolbar-button home" id="back" href="../course-select" target="_top">返回主页</a>
     <label id="articlePicker" for="articleSelect" hidden>练习文章 <select id="articleSelect"></select></label>
-    <button class="primary" id="start" disabled>开始打字 · 5 分钟</button>
+    <button id="pause" class="toolbar-button pause" type="button" disabled>暂停</button>
+    <button class="toolbar-button primary" id="start" disabled>开始打字 · 5 分钟</button>
   </div>
 </div>
 <div class="grid">

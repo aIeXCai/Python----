@@ -170,7 +170,7 @@ def start_attempt(student, data):
     now = timezone.now()
     active = TypingAttempt.objects.filter(active_student=student).first()
     language = data['language']
-    if active and active.deadline_at > now:
+    if active and (active.paused_at or active.deadline_at > now):
         if active.activity_id == activity.pk and active.language == language:
             return active, False
         raise AttemptConflict('已有一场训练正在计时，请先返回该场。')

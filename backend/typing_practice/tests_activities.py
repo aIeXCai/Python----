@@ -218,3 +218,34 @@ class TypingActivityTests(APITestCase):
             self.assertEqual(TypingPointSubmission.objects.filter(attempt_id=attempt_id).count(), 1)
             self.assertIsNone(TypingAttempt.objects.get(pk=attempt_id).active_student_id)
         self.assertNotEqual(second['id'], attempt_id)
+
+    def test_pause_preserves_checkpoint_through_original_deadline(self):
+        activity = self.publish().data['id']
+        started = self.start(self.alice, activity).data
+        attempt_id = started['id']
+        begin = started['started_at']
+        url = f'/api/typing/attempts/{attempt_id}/'
+        typed = ''.join(started['article']['paragraphs'])[:7]
+        checkpoint = {'seq': 1, 'segments': [{'text': typed, 'first': typed}]}
+
+        with patch('typing_practice.workspace.timezone.now', return_value=begin + timedelta(seconds=40)):
+            response = self.client.post(url + 'pause/', checkpoint, format='json')
+            self.assertEqual(response.status_code, 200, response.data)
+            self.assertTrue(response.data['paused'])
+            self.assertEqual(response.data['remaining_ms'], 260_000)
+
+        resumed_at = begin + timedelta(seconds=340)
+        with patch('typing_practice.workspace.timezone.now', return_value=resumed_at):
+            state = self.client.get(url).data
+            self.assertTrue(state['paused'])
+            self.assertFalse(state['expired'])
+            self.assertEqual(state['remaining_ms'], 260_000)
+            self.assertEqual(state['checkpoint'], checkpoint['segments'])
+            self.assertEqual(self.client.get('/api/typing/activities/').data['active_attempt_id'], attempt_id)
+            self.assertEqual(self.start(self.alice, activity, 'en').status_code, 409)
+            self.assertFalse(TypingPointSubmission.objects.filter(attempt_id=attempt_id).exists())
+            running = self.client.post(url + 'resume/').data
+            self.assertFalse(running['paused'])
+            self.assertEqual(running['deadline_at'], resumed_at + timedelta(seconds=260))
+            self.assertEqual(running['remaining_ms'], 260_000)
+            self.assertEqual(self.client.post(url + 'resume/').data['deadline_at'], running['deadline_at'])

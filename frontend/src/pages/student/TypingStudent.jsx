@@ -60,6 +60,12 @@ export default function TypingStudent() {
           case 'sync':
             send(await typingApi.sync(data.attempt, { seq: data.seq, segments: data.segments }, signal))
             break
+          case 'pause':
+            send(await typingApi.pause(data.attempt, { seq: data.seq, segments: data.segments }, signal))
+            break
+          case 'resume':
+            send(await typingApi.resume(data.attempt, signal))
+            break
           case 'clear':
             setCurrentAttempt(null)
             send(null)
