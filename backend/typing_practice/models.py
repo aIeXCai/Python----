@@ -96,7 +96,7 @@ class ArticleMode(models.TextChoices):
 
 
 class TypingActivity(models.Model):
-    teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    teacher = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT)
     grade = models.PositiveSmallIntegerField(choices=tuple(GRADE_LABELS.items()))
     class_num = models.CharField(max_length=20)
     title = models.CharField(max_length=100)
@@ -108,6 +108,17 @@ class TypingActivity(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['grade', 'class_num', 'closed_at'], name='typing_activity_class_idx'),
+        ]
+
+
+class TypingClassSettings(models.Model):
+    grade = models.PositiveSmallIntegerField(choices=tuple(GRADE_LABELS.items()))
+    class_num = models.CharField(max_length=20)
+    activity = models.OneToOneField(TypingActivity, null=True, on_delete=models.PROTECT)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['grade', 'class_num'], name='typing_settings_class_unique'),
         ]
 
 

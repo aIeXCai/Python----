@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from rest_framework.test import APITestCase
 
-from .models import TypingActivity, TypingArticleRevision, TypingAttempt, TypingSpeedRule
+from .models import TypingActivity, TypingArticleRevision, TypingAttempt, TypingClassSettings, TypingSpeedRule
 from .peaks import PEAKS
 
 
@@ -103,7 +103,9 @@ class TypingActivityTests(APITestCase):
         self.assertEqual(self.start(self.alice, activity, 'en', article_id=1).status_code, 409)
         for outsider in (self.other_class, self.other_grade):
             self.assertEqual(self.start(outsider, activity).status_code, 404)
-            self.assertEqual(self.client.get('/api/typing/activities/').data['activities'], [])
+            separate, = self.client.get('/api/typing/activities/').data['activities']
+            self.assertNotEqual(separate['id'], activity)
+            self.assertTrue(separate['is_default'])
             self.assertEqual(self.client.get(f"/api/typing/attempts/{a['id']}/").status_code, 404)
         self.client.force_authenticate(self.teacher8)
         self.assertEqual(self.client.post(f'/api/typing/teacher/activities/{activity}/close/').status_code, 404)
@@ -112,7 +114,10 @@ class TypingActivityTests(APITestCase):
         self.assertEqual(self.start(self.bob, activity).status_code, 409)
         self.assertEqual(self.start(self.alice, activity).status_code, 200)
         listing = self.client.get('/api/typing/activities/').data
-        self.assertEqual(listing, {'activities': [], 'active_attempt_id': a['id']})
+        self.assertEqual(listing['active_attempt_id'], a['id'])
+        fallback, = listing['activities']
+        self.assertTrue(fallback['is_default'])
+        self.assertNotEqual(fallback['id'], activity)
         resumed = self.client.get(f"/api/typing/attempts/{a['id']}/")
         self.assertEqual(resumed.data['deadline_at'], a['deadline_at'])
         self.assertFalse(resumed.data['expired'])
@@ -130,3 +135,46 @@ class TypingActivityTests(APITestCase):
         articles = response.data[0]['articles']
         self.assertEqual(len(articles), 2)
         self.assertTrue(all(item['version'] == 2 for item in articles))
+
+    def test_first_visit_auto_opens_class_for_both_languages(self):
+        self.assertFalse(TypingActivity.objects.exists())
+        scope = '/api/typing/activities/'
+        self.client.force_authenticate(self.alice)
+        initial, = self.client.get(scope).data['activities']
+        self.assertTrue(initial['is_default'])
+        self.assertEqual(initial['grade'], 7)
+        self.assertEqual(initial['class_num'], '1')
+        self.assertEqual(initial['languages']['zh']['mode'], 'random')
+        self.assertEqual(initial['languages']['en']['mode'], 'random')
+        self.assertFalse(initial['languages']['zh']['pinyin'])
+        self.assertNotEqual(initial['languages']['zh']['peak']['id'], initial['languages']['en']['peak']['id'])
+        self.client.force_authenticate(self.bob)
+        self.assertEqual(self.client.get(scope).data['activities'], [initial])
+        self.assertEqual(self.start(self.bob, initial['id'], 'en').status_code, 201)
+        self.assertEqual(TypingActivity.objects.count(), 1)
+        self.assertEqual(TypingClassSettings.objects.count(), 1)
+
+    def test_save_parameters_replaces_current_and_preserves_in_progress_attempt(self):
+        self.client.force_authenticate(self.alice)
+        initial, = self.client.get('/api/typing/activities/').data['activities']
+        started = self.start(self.alice, initial['id']).data
+        published = self.publish(zh={'mode': 'free', 'difficulty': '基础', 'pinyin': True})
+        self.assertEqual(published.status_code, 201, published.data)
+        current = published.data
+        self.assertFalse(current['is_default'])
+        self.assertNotEqual(current['id'], initial['id'])
+        self.assertEqual(self.client.get('/api/typing/teacher/activities/?grade=7&class_num=1').data, current)
+        self.assertEqual(self.start(self.bob, initial['id']).status_code, 409)
+        listing = self.client.get('/api/typing/activities/').data
+        next_activity, = listing['activities']
+        self.assertEqual(next_activity['id'], current['id'])
+        self.assertEqual(next_activity['languages']['zh']['mode'], 'free')
+        self.assertTrue(next_activity['languages']['zh']['pinyin'])
+        option = next_activity['languages']['zh']['articles'][0]
+        self.assertEqual(self.start(self.bob, current['id'], article_id=option['id']).status_code, 201)
+        self.client.force_authenticate(self.alice)
+        resumed = self.client.get(f"/api/typing/attempts/{started['id']}/").data
+        self.assertEqual(resumed['deadline_at'], started['deadline_at'])
+        self.assertEqual(resumed['article'], started['article'])
+        self.assertEqual(resumed['activity']['id'], initial['id'])
+        self.assertFalse(resumed['activity']['languages']['zh']['pinyin'])

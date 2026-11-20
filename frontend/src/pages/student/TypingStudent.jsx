@@ -75,7 +75,7 @@ export default function TypingStudent() {
   const attemptId = params.get('attempt')
   const [activities, setActivities] = useState([])
   const [activeId, setActiveId] = useState(null)
-  const [selected, setSelected] = useState(null)
+  const [reloadCount, setReloadCount] = useState(0)
   const [language, setLanguage] = useState('zh')
   const [articleId, setArticleId] = useState('')
   const [attempt, setAttempt] = useState(null)
@@ -97,8 +97,7 @@ export default function TypingStudent() {
         if (!controller.signal.aborted) {
           setActivities(response.activities)
           setActiveId(response.active_attempt_id)
-          setSelected(previous => response.activities.some(item => item.id === previous)
-            ? previous : response.activities[0]?.id ?? null)
+
         }
       }
     }
@@ -108,9 +107,9 @@ export default function TypingStudent() {
       if (!controller.signal.aborted) setLoading(false)
     })
     return () => controller.abort()
-  }, [attemptId, attempt])
+  }, [attemptId, attempt, reloadCount])
 
-  const activity = activities.find(item => item.id === selected)
+  const activity = activities[0]
   const setup = activity?.languages[language]
   const article = setup?.articles?.find(item => String(item.id) === articleId) || setup?.articles?.[0]
 
@@ -144,6 +143,7 @@ export default function TypingStudent() {
       <h1>打字训练</h1>
       {loading && !showingAttempt && <p role="status">正在加载…</p>}
       {error && <p role="alert" className="typing-error">{error}</p>}
+      {error && !attemptId && <button type="button" onClick={() => setReloadCount(count => count + 1)}>刷新训练设置</button>}
       {attemptId && error && <button type="button" onClick={leave}>返回训练列表</button>}
       {showingAttempt && <StartedAttempt attempt={attempt} onLeave={leave} />}
       {!attemptId && !loading && <>
@@ -151,15 +151,9 @@ export default function TypingStudent() {
           <p>你有一场正在计时的训练。</p>
           <button className="typing-primary" type="button" onClick={() => setParams({ attempt: activeId })}>继续训练</button>
         </section>}
-        {!activity && !error && <p>当前没有可参加的打字训练。</p>}
+        {!activity && !error && <p>本年级暂无可用练习文章，请联系老师。</p>}
         {activity && <section className="typing-panel">
           <div className="typing-grid">
-            <label>训练场次<select value={selected} onChange={event => {
-              setSelected(Number(event.target.value))
-              setArticleId('')
-            }}>
-              {activities.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
-            </select></label>
             <label>练习语言<select value={language} onChange={event => {
               setLanguage(event.target.value)
               setArticleId('')

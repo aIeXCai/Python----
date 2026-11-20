@@ -16,7 +16,7 @@ class LanguageSetupSerializer(serializers.Serializer):
 
 
 class PublishActivitySerializer(serializers.Serializer):
-    title = serializers.CharField(max_length=100)
+    title = serializers.CharField(max_length=100, default='打字训练')
     grade = serializers.IntegerField(min_value=3, max_value=8)
     class_num = serializers.CharField(max_length=20)
     zh = LanguageSetupSerializer()
@@ -28,9 +28,12 @@ class PublishActivitySerializer(serializers.Serializer):
         return value
 
 
-class ArticleOptionsSerializer(serializers.Serializer):
+class ClassSettingsSerializer(serializers.Serializer):
     grade = serializers.IntegerField(min_value=3, max_value=8)
     class_num = serializers.CharField(max_length=20)
+
+
+class ArticleOptionsSerializer(ClassSettingsSerializer):
     language = serializers.ChoiceField(choices=Language.values)
     pinyin = serializers.BooleanField(default=False)
 

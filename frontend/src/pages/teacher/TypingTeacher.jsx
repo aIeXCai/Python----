@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ARTICLE_MODES, LANGUAGE_NAMES, typingApi, typingError } from '../../api/typing.js'
 import '../typing.css'
 
-const EMPTY_SETUP = { mode: 'fixed', difficulty: '', articleId: '', pinyin: false }
+const EMPTY_SETUP = { mode: 'random', difficulty: '', articleId: '', pinyin: false }
 const LANGUAGES = Object.keys(LANGUAGE_NAMES)
 
 function LanguageFields({ language, setup, options, onChange, loading, hasClass }) {
@@ -48,8 +48,8 @@ function LanguageFields({ language, setup, options, onChange, loading, hasClass 
 
 export default function TypingTeacher() {
   const [classes, setClasses] = useState([])
-  const [activities, setActivities] = useState([])
-  const [title, setTitle] = useState('')
+  const [loadedScope, setLoadedScope] = useState(null)
+  const [current, setCurrent] = useState(null)
   const [selection, setSelection] = useState('')
   const [setups, setSetups] = useState({ zh: EMPTY_SETUP, en: EMPTY_SETUP })
   const [options, setOptions] = useState(null)
@@ -62,10 +62,9 @@ export default function TypingTeacher() {
 
   useEffect(() => {
     const controller = new AbortController()
-    Promise.all([typingApi.teacherClasses(controller.signal), typingApi.teacherActivities(controller.signal)])
-      .then(([classOptions, existing]) => {
+    typingApi.teacherClasses(controller.signal)
+      .then(classOptions => {
         setClasses(classOptions)
-        setActivities(existing)
         const first = classOptions.find(item => item.classes.length)
         if (first) setSelection(JSON.stringify([first.grade, first.classes[0]]))
       })
@@ -77,15 +76,35 @@ export default function TypingTeacher() {
   useEffect(() => {
     if (!grade || !classNum) return
     const controller = new AbortController()
+    typingApi.teacherSettings({ grade, class_num: classNum }, controller.signal)
+      .then(activity => {
+        if (controller.signal.aborted) return
+        setCurrent(activity)
+        setSetups(Object.fromEntries(LANGUAGES.map(language => {
+          const saved = activity?.languages[language]
+          return [language, saved ? {
+            mode: saved.mode, difficulty: saved.difficulty,
+            articleId: saved.article_id ? String(saved.article_id) : '', pinyin: saved.pinyin,
+          } : EMPTY_SETUP]
+        })))
+        setLoadedScope(selection)
+      })
+      .catch(err => { if (!controller.signal.aborted) setError(typingError(err)) })
+    return () => controller.abort()
+  }, [classNum, grade, selection])
+
+  useEffect(() => {
+    if (!grade || !classNum || loadedScope !== selection) return
+    const controller = new AbortController()
     Promise.all(LANGUAGES.map(language => typingApi.teacherArticles({
       grade, class_num: classNum, language, pinyin: language === 'zh' && pinyin,
     }, controller.signal)))
       .then(([zh, en]) => { if (!controller.signal.aborted) setOptions({ selection, pinyin, zh, en }) })
       .catch(err => { if (!controller.signal.aborted) setError(typingError(err)) })
     return () => controller.abort()
-  }, [classNum, grade, pinyin, selection])
+  }, [classNum, grade, loadedScope, pinyin, selection])
 
-  const currentOptions = options?.selection === selection && options.pinyin === pinyin ? options : null
+  const currentOptions = loadedScope === selection && options?.selection === selection && options.pinyin === pinyin ? options : null
   const publishable = LANGUAGES.every(language => currentOptions?.[language].length)
 
   async function publish(event) {
@@ -94,7 +113,7 @@ export default function TypingTeacher() {
     setPending(true)
     setError('')
     setNotice('')
-    const payload = { title: title.trim(), grade: Number(grade), class_num: classNum }
+    const payload = { grade: Number(grade), class_num: classNum }
     for (const language of LANGUAGES) {
       const setup = setups[language]
       const items = currentOptions[language]
@@ -107,24 +126,8 @@ export default function TypingTeacher() {
     }
     try {
       const activity = await typingApi.publish(payload)
-      setActivities(previous => [activity, ...previous])
-      setTitle('')
-      setNotice(`已发布「${activity.title}」。`)
-    } catch (err) {
-      setError(typingError(err))
-    } finally {
-      setPending(false)
-    }
-  }
-
-  async function close(activity) {
-    setPending(true)
-    setError('')
-    setNotice('')
-    try {
-      const updated = await typingApi.close(activity.id)
-      setActivities(previous => previous.map(item => item.id === updated.id ? updated : item))
-      setNotice(`「${activity.title}」已停止接受新练习。`)
+      setCurrent(activity)
+      setNotice('设置已保存，下次开始练习时生效。')
     } catch (err) {
       setError(typingError(err))
     } finally {
@@ -141,12 +144,12 @@ export default function TypingTeacher() {
       {notice && <p role="status">{notice}</p>}
       {!initialLoading && !classes.some(item => item.classes.length) && <p>当前管理范围内没有可用班级。</p>}
       {!!classes.length && <form className="typing-panel" onSubmit={publish}>
-        <h2>发布新训练</h2>
-        <div className="typing-grid">
-          <label>训练名称<input required maxLength={100} value={title} onChange={event => setTitle(event.target.value)} /></label>
-          <label>班级<select disabled={!selection} value={selection} onChange={event => {
+        <h2>班级训练设置</h2>
+        <label>班级<select disabled={!selection || pending} value={selection} onChange={event => {
             setSelection(event.target.value)
-            setSetups({ zh: EMPTY_SETUP, en: EMPTY_SETUP })
+            setLoadedScope(null)
+            setCurrent(null)
+            setNotice('')
             setError('')
           }}>
             {!selection && <option value="">暂无班级</option>}
@@ -154,31 +157,23 @@ export default function TypingTeacher() {
               <option key={`${item.grade}:${classId}`} value={JSON.stringify([item.grade, classId])}>{item.label} {classId} 班</option>
             )))}
           </select></label>
-        </div>
-        <div className="typing-grid">
+        {selection && loadedScope !== selection && !error && <p role="status">正在读取设置…</p>}
+        {loadedScope === selection && <div className="typing-grid">
           {LANGUAGES.map(language => <LanguageFields
             key={language} language={language} setup={setups[language]} options={currentOptions?.[language] || []}
             loading={Boolean(selection && !currentOptions && !error)} hasClass={Boolean(selection)}
             onChange={change => setSetups(previous => ({ ...previous, [language]: { ...previous[language], ...change } }))}
           />)}
-        </div>
-        <button className="typing-primary" disabled={pending || !publishable || !title.trim()}>发布训练</button>
+        </div>}
+        <button className="typing-primary" disabled={pending || !publishable}>保存设置</button>
       </form>}
-      <section className="typing-panel">
-        <h2>已发布训练</h2>
-        {!activities.length && <p>暂无训练。</p>}
-        {activities.map(activity => <article className="typing-activity" key={activity.id}>
-          <div>
-            <h3>{activity.title}</h3>
-            <p>{activity.grade} 年级 {activity.class_num} 班 · {activity.closed_at ? '已停止加入' : '接受加入'}</p>
-            {LANGUAGES.map(language => {
-              const setup = activity.languages[language]
-              return <p key={language}>{LANGUAGE_NAMES[language]} · {setup.peak.name} · {ARTICLE_MODES[setup.mode]}{setup.pinyin && ' · 拼音开启'}</p>
-            })}
-          </div>
-          {!activity.closed_at && <button type="button" disabled={pending} onClick={() => close(activity)}>停止加入</button>}
-        </article>)}
-      </section>
+      {current && loadedScope === selection && <section className="typing-panel">
+        <h2>{current.is_default ? '当前使用默认设置' : '当前生效设置'}</h2>
+        {LANGUAGES.map(language => {
+          const setup = current.languages[language]
+          return <p key={language}>{LANGUAGE_NAMES[language]} · {setup.peak.name} · {ARTICLE_MODES[setup.mode]} · {setup.difficulty}{setup.pinyin && ' · 拼音开启'}</p>
+        })}
+      </section>}
     </main>
   )
 }

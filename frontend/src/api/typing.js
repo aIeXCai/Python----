@@ -3,9 +3,8 @@ import { request } from './index.js'
 export const typingApi = {
   teacherClasses: signal => request('/typing/teacher/classes/', { signal }),
   teacherArticles: (query, signal) => request('/typing/teacher/articles/?' + new URLSearchParams(query), { signal }),
-  teacherActivities: signal => request('/typing/teacher/activities/', { signal }),
+  teacherSettings: (query, signal) => request('/typing/teacher/activities/?' + new URLSearchParams(query), { signal }),
   publish: payload => request('/typing/teacher/activities/', { method: 'POST', body: JSON.stringify(payload) }),
-  close: id => request(`/typing/teacher/activities/${id}/close/`, { method: 'POST' }),
   activities: signal => request('/typing/activities/', { signal }),
   attempt: (id, signal) => request(`/typing/attempts/${id}/`, { signal }),
   start: payload => request('/typing/attempts/', { method: 'POST', body: JSON.stringify(payload) }),

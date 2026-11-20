@@ -8,31 +8,33 @@ from rest_framework.views import APIView
 from users.permissions import IsStudent, IsTeacher
 
 from .activities import (
-    close_activity, managed_grades, publish_activity, require_class, start_attempt, student_activities,
+    TRIAL_GRADES, close_activity, current_activity, managed_grades, publish_activity, require_class, start_attempt, student_activities,
     teacher_activities, trial_speed_rules,
 )
 from .article_pool import require_article_pool
 from .models import ArticleMode, GRADE_LABELS, Language, TypingArticleRevision, TypingAttempt
-from .serializers import ArticleOptionsSerializer, PublishActivitySerializer, StartAttemptSerializer
+from .serializers import ArticleOptionsSerializer, ClassSettingsSerializer, PublishActivitySerializer, StartAttemptSerializer
 
 
 def article_summary(article):
     return {'id': article.pk, 'title': article.title, 'version': article.version}
 
 
-def activity_data(activity, *, include_options=False):
+def activity_data(activity, *, include_options=False, for_teacher=False):
     languages = {}
     for language, setup in activity.languages.items():
         languages[language] = {
             key: setup[key] for key in ('mode', 'difficulty', 'pinyin', 'peak')
         }
+        if for_teacher and setup['mode'] == ArticleMode.FIXED:
+            languages[language]['article_id'] = setup['article_ids'][0]
         if include_options and setup['mode'] == ArticleMode.FREE:
             candidates = TypingArticleRevision.objects.filter(pk__in=setup['article_ids']).order_by('title', 'pk')
             languages[language]['articles'] = [article_summary(article) for article in candidates]
     return {
         'id': activity.pk, 'title': activity.title, 'grade': activity.grade,
         'class_num': activity.class_num, 'languages': languages, 'published_at': activity.published_at,
-        'closed_at': activity.closed_at,
+        'closed_at': activity.closed_at, 'is_default': activity.teacher_id is None,
     }
 
 
@@ -96,13 +98,20 @@ class TeacherActivitiesView(APIView):
     permission_classes = [IsTeacher]
 
     def get(self, request):
+        if request.query_params:
+            query = ClassSettingsSerializer(data=request.query_params)
+            query.is_valid(raise_exception=True)
+            scope = query.validated_data
+            require_class(request.user, **scope)
+            activity = current_activity(**scope)
+            return Response(activity_data(activity, for_teacher=True) if activity else None)
         activities = teacher_activities(request.user).order_by('-published_at', '-pk')[:50]
         return Response([activity_data(activity) for activity in activities])
 
     def post(self, request):
         body = PublishActivitySerializer(data=request.data)
         body.is_valid(raise_exception=True)
-        return Response(activity_data(publish_activity(request.user, body.validated_data)), status=201)
+        return Response(activity_data(publish_activity(request.user, body.validated_data), for_teacher=True), status=201)
 
 
 class TeacherCloseActivityView(APIView):
@@ -117,12 +126,13 @@ class StudentActivitiesView(APIView):
 
     def get(self, request):
         visible = student_activities(request.user)
-        activities = visible.filter(closed_at__isnull=True).order_by('-published_at', '-pk')
+        grade = next((number for number in TRIAL_GRADES if GRADE_LABELS[number] == request.user.grade), None)
+        activity = current_activity(grade, request.user.class_num) if grade and request.user.class_num else None
         active = TypingAttempt.objects.filter(
             active_student=request.user, activity__in=visible, deadline_at__gt=timezone.now(),
         ).values_list('pk', flat=True).first()
         return Response({
-            'activities': [activity_data(activity, include_options=True) for activity in activities],
+            'activities': [activity_data(activity, include_options=True)] if activity else [],
             'active_attempt_id': active,
         })
 
