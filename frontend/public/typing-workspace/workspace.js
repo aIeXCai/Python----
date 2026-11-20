@@ -298,7 +298,7 @@ let activity, attempt, result, deadline, syncDue = 0, busy = false, starting = f
 let controlling = false;
 let rotationTimer, bestsTimer, bestsRequest = 0;
 let sequenceNumber = 0, segments = [], goals = [];
-let completedArticle = false;
+let completedArticle = false, singleArticle = true;
 let rendered = -1, correct = 0, matchedCharacters = 0, typedCharacters = 0, announced = false;
 const notice = text => { $('connection').textContent = text; };
 const currentIndex = () => segments.length - 1;
@@ -492,7 +492,12 @@ function openAttempt(record, focus) {
   segments = record.checkpoint.length ? record.checkpoint : [{text:'', first:''}];
   sequenceNumber = record.checkpoint_seq;
   const current = segments.at(-1);
-  completedArticle = !record.result && [...current.text].length === goalAt(currentIndex()).chars.length;
+  singleArticle = record.articles.length === 1 && segments.length === 1;
+  const finishedPassage = !record.result && [...current.text].length === goalAt(currentIndex()).chars.length;
+  completedArticle = singleArticle && finishedPassage;
+  if (!singleArticle && finishedPassage && segments.length < 200) {
+    segments.push({text:'', first:''});
+  }
   input = segments.at(-1).text;
   deadline = performance.now() + record.remaining_ms;
   seconds = clamp(300 - record.remaining_ms / 1000, 0, 300);
@@ -533,11 +538,16 @@ function acceptInput() {
   segment.first = first.join('');
   segment.text = input;
   if (value.length === goal.chars.length) {
-    completedArticle = true;
-    mode = 'finishing';
-    $('answer').disabled = true;
-    updateControls();
-    syncDue = 0;
+    if (singleArticle) {
+      completedArticle = true;
+      mode = 'finishing';
+      $('answer').disabled = true;
+      updateControls();
+      syncDue = 0;
+    } else if (segments.length < 200) {
+      segments.push({text:'', first:''});
+      $('answer').value = input = '';
+    }
   }
   countInput();
   passage();
@@ -552,7 +562,7 @@ function showResult() {
   $('points').textContent = result.points;
   $('resultSpeed').textContent = Number(result.speed).toFixed(1)+' '+unit();
   $('resultAccuracy').textContent = result.accuracy+'%';
-  $('resultnote').textContent = '单篇练习 · 最长五分钟';
+  $('resultnote').textContent = singleArticle ? '单篇练习 · 最长五分钟' : '五分钟打字练习';
   if ($('peakDialog').open) $('peakDialog').close();
   if (!$('result').open) $('result').showModal();
 }

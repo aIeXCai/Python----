@@ -61,7 +61,11 @@ export default function TypingStudent() {
             send(await typingApi.board(data.activity, data.language, signal))
             break
           case 'sync':
-            send(await typingApi.sync(data.attempt, { seq: data.seq, segments: data.segments }, signal))
+            send(await typingApi.sync(data.attempt, {
+              seq: data.seq,
+              segments: data.segments,
+              complete: Boolean(data.complete),
+            }, signal))
             break
           case 'pause':
             send(await typingApi.pause(data.attempt, { seq: data.seq, segments: data.segments }, signal))
