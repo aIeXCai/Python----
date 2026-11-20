@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>打字登山</title>
+<style>
+:root{color-scheme:light;--paper:#f0f1e9;--ink:#193128;--muted:#4e665b;--line:#cbd4c8;--accent:#c9ed82;--white:#fafbf5;--mono:"SFMono-Regular",Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+button,select,textarea{font:inherit}button{cursor:pointer}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #3e7957;outline-offset:3px}
+button:disabled{cursor:default;opacity:.55} [hidden]{display:none!important}
+header{max-width:1440px;margin:auto;padding:19px 32px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line)}
+.mark{display:grid;place-items:center;background:#18352b;color:var(--accent);width:38px;height:38px;font-size:22px;border-radius:9px}
+header strong{font-size:19px;letter-spacing:.06em}header small{color:var(--muted);margin-left:auto}
+main{max-width:1440px;margin:auto;padding:22px 32px 24px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:17px}
+.tabs,.actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tabs{border:1px solid var(--line);border-radius:9px;padding:3px}
+button,select{background:var(--white);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:7px 13px}
+.tabs button{background:transparent;border-color:transparent;color:var(--muted)}
+.tabs [aria-pressed="true"],.primary{background:#18352b;color:#fff;border-color:#18352b}
+.actions label{display:flex;align-items:center;gap:5px;color:var(--muted);margin-left:5px}
+.grid{display:grid;grid-template-columns:246px minmax(0,1fr);gap:16px;align-items:start}
+aside,.typing{background:var(--white);border:1px solid var(--line);border-radius:12px}
+aside{overflow:hidden}.rankhead{padding:17px 16px 11px}.rankhead h2,h2{font-size:16px;margin:0}.rankhead p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.rankcols,.row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:7px}
+.rankcols{padding:8px 13px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--line)}
+.rows{max-height:350px;overflow:auto;scrollbar-width:thin}.row{padding:9px 13px;min-height:49px;border-bottom:1px solid #e6ebe0;font-size:13px}
+.row.self{background:#e5f0d7}.rank{color:var(--muted);font:13px var(--mono)}.alt{font:600 13px var(--mono);white-space:nowrap}
+.bar{height:3px;background:#e0e9d9;margin-top:5px;max-width:86px;border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;background:#749867;transition:width .24s}
+#pinned{border-top:1px solid var(--line)}.boardfoot{padding:10px 14px;font-size:11px;color:var(--muted)}
+.stage{min-width:0;display:grid;gap:14px}.mountain{position:relative;overflow:hidden;border-radius:12px;background:#183d34;color:white;min-height:312px;isolation:isolate}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.peak{position:relative;pointer-events:none;padding:21px 23px;text-shadow:0 1px 12px #17342b;max-width:58%}
+.peak small{font-size:11px;letter-spacing:.14em;color:#e1eadb}.peak h1{font-family:"Songti SC",SimSun,serif;font-size:clamp(24px,3.7vw,43px);line-height:1.12;margin:5px 0 4px;letter-spacing:.04em}
+.peakheading{display:flex;align-items:flex-start;gap:8px}
+.peak-info{pointer-events:auto;flex:none;width:25px;height:25px;padding:0;margin-top:3px;border-radius:50%;border-color:#d3e2d9;background:#17342bd9;color:#fff;font:700 15px/1 Georgia,serif}
+.peak-info:focus-visible{outline-color:#d9fc99}.peak-info:hover{background:#285648}
+.watch{position:absolute;top:19px;right:19px;padding:9px 13px;background:#122e26e8;border:1px solid #b1c7b668;border-radius:8px;text-align:right}
+.watch small{display:block;color:#dfead9;font-size:11px}.watch strong{font:600 25px var(--mono);font-variant-numeric:tabular-nums}
+.mapfoot{position:absolute;bottom:0;left:0;right:0;background:#122e26ed;border-top:1px solid #a0b6a76b;display:flex;gap:22px;padding:9px 16px;align-items:center;font-size:12px}
+.mapfoot strong{color:var(--accent);font:600 17px var(--mono)}.mapfoot span:last-child{margin-left:auto;color:#dce8d8;text-align:right}
+#summit{position:absolute;left:22px;top:115px;background:var(--accent);color:#152e24;padding:8px 13px;border-radius:6px;font-weight:750;animation:flag .38s ease-out}
+@keyframes flag{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.typing{padding:15px 19px}.typinghead{display:flex;justify-content:space-between;gap:12px;align-items:center}.stats{color:var(--muted);font-size:12px;text-align:right}.stats b{color:var(--ink);font:600 13px var(--mono)}
+#desk{position:relative;margin:10px 0 7px;border:1px solid #b6c5b4;border-radius:8px;background:#f3f6ed;cursor:text}
+#desk:focus-within{outline:2px solid #6d926b;outline-offset:2px}
+#passage{height:146px;overflow:auto;overscroll-behavior:contain;padding:9px 10px;font-size:18px;line-height:1.3;white-space:pre-wrap}
+#passage.english{font-family:var(--mono);font-size:16px}
+.pair{display:inline-grid;vertical-align:top;grid-template-rows:1fr 1fr;width:1.25em;margin-bottom:7px;text-align:center}
+.english .pair{width:.70em}.ref,.typed{display:block;min-width:0;min-height:1.28em;padding:0 1px;white-space:pre}
+.ref{color:#4e665b}.typed{background:#e9efe2;border-bottom:2px solid #d3ded0;color:#193128;overflow:hidden}
+.pair.ok .typed{color:#256044;background:#dcebd5;border-color:#82ae76}
+.pair.bad .typed{color:#92321f;background:#f8dfda;border-color:#c56654}
+.pair.current .ref,.pair.current .typed{background:#f3e6a8}.pair.current .typed{border-color:#756832}
+button.ref{border:0;border-radius:2px;padding:0 1px;color:#4e665b;line-height:inherit;background:transparent}button.ref:hover{background:#dbebce}
+.word{display:inline-block;white-space:nowrap}
+#pinyin{min-height:24px;margin:0;color:var(--muted);font-size:12px}#pinyin b{color:#214f3a;font-size:14px}
+#answer{position:absolute;width:2px;height:1.3em;padding:0;border:0;opacity:0;resize:none;font-size:17px;pointer-events:none}
+.typingfoot{margin:8px 0 0;font-size:12px;color:var(--muted)}
+.result{width:min(500px,calc(100% - 32px));padding:0;border:1px solid var(--line);border-radius:14px;background:var(--white);color:var(--ink);box-shadow:0 24px 80px #122e2677}
+.result::backdrop{background:#0b201bc2}.resulthead{padding:23px 24px 18px;background:#1d4034;color:white}
+.resulthead p{margin:0 0 5px;font-size:12px;color:#cce1cb}.resulthead h2{font-size:28px}.resulthead #resultElevation{display:block;color:var(--accent);font:700 32px var(--mono);margin-top:8px}
+.resultbody{padding:19px 24px}.resultscores{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px;margin:0}
+.resultscores div{border-bottom:1px solid var(--line);padding-bottom:7px}.resultscores dt{font-size:12px;color:var(--muted)}.resultscores dd{margin:3px 0 0;font-weight:700}
+.resultfooter{display:flex;justify-content:flex-end;padding-top:16px}#reviewResult{font-size:12px}
+.peak-summary{margin:0 0 15px}.peak-details{margin:0;display:grid;gap:7px}
+.peak-details div{display:grid;grid-template-columns:5em 1fr;gap:8px}.peak-details dd{margin:0}.peak-details dt{color:var(--muted)}
+.peak-source{font-size:12px;margin:15px 0 0}.peak-source a{color:#285d44}
+.replay{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;color:var(--muted);font-size:12px}.replay input{accent-color:#315d46;flex:1;min-width:100px}
+.diagnostics{display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
+.diagnostics label{display:inline-flex;align-items:center;gap:4px}.diagnostics b{font-family:var(--mono);color:var(--ink)}
+@media(max-width:850px){header,main{padding-left:15px;padding-right:15px}.grid{grid-template-columns:170px minmax(0,1fr)}.row,.rankcols{padding-inline:8px;gap:4px}.mountain{min-height:285px}}
+@media(max-width:640px){header small{max-width:135px;text-align:right}.grid{grid-template-columns:1fr}.stage{grid-row:1}.mountain{min-height:266px}.peak{padding-left:13px}.watch{right:9px;top:12px}.mapfoot{gap:10px}.mapfoot strong{font-size:14px}.typing{padding:12px}.rows{max-height:210px}}
+@media(min-width:641px) and (max-height:800px){header{padding-block:13px}main{padding-block:15px}.toolbar{margin-bottom:12px}.mountain{min-height:275px}#passage{height:132px}.replay{margin-top:4px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+.nav{color:var(--muted);font-size:13px;margin:0 7px}#connection{color:#92321f}#articleSelect{max-width:22em}
+</style>
+<body>
+<header><span class="mark" aria-hidden="true">▲</span><strong>打字登山</strong><small id="headerScope"></small></header>
+<main>
+<div class="toolbar">
+  <div class="tabs" role="group" aria-label="练习语言">
+    <button id="zh" aria-pressed="true">中文练习</button><button id="en" aria-pressed="false">英文练习</button>
+  </div>
+  <div class="actions">
+    <a class="nav" id="back" href="../course-select" target="_top">返回欢迎页</a>
+    <label id="articlePicker" for="articleSelect" hidden>练习文章 <select id="articleSelect"></select></label>
+    <button class="primary" id="start" disabled>开始打字 · 5 分钟</button>
+  </div>
+</div>
+<div class="grid">
+  <aside aria-label="班级榜">
+    <div class="rankhead"><h2>班级海拔榜</h2><p id="rankscope">正在加载…</p></div>
+    <div class="rankcols"><span>排名</span><span>学生</span><span>海拔</span></div>
+    <div class="rows" id="rows"></div><div id="pinned"></div>
+    <div class="boardfoot">每 2 秒更新</div>
+  </aside>
+  <div class="stage">
+    <section class="mountain" aria-label="登山进度示意图">
+      <canvas id="map" role="img" aria-label="攀登路线示意图"></canvas>
+      <div class="peak">
+        <small id="zone"></small>
+        <div class="peakheading"><h1 id="peak"></h1><button id="peakInfo" class="peak-info" type="button" aria-label="山峰介绍" aria-haspopup="dialog">i</button></div>
+      </div>
+      <div class="watch"><small id="timeLabel">剩余时间</small><strong id="timer">05:00</strong></div>
+      <div id="summit" role="status" hidden></div>
+      <div class="mapfoot"><span>进度 <strong id="progress">0%</strong></span><span>红线为路线示意 · 山景为 AI 插画</span></div>
+    </section>
+    <section class="typing" aria-label="打字区">
+      <div class="typinghead"><h2 id="articleTitle"></h2><div class="stats"><b id="speed">—</b> <span id="unit"></span>　正确率 <b id="accuracy">—</b></div></div>
+      <div id="desk">
+        <div id="passage" aria-label="原文与逐字输入对照"></div>
+        <textarea id="answer" aria-label="打字输入，上行原文，下行显示你输入的字符" autocomplete="off" autocapitalize="off" spellcheck="false" disabled></textarea>
+      </div>
+      <p id="pinyin"></p>
+      <p class="typingfoot" id="tip">上行是原文，下行显示你的输入。</p>
+      <button id="reviewResult" type="button" hidden>查看本次结果</button>
+    </section>
+    <div class="diagnostics" aria-label="学生机性能观察">
+      <span id="connection" role="status"></span>
+      <label><input id="lowMotion" type="checkbox">低特效</label>
+      <span>路线绘制 <b id="fps">—</b> 帧/秒</span>
+      <span>最近输入到下一帧 <b id="latency">—</b> ms</span>
+      <span id="imageStatus">背景加载中</span>
+    </div>
+  </div>
+</div>
+</main>
+<dialog id="result" class="result" aria-labelledby="resultTitle">
+  <div class="resulthead">
+    <p id="resultnote"></p>
+    <h2 id="resultTitle">本次攀登结果</h2>
+    <strong id="resultElevation"></strong>
+    <span id="resultClimb"></span>
+  </div>
+  <div class="resultbody">
+    <dl class="resultscores">
+      <div><dt>打字成绩</dt><dd id="score"></dd></div>
+      <div><dt>本次积分</dt><dd id="points"></dd></div>
+      <div><dt>有效字速</dt><dd id="resultSpeed"></dd></div>
+      <div><dt>正确率</dt><dd id="resultAccuracy"></dd></div>
+    </dl>
+    <form method="dialog" class="resultfooter"><button autofocus class="primary">完成</button></form>
+  </div>
+</dialog>
+<dialog id="peakDialog" class="result" aria-labelledby="peakInfoTitle">
+  <div class="resulthead"><p id="peakInfoEnglish"></p><h2 id="peakInfoTitle"></h2></div>
+  <div class="resultbody">
+    <p id="peakInfoDescription" class="peak-summary"></p>
+    <dl class="peak-details">
+      <div><dt>所在山脉</dt><dd id="peakInfoRegion"></dd></div>
+      <div><dt>参考海拔</dt><dd id="peakInfoHeight"></dd></div>
+      <div><dt>路线</dt><dd id="peakInfoRoute"></dd></div>
+      <div><dt>沿途营地</dt><dd id="peakInfoCamps"></dd></div>
+    </dl>
+    <p class="peak-source"><a id="peakInfoSource" target="_blank" rel="noopener noreferrer">查看路线资料</a></p>
+    <form method="dialog" class="resultfooter"><button class="primary" autofocus>关闭</button></form>
+  </div>
+</dialog>
+<script type="module" src="./workspace.js"></script>
+</body>
+</html>

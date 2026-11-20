@@ -13,7 +13,11 @@ from .activities import (
 )
 from .article_pool import require_article_pool
 from .models import ArticleMode, GRADE_LABELS, Language, TypingArticleRevision, TypingAttempt
-from .serializers import ArticleOptionsSerializer, ClassSettingsSerializer, PublishActivitySerializer, StartAttemptSerializer
+from .serializers import (
+    ArticleOptionsSerializer, ClassSettingsSerializer, PublishActivitySerializer, StartAttemptSerializer,
+    SyncAttemptSerializer,
+)
+from .workspace import leaderboard, session_articles, sync_attempt
 
 
 def article_summary(article):
@@ -41,15 +45,18 @@ def activity_data(activity, *, include_options=False, for_teacher=False):
 def attempt_data(attempt):
     now = timezone.now()
     settings = attempt.activity.languages[attempt.language]
-    article = attempt.first_article
+    articles = [{
+        **article_summary(article), 'paragraphs': article.paragraphs,
+        'pinyin': article.pinyin if settings['pinyin'] else None,
+    } for article in session_articles(attempt)]
     return {
         'id': attempt.pk, 'language': attempt.language, 'activity': activity_data(attempt.activity),
         'started_at': attempt.started_at, 'deadline_at': attempt.deadline_at, 'server_now': now,
         'expired': attempt.deadline_at <= now,
-        'article': {
-            **article_summary(article), 'paragraphs': article.paragraphs,
-            'pinyin': article.pinyin if settings['pinyin'] else None,
-        },
+        'article': articles[0], 'articles': articles, 'target': settings['rule']['target_per_minute'],
+        'checkpoint': attempt.checkpoint, 'checkpoint_seq': attempt.checkpoint_seq,
+        'result': attempt.result,
+        'summit_seconds': (attempt.summit_at - attempt.started_at).total_seconds() if attempt.summit_at else None,
     }
 
 
@@ -156,4 +163,33 @@ class StudentAttemptView(APIView):
         ).first()
         if attempt is None:
             raise NotFound('没有找到该次练习。')
+        if not attempt.result and attempt.deadline_at <= timezone.now():
+            attempt = sync_attempt(request.user, attempt_id, None)
         return Response(attempt_data(attempt))
+
+
+class StudentSyncAttemptView(APIView):
+    permission_classes = [IsStudent]
+
+    def post(self, request, attempt_id):
+        body = SyncAttemptSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        attempt = sync_attempt(request.user, attempt_id, body.validated_data)
+        return Response({
+            'ack': attempt.checkpoint_seq, 'result': attempt.result,
+            'summit_seconds': (attempt.summit_at - attempt.started_at).total_seconds() if attempt.summit_at else None,
+            'board': leaderboard(request.user, attempt.activity, attempt.language),
+        })
+
+
+class StudentLeaderboardView(APIView):
+    permission_classes = [IsStudent]
+
+    def get(self, request, activity_id):
+        activity = student_activities(request.user).filter(pk=activity_id).first()
+        if activity is None:
+            raise NotFound('没有找到该次训练。')
+        language = request.query_params.get('language')
+        if language not in Language.values:
+            raise APIValidationError('请选择中文或英文。')
+        return Response(leaderboard(request.user, activity, language))

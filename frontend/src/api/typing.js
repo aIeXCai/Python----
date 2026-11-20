@@ -7,7 +7,9 @@ export const typingApi = {
   publish: payload => request('/typing/teacher/activities/', { method: 'POST', body: JSON.stringify(payload) }),
   activities: signal => request('/typing/activities/', { signal }),
   attempt: (id, signal) => request(`/typing/attempts/${id}/`, { signal }),
-  start: payload => request('/typing/attempts/', { method: 'POST', body: JSON.stringify(payload) }),
+  start: (payload, signal) => request('/typing/attempts/', { method: 'POST', body: JSON.stringify(payload), signal }),
+  board: (activity, language, signal) => request(`/typing/activities/${activity}/leaderboard/?` + new URLSearchParams({ language }), { signal }),
+  sync: (attempt, payload, signal) => request(`/typing/attempts/${attempt}/sync/`, { method: 'POST', body: JSON.stringify(payload), signal }),
 }
 
 export const LANGUAGE_NAMES = { zh: '中文', en: '英文' }

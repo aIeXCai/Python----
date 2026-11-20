@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from rest_framework.test import APITestCase
 
-from .models import TypingActivity, TypingArticleRevision, TypingAttempt, TypingClassSettings, TypingSpeedRule
+from .models import TypingActivity, TypingArticleRevision, TypingAttempt, TypingClassSettings, TypingPointSubmission, TypingSpeedRule
 from .peaks import PEAKS
 
 
@@ -178,3 +178,43 @@ class TypingActivityTests(APITestCase):
         self.assertEqual(resumed['article'], started['article'])
         self.assertEqual(resumed['activity']['id'], initial['id'])
         self.assertFalse(resumed['activity']['languages']['zh']['pinyin'])
+
+    def test_checkpoint_updates_real_board_and_settles_once(self):
+        activity = self.publish().data['id']
+        first = self.start(self.alice, activity).data
+        second = self.start(self.bob, activity).data
+        attempt_id = first['id']
+        text = ''.join(first['article']['paragraphs'])[:12]
+        checkpoint = {'seq': 1, 'segments': [{'text': text, 'first': '错' + text[1:]}]}
+        sync_url = f'/api/typing/attempts/{attempt_id}/sync/'
+        self.client.force_authenticate(self.alice)
+        sync = self.client.post(sync_url, checkpoint, format='json')
+        self.assertEqual(sync.status_code, 200, sync.data)
+        self.assertEqual(sync.data['ack'], 1)
+        self.assertEqual(sync.data['board'][0]['id'], self.alice.id)
+        self.assertGreater(sync.data['board'][0]['progress'], 0)
+        self.assertEqual(sync.data['board'][1]['id'], self.bob.id)
+        reloaded = self.client.get(f'/api/typing/attempts/{attempt_id}/').data
+        self.assertEqual(reloaded['checkpoint'], checkpoint['segments'])
+        self.assertEqual(len(reloaded['articles']), 2)
+
+        self.client.force_authenticate(self.bob)
+        boards = f'/api/typing/activities/{activity}/leaderboard/'
+        self.assertEqual(self.client.get(boards + '?language=en').data, [])
+        self.assertEqual(self.client.get(boards + '?language=zh').data[0]['self'], False)
+        self.assertEqual(self.client.post(sync_url, checkpoint, format='json').status_code, 404)
+        self.client.force_authenticate(self.other_class)
+        self.assertEqual(self.client.get(boards + '?language=zh').status_code, 404)
+        self.client.force_authenticate(self.alice)
+        with patch('typing_practice.workspace.timezone.now', return_value=first['deadline_at'] + timedelta(seconds=1)):
+            checkpoint['seq'] = 2
+            checkpoint['segments'] = []
+            finished = self.client.post(sync_url, checkpoint, format='json').data
+            replay = self.client.post(sync_url, checkpoint, format='json').data
+            self.assertEqual(finished['result'], replay['result'])
+            self.assertEqual(finished['ack'], 1)
+            self.assertEqual(finished['result']['score'], finished['result']['points'])
+            self.assertLess(finished['result']['accuracy'], 100)
+            self.assertEqual(TypingPointSubmission.objects.filter(attempt_id=attempt_id).count(), 1)
+            self.assertIsNone(TypingAttempt.objects.get(pk=attempt_id).active_student_id)
+        self.assertNotEqual(second['id'], attempt_id)

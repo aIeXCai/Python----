@@ -42,3 +42,13 @@ class StartAttemptSerializer(serializers.Serializer):
     activity_id = serializers.IntegerField(min_value=1)
     language = serializers.ChoiceField(choices=Language.values)
     article_id = serializers.IntegerField(min_value=1, required=False)
+
+
+class CheckpointSegmentSerializer(serializers.Serializer):
+    text = serializers.CharField(max_length=10000, trim_whitespace=False, allow_blank=True)
+    first = serializers.CharField(max_length=10000, trim_whitespace=False, allow_blank=True)
+
+
+class SyncAttemptSerializer(serializers.Serializer):
+    seq = serializers.IntegerField(min_value=1, max_value=2147483647)
+    segments = CheckpointSegmentSerializer(many=True, max_length=200)

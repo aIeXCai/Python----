@@ -133,9 +133,20 @@ class TypingAttempt(models.Model):
     first_article = models.ForeignKey(TypingArticleRevision, on_delete=models.PROTECT)
     started_at = models.DateTimeField()
     deadline_at = models.DateTimeField()
+    checkpoint = models.JSONField(default=list)
+    checkpoint_seq = models.PositiveIntegerField(default=0)
+    summit_at = models.DateTimeField(null=True)
+    progress = models.DecimalField(max_digits=20, decimal_places=18, default=0)
+    result = models.JSONField(null=True)
 
     class Meta:
         indexes = [
             models.Index(fields=['activity', 'language', 'student'], name='typing_attempt_activity_idx'),
             models.Index(fields=['deadline_at'], name='typing_attempt_deadline_idx'),
         ]
+
+
+class TypingPointSubmission(models.Model):
+    attempt = models.OneToOneField(TypingAttempt, on_delete=models.PROTECT, related_name='point_submission')
+    score = models.DecimalField(max_digits=4, decimal_places=1)
+    settled_at = models.DateTimeField()
