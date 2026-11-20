@@ -115,7 +115,7 @@ class TypingBankTests(TestCase):
     def test_original_sample_selection_enforces_grade_language_and_difficulty(self):
         call_command('seed_typing_trial', stdout=StringIO())
         call_command('seed_typing_trial', stdout=StringIO())
-        self.assertEqual(TypingArticleRevision.objects.filter(review_status='approved').count(), 24)
+        self.assertEqual(TypingArticleRevision.objects.filter(review_status='approved').count(), 28)
         self.assertEqual(TypingSpeedRule.objects.filter(is_trial=True).count(), 12)
         scope = dict(grade=7, language='zh', difficulty='基础')
         pool = require_article_pool(**scope)

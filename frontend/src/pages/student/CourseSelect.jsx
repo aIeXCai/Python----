@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom'
-import { Brain, Monitor } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Brain, Keyboard, Monitor } from 'lucide-react'
 import Navbar from '../../components/Navbar.jsx'
 import { useEffect, useState } from 'react'
 
@@ -100,6 +100,10 @@ export default function CourseSelect() {
               授课教师：Alex
             </div>
           </div>
+          <Link className="typing-entry" to="/student/typing">
+            <Keyboard size={52} aria-hidden="true" />
+            <span>打字训练</span>
+          </Link>
         </div>
       </main>
 

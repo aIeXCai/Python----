@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from typing_practice.importing import is_han_character
 from typing_practice.models import Language, TypingArticle, TypingArticleRevision, TypingSpeedRule
 
 
@@ -25,6 +26,11 @@ class Command(BaseCommand):
         if settings.ENVIRONMENT not in {'development', 'test'}:
             raise CommandError('原创试用样文只在开发和测试环境安装。')
         samples = json.loads(SAMPLE_PATH.read_text(encoding='utf-8'))
+        pinyin_by_sample = {
+            tokens[0]: tokens[1:]
+            for block in SAMPLE_PATH.with_name('pinyin-v1.txt').read_text(encoding='utf-8').strip().split('\n\n')
+            if (tokens := block.split())
+        }
 
         for grade, speeds_by_language in TRIAL_SPEEDS.items():
             for sample in samples:
@@ -34,7 +40,7 @@ class Command(BaseCommand):
                 )
                 paragraphs = sample['paragraphs']
                 body = (' ' if language == Language.ENGLISH else '').join(paragraphs)
-                TypingArticleRevision.objects.get_or_create(
+                original, _ = TypingArticleRevision.objects.get_or_create(
                     article=article, version=1,
                     defaults={
                         'grade': grade,
@@ -47,6 +53,21 @@ class Command(BaseCommand):
                         'review_status': TypingArticleRevision.Review.APPROVED,
                     },
                 )
+                if sample['id'] in pinyin_by_sample:
+                    positions = [index for index, char in enumerate(body) if is_han_character(char)]
+                    syllables = pinyin_by_sample[sample['id']]
+                    if len(positions) != len(syllables):
+                        raise CommandError(f'{sample["id"]} 的拼音和汉字数量不一致。')
+                    TypingArticleRevision.objects.get_or_create(
+                        article=article, version=2,
+                        defaults={
+                            'grade': original.grade, 'language': original.language,
+                            'difficulty': original.difficulty, 'title': original.title,
+                            'paragraphs': original.paragraphs, 'body_digest': original.body_digest,
+                            'source_metadata': original.source_metadata, 'review_status': original.review_status,
+                            'pinyin': dict(zip(map(str, positions), syllables, strict=True)),
+                        },
+                    )
             for language, speeds in speeds_by_language.items():
                 for difficulty, speed in zip(('基础', '进阶', '挑战'), speeds, strict=True):
                     TypingSpeedRule.objects.get_or_create(

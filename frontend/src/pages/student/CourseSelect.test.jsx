@@ -8,6 +8,7 @@ vi.mock('../../components/Navbar.jsx', () => ({ default: () => <div data-testid=
 
 // Mock lucide-react icons
 vi.mock('lucide-react', () => ({
+  Keyboard: () => <span aria-hidden="true" />,
   Brain: () => <span data-testid="brain-icon">Brain</span>,
   Monitor: () => <span data-testid="monitor-icon">Monitor</span>,
 }))
@@ -62,6 +63,11 @@ describe('CourseSelect.jsx', () => {
     renderAsUser()
     const alexTexts = screen.getAllByText(/授课教师：Alex/)
     expect(alexTexts.length).toBe(2)
+  })
+
+  it('opens typing training from the welcome screen', () => {
+    renderAsUser()
+    expect(screen.getByRole('link', { name: '打字训练' }).getAttribute('href')).toBe('/student/typing')
   })
 
   // ── 课程卡片悬停样式 ──

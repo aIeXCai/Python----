@@ -5,6 +5,8 @@ import FloatingChat from './components/FloatingChat.jsx'
 import Login from './pages/auth/Login.jsx'
 import TeacherLogin from './pages/auth/TeacherLogin.jsx'
 import CourseSelect from './pages/student/CourseSelect.jsx'
+import TypingStudent from './pages/student/TypingStudent.jsx'
+import TypingTeacher from './pages/teacher/TypingTeacher.jsx'
 import StudentDashboard from './pages/student/StudentDashboard.jsx'
 import QuizPage from './pages/student/info/QuizPage.jsx'
 import QuizResult from './pages/student/info/QuizResult.jsx'
@@ -53,6 +55,8 @@ export default function App() {
             <Route path="/student/dashboard" element={<StudentDashboard />} />
           </Route>
 
+          <Route path="/student/typing" element={<ProtectedRoute><TypingStudent /></ProtectedRoute>} />
+
           {/* 信息科技课 — 小测 / 成绩页，不提供 AI 助手 */}
           <Route
             path="/student/quiz/:sessionId"
@@ -72,6 +76,7 @@ export default function App() {
           />
 
           {/* 老师端 */}
+          <Route path="/teacher/typing" element={<ProtectedRoute><TypingTeacher /></ProtectedRoute>} />
           <Route
             path="/teacher/dashboard"
             element={

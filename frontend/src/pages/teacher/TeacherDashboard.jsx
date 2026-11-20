@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, BookOpen, BarChart3, Upload, LogOut, Bot, ChevronRight, GraduationCap, ListChecks } from 'lucide-react'
+import { Users, BookOpen, BarChart3, Upload, LogOut, Bot, ChevronRight, GraduationCap, Keyboard, ListChecks } from 'lucide-react'
 import { getAdminDashboard } from '../../api/index.js'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 
@@ -97,6 +97,7 @@ export default function TeacherDashboard() {
           {[
             { label: 'AI课管理', desc: '题库·成绩统计', icon: Bot, color: '#667eea', path: '/teacher/ai' },
             { label: '信息课管理', desc: '题库·小测·成绩统计', icon: ListChecks, color: '#38ef7d', path: '/teacher/info' },
+            { label: '打字训练', desc: '发布班级练习', icon: Keyboard, color: '#185b48', path: '/teacher/typing' },
             { label: '学生管理', desc: '管理学生帐号', icon: Users, color: '#f59e0b', path: '/teacher/students' },
           ].map(({ label, desc, icon: Icon, color, path }) => (
             <button

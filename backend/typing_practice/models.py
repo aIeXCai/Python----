@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 
@@ -48,6 +49,7 @@ class TypingArticleRevision(models.Model):
     paragraphs = models.JSONField()
     body_digest = models.CharField(max_length=64)
     source_metadata = models.JSONField()
+    pinyin = models.JSONField(null=True)
     review_status = models.CharField(max_length=8, choices=Review.choices, default=Review.DRAFT)
 
     @property
@@ -84,4 +86,45 @@ class TypingSpeedRule(models.Model):
                 condition=models.Q(target_per_minute__gt=0, grade__in=GRADE_LABELS, language__in=Language.values),
                 name='typing_speed_rule_valid',
             ),
+        ]
+
+
+class ArticleMode(models.TextChoices):
+    FIXED = 'fixed', '固定'
+    RANDOM = 'random', '随机'
+    FREE = 'free', '自由'
+
+
+class TypingActivity(models.Model):
+    teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    grade = models.PositiveSmallIntegerField(choices=tuple(GRADE_LABELS.items()))
+    class_num = models.CharField(max_length=20)
+    title = models.CharField(max_length=100)
+    languages = models.JSONField()
+    published_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(null=True)
+    is_trial = models.BooleanField(default=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['grade', 'class_num', 'closed_at'], name='typing_activity_class_idx'),
+        ]
+
+
+class TypingAttempt(models.Model):
+    activity = models.ForeignKey(TypingActivity, on_delete=models.PROTECT, related_name='attempts')
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    active_student = models.OneToOneField(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name='+',
+    )
+    language = models.CharField(max_length=2, choices=Language.choices)
+    article_sequence = models.JSONField()
+    first_article = models.ForeignKey(TypingArticleRevision, on_delete=models.PROTECT)
+    started_at = models.DateTimeField()
+    deadline_at = models.DateTimeField()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['activity', 'language', 'student'], name='typing_attempt_activity_idx'),
+            models.Index(fields=['deadline_at'], name='typing_attempt_deadline_idx'),
         ]

@@ -16,6 +16,7 @@ vi.mock('lucide-react', () => ({
   Bot: () => <span data-testid="icon-bot">Bot</span>,
   ChevronRight: () => <span data-testid="icon-chevron">ChevronRight</span>,
   GraduationCap: () => <span data-testid="icon-graduation">GraduationCap</span>,
+  Keyboard: () => <span aria-hidden="true" />,
   ListChecks: () => <span data-testid="icon-list">ListChecks</span>,
 }))
 
@@ -133,6 +134,13 @@ describe('TeacherDashboard (老师仪表盘)', () => {
     await screen.findByText('学生管理')
     const cards = screen.getAllByText('学生管理')
     await user.click(cards[0])
+  })
+
+  it('点击打字训练管理卡片跳转到训练发布', async () => {
+    const user = userEvent.setup()
+    render(<TeacherDashboard />)
+    await user.click(await screen.findByRole('button', { name: /打字训练/ }))
+    expect(mockNavigate).toHaveBeenCalledWith('/teacher/typing')
   })
 
   it('显示退出按钮', async () => {
