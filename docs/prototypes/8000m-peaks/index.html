@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>十四座八千米高峰 · 打字登山背景</title>
+<style>
+:root{color-scheme:dark;background:#142521;color:#f3f4e9;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+*{box-sizing:border-box}body{margin:0}
+main{max-width:1500px;margin:auto;padding:clamp(20px,4vw,58px)}
+header{border-bottom:1px solid #49605a;margin-bottom:26px;padding-bottom:22px}
+h1{font-family:"Songti SC",SimSun,serif;font-size:clamp(30px,5vw,58px);margin:0 0 8px}
+header p,small{color:#b6c8bd}header p{margin:0}
+#gallery{display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr))}
+figure{margin:0;border:1px solid #456259;background:#1e332e;overflow:hidden;border-radius:10px}
+figure>a{display:block}img{width:100%;height:auto;aspect-ratio:3/1;object-fit:cover;display:block;background:#294640}
+figcaption{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px}
+strong{display:block;font-size:17px}a{color:#d8ef9e}a:focus-visible{outline:3px solid #d8ef9e;outline-offset:-4px}
+</style>
+<main>
+<header><h1>十四座八千米高峰</h1><p>打字登山背景素材 · AI 插画 · 点击图片查看原始尺寸</p></header>
+<section id="gallery" aria-label="山峰图片"></section>
+</main>
+<script>
+const peaks=[
+['01-everest','珠穆朗玛峰','Everest'],
+['02-k2','乔戈里峰','K2'],
+['03-kangchenjunga','干城章嘉峰','Kangchenjunga'],
+['04-lhotse','洛子峰','Lhotse'],
+['05-makalu','马卡鲁峰','Makalu'],
+['06-cho-oyu','卓奥友峰','Cho Oyu'],
+['07-dhaulagiri-i','道拉吉里Ⅰ峰','Dhaulagiri I'],
+['08-manaslu','马纳斯卢峰','Manaslu'],
+['09-nanga-parbat','南迦帕尔巴特峰','Nanga Parbat'],
+['10-annapurna-i','安纳普尔纳Ⅰ峰','Annapurna I'],
+['11-gasherbrum-i','加舒尔布鲁木Ⅰ峰','Gasherbrum I'],
+['12-broad-peak','布洛阿特峰','Broad Peak'],
+['13-gasherbrum-ii','加舒尔布鲁木Ⅱ峰','Gasherbrum II'],
+['14-shishapangma','希夏邦马峰','Shishapangma']
+];
+const gallery=document.getElementById('gallery');
+for(const [id,zh,en] of peaks){
+  const item=document.createElement('figure');
+  item.innerHTML='<a href="originals/'+id+'.png"><img src="webp/'+id+'.webp" alt="'+zh+'插画" loading="lazy" width="1440" height="480"></a><figcaption><div><strong>'+zh+'</strong><small>'+en+'</small></div><a href="webp/'+id+'.webp" download>WebP</a></figcaption>';
+  gallery.append(item);
+}
+</script>
+</html>

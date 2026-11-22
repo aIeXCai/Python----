@@ -1,0 +1,91 @@
+{
+  "generator": "Built-in ImageGen",
+  "note": "AI illustrations for a classroom game. Routes and animation are added separately.",
+  "peakList": "https://www.theuiaa.org/8000m-peaks/",
+  "peaks": [
+    {
+      "id": "01-everest",
+      "zh": "珠穆朗玛峰",
+      "en": "Everest",
+      "prompt": "Create one original landscape illustration asset for a school typing game, planned to be used as an ultra-wide panoramic banner. Wide landscape canvas. Entire usable composition concentrated in middle 60 percent of canvas height because the outer top/bottom will be cropped into a 3:1 banner. The visible sky and mountain summit must fit between normalized y=.20 and .75. Crisp illustrated expedition field guide, painterly atmospheric distant layers, large calm values and detailed realistic snow-covered rock ridges, restrained palette. No text, graphics, panels, letters, labels, icons, route, line, hikers or flags. Beautiful coherent scene, high contrast at central mountain, dark desaturated quiet area on far left where UI overlays. This is an artistic depiction, not navigation. Mount Everest from an oblique west/southwest viewpoint, a broad massif with a clean tall rocky pyramid apex at horizontal 63% and vertical 30% of total image, weathered graphite and slopes, cool teal pine-green atmosphere and subtle sunlit snow. Lower central slopes visible for overlay. Muted daylight."
+    },
+    {
+      "id": "02-k2",
+      "zh": "乔戈里峰",
+      "en": "K2",
+      "prompt": "Create one original landscape illustration asset for a school typing game, planned to be used as an ultra-wide panoramic banner. Wide landscape canvas. Entire usable composition concentrated in middle 60 percent of canvas height because the outer top/bottom will be cropped into a 3:1 banner. The visible sky and mountain summit must fit between normalized y=.20 and .75. Crisp illustrated expedition field guide, painterly atmospheric distant layers, large calm values and detailed realistic snow-covered rock ridges, restrained palette. No text, graphics, panels, letters, labels, icons, route, line, hikers or flags. Beautiful coherent scene, high contrast at central mountain, dark desaturated quiet area on far left where UI overlays. This is an artistic depiction, not navigation. K2 / Chogori from the southeast, distinctive sharp isolated austere jagged triangular ice pyramid centered horizontally 53%, apex at vertical 28% of the total image, sweeping right-hand ridge tapering toward lower right, indigo blue and slate violet atmospherics, muted rose dawn along peaks and ice edges. Lower right flank visible for overlay."
+    },
+    {
+      "id": "03-kangchenjunga",
+      "zh": "干城章嘉峰",
+      "en": "Kangchenjunga",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Kangchenjunga. A sprawling five-summit massif from the south, distinctly terraced heavy snow and closely grouped subsidiary summits, main apex near x=.59 y=.28; cool jade dawn sky with pale gold edges, intervening ridges create depth."
+    },
+    {
+      "id": "04-lhotse",
+      "zh": "洛子峰",
+      "en": "Lhotse",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Lhotse. Steep dark layered south face, sharp main summit near x=.64 y=.24, contiguous descending spur on right and deep vertical snow gullies, backlit cold cobalt and soft mauve twilight. Main summit reads above its neighbors."
+    },
+    {
+      "id": "05-makalu",
+      "zh": "马卡鲁峰",
+      "en": "Makalu",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Makalu. A distinctive angular four-sided pyramid and exposed dark rock on the upper steep face, main apex near x=.60 y=.27, windblown streaks, warm pale apricot sun on one side and steel-blue shadow on the other."
+    },
+    {
+      "id": "06-cho-oyu",
+      "zh": "卓奥友峰",
+      "en": "Cho Oyu",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Cho Oyu. Broad rounded snow dome with a long and comparatively gentle summit plateau near x=.58 y=.32, foreground glacial slope, a wide empty turquoise horizon and muted cream daylight. Strong contrast with needlelike peaks."
+    },
+    {
+      "id": "07-dhaulagiri-i",
+      "zh": "道拉吉里Ⅰ峰",
+      "en": "Dhaulagiri I",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Dhaulagiri I. Enormous broad white massif viewed above a dark deep valley, icy folds and a wide white summit crown near x=.63 y=.26, soft pewter clouds, pale yellow breaks of sun through slate-blue air."
+    },
+    {
+      "id": "08-manaslu",
+      "zh": "马纳斯卢峰",
+      "en": "Manaslu",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Manaslu. A paired silhouette with a compact highest snow apex and clearly visible lower shoulder, two jagged ridges separated by snowy breach, main apex near x=.59 y=.27, muted turquoise ice and copper dawn cloud."
+    },
+    {
+      "id": "09-nanga-parbat",
+      "zh": "南迦帕尔巴特峰",
+      "en": "Nanga Parbat",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Nanga Parbat. Rupal-face-inspired imposing exposed mountain wall rising abruptly from a dark green valley, broken horizontal rock bands and hanging ice fields, highest summit near x=.62 y=.24, mauve-white crest, olive foreground."
+    },
+    {
+      "id": "10-annapurna-i",
+      "zh": "安纳普尔纳Ⅰ峰",
+      "en": "Annapurna I",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Annapurna I. South face inspired vast curved amphitheater of ridged glaciers and striated rock, one highest crest near x=.62 y=.28, varied shoulders, cool blue-green reflected light and a pale warm pink sky."
+    },
+    {
+      "id": "11-gasherbrum-i",
+      "zh": "加舒尔布鲁木Ⅰ峰",
+      "en": "Gasherbrum I",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Gasherbrum I. The Hidden Peak presented as a severe, pale serrated summit revealed behind two lower slate ridges at x=.62 y=.27, deep Karakoram glacier sweeping to lower left, powder-blue and silver palette under high cloudy light."
+    },
+    {
+      "id": "12-broad-peak",
+      "zh": "布洛阿特峰",
+      "en": "Broad Peak",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Broad Peak. A long broad snowy summit ridge with several subtle undulations and its highest crest near x=.61 y=.30, low wide silhouette, cobalt shadows, lilac upper air, low cream light washing over the horizontal crest."
+    },
+    {
+      "id": "13-gasherbrum-ii",
+      "zh": "加舒尔布鲁木Ⅱ峰",
+      "en": "Gasherbrum II",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Gasherbrum II. An especially clear compact snow pyramid above its dark flanks, main apex near x=.58 y=.27, clean continuous bright right ridge and ice folds, pale cyan morning sky and long violet glacier shadows."
+    },
+    {
+      "id": "14-shishapangma",
+      "zh": "希夏邦马峰",
+      "en": "Shishapangma",
+      "prompt": "Generate a single original 3:1 ultra-wide landscape illustration for a classroom typing game's mountain scene. Expedition field guide style, rich atmospheric painterly treatment but crisp visible dramatic snow and rock relief, restrained colors, original composition. Full panoramic visible slopes, foreground terrain lower third for a future gameplay route; reserve upper left as lower contrast negative space for a UI title. The peak and its surroundings fill the rest. No text, no route, no people, no flags, no map labels, no UI, no decorative frame. Artistic rendering of the named mountain; not a route map. Shishapangma. Broad snowy crest above a flat wind-scoured Tibet plateau and layered distant foothills, highest notch and pyramid near x=.63 y=.29, subdued russet foreground and lavender sky, quietly distinct silhouette."
+    }
+  ]
+}

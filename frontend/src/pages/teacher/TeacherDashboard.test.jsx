@@ -16,6 +16,7 @@ vi.mock('lucide-react', () => ({
   Bot: () => <span data-testid="icon-bot">Bot</span>,
   ChevronRight: () => <span data-testid="icon-chevron">ChevronRight</span>,
   GraduationCap: () => <span data-testid="icon-graduation">GraduationCap</span>,
+  Keyboard: () => <span aria-hidden="true" />,
   ListChecks: () => <span data-testid="icon-list">ListChecks</span>,
 }))
 
@@ -23,6 +24,7 @@ vi.mock('lucide-react', () => ({
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
 // Mock AuthContext
@@ -35,6 +37,10 @@ vi.mock('../../contexts/AuthContext.jsx', () => ({
 const mockGetAdminDashboard = vi.fn()
 vi.mock('../../api/index.js', () => ({
   getAdminDashboard: (...args) => mockGetAdminDashboard(...args),
+}))
+
+vi.mock('./TypingTeacher.jsx', () => ({
+  default: ({ open }) => open ? <div role="dialog">打字训练参数设置</div> : null,
 }))
 
 import TeacherDashboard from './TeacherDashboard.jsx'
@@ -133,6 +139,14 @@ describe('TeacherDashboard (老师仪表盘)', () => {
     await screen.findByText('学生管理')
     const cards = screen.getAllByText('学生管理')
     await user.click(cards[0])
+  })
+
+  it('点击打字训练卡片在教师首页打开弹窗', async () => {
+    const user = userEvent.setup()
+    render(<TeacherDashboard />)
+    await user.click(await screen.findByRole('button', { name: /打字训练/ }))
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 
   it('显示退出按钮', async () => {

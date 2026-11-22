@@ -13,6 +13,8 @@ db.sqlite3
 !**/.env.*.example
 *.egg-info/
 dist/
+!/typing-bank2/dist/
+!/typing-bank2/dist/**
 build/
 
 # Django
