@@ -40,7 +40,8 @@ choose_python() {
 
 wait_for_url() {
     local url="$1" name="$2" count
-    for count in {1..20}; do
+    # Vite 首次启动需拷贝 pyodide 资源，常需 40s 以上，故等待上限放宽到 90s
+    for count in {1..90}; do
         if curl -fsS --max-time 2 "$url" >/dev/null 2>&1; then
             ok "$name 已就绪 ($url)"
             return 0
