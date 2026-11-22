@@ -1,0 +1,9 @@
+Django>=5.0
+djangorestframework
+django-cors-headers
+python-dotenv
+cryptography>=44,<47
+openai>=1.0.0
+requests
+psutil>=6.1,<8
+gunicorn>=21.2

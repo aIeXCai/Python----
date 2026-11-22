@@ -49,3 +49,14 @@ Thumbs.db
 *.log
 logs/
 .server_pids
+
+# 发布构建中间目录与产物
+.deploy-src/
+deploy/public/app/
+deploy/public/web/
+deploy/public/problems/
+deploy/public/typing-bank/
+deploy/public/data/
+deploy/public/seed/
+deploy/public/VERSION
+.wbapp_*.genie
