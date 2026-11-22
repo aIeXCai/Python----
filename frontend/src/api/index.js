@@ -129,11 +129,27 @@ export async function getSubmissionHistory() {
 // ─── Code Execution ───────────────────────────────────────────────────────────
 
 export async function runCode(code, stdin = '', idempotencyKey = createIdempotencyKey()) {
-  return request('/ai/run_code/', {
-    method: 'POST',
-    headers: { 'Idempotency-Key': idempotencyKey },
-    body: JSON.stringify({ code, stdin }),
-  })
+  try {
+    return await request('/ai/run_code/', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify({ code, stdin }),
+    })
+  } catch (error) {
+    // 部署环境关闭了服务端执行（返回 503）时，退回浏览器内 Pyodide 执行。
+    // 返回对象不带 task_id，调用方会直接把它当作最终结果渲染，不再轮询任务。
+    if (error?.status === 503) {
+      const { runLocalPython } = await import('../pages/student/ai/localPython.js')
+      const local = await runLocalPython(code, stdin)
+      return {
+        status: local.status || 'succeeded',
+        output: local.output || '',
+        error: local.error || '',
+        executed_locally: true,
+      }
+    }
+    throw error
+  }
 }
 
 export async function getExecutionTask(taskId, { signal } = {}) {
