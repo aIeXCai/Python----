@@ -28,7 +28,9 @@ export async function request(path, options = {}) {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     window.location.href = '/login'
-    throw new Error('Unauthorized')
+    const unauthorized = new Error('Unauthorized')
+    unauthorized.status = 401
+    throw unauthorized
   }
   if (!res.ok) {
     const message = data?.error || '请求失败'
@@ -128,6 +130,16 @@ export async function getSubmissionHistory() {
 
 // ─── Code Execution ───────────────────────────────────────────────────────────
 
+// 服务端执行不可用时的状态码：部署环境关闭执行返回 503；
+// 公网平台 WAF 会把含代码关键字的请求体拦成 403；网关异常为 502/504。
+const LOCAL_RUN_FALLBACK_STATUSES = new Set([403, 502, 503, 504])
+
+function shouldRunLocally(error) {
+  // 网络层直接失败（fetch reject）没有 status，同样退回浏览器执行。
+  if (!error || error.status === undefined) return true
+  return LOCAL_RUN_FALLBACK_STATUSES.has(error.status)
+}
+
 export async function runCode(code, stdin = '', idempotencyKey = createIdempotencyKey()) {
   try {
     return await request('/ai/run_code/', {
@@ -136,9 +148,9 @@ export async function runCode(code, stdin = '', idempotencyKey = createIdempoten
       body: JSON.stringify({ code, stdin }),
     })
   } catch (error) {
-    // 部署环境关闭了服务端执行（返回 503）时，退回浏览器内 Pyodide 执行。
+    // 服务端执行不可用时退回浏览器内 Pyodide 执行。
     // 返回对象不带 task_id，调用方会直接把它当作最终结果渲染，不再轮询任务。
-    if (error?.status === 503) {
+    if (shouldRunLocally(error)) {
       const { runLocalPython } = await import('../pages/student/ai/localPython.js')
       const local = await runLocalPython(code, stdin)
       return {
