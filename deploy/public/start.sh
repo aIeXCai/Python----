@@ -37,8 +37,17 @@ else
     echo "[start] 无种子库，将创建空库"
 fi
 
-if [ ! -s "$DATA/password_keys.env" ] && [ -f "$SEED/password_keys.env" ]; then
-    echo "[start] 导入种子密钥（学生密码可解密）"
+# 学生密码密文是随种子库一起带的，运行时密钥必须与加密时那把一致，否则解密全部失败：
+# 列表接口只校验状态字段仍显示"可查看"，点开却返回 409「密码不可查看，请为学生重置密码」。
+# 旧逻辑是"data 里没有才导入种子密钥"，但早期部署已由下面的兜底逻辑生成了一把随机密钥
+# （key_id 同样是 stage3-v1），于是种子密钥永远不会被采纳，841 个学生全部不可查。
+# 现在改为以种子密钥为准：内容不同则先备份旧文件再覆盖，保证一次性修复。
+if [ -s "$SEED/password_keys.env" ]; then
+    if [ -s "$DATA/password_keys.env" ] && ! cmp -s "$SEED/password_keys.env" "$DATA/password_keys.env"; then
+        BAK="$DATA/password_keys.env.old-$(date +%Y%m%d%H%M%S)"
+        echo "[start] 运行时学生密码密钥与种子不一致，备份旧密钥到 $(basename "$BAK")，改用种子密钥"
+        cp "$DATA/password_keys.env" "$BAK"
+    fi
     cp "$SEED/password_keys.env" "$DATA/password_keys.env"
 fi
 
@@ -95,6 +104,25 @@ fi
 
 echo "[start] 迁移数据库"
 "$PY" manage.py migrate --noinput
+
+# 密钥自检：启动日志里直接给出「能解出多少 / 解不出多少」，
+# 避免再次出现"接口说可查看、点开却 409"这种只在用户侧才暴露的问题。
+echo "[start] 校验学生密码可解密情况"
+"$PY" manage.py shell -c "
+from django.conf import settings
+from users.models import CustomUser
+from users.security import StudentPasswordCipher, PasswordEncryptionError
+cipher = StudentPasswordCipher(settings.STUDENT_PASSWORD_KEY_CONFIG)
+ok = bad = 0
+qs = CustomUser.objects.filter(role='student', password_recovery_status='available').exclude(encrypted_password='')
+for u in qs.iterator():
+    try:
+        cipher.decrypt(u.encrypted_password, u.password_encryption_key_id)
+        ok += 1
+    except PasswordEncryptionError:
+        bad += 1
+print('[start] 学生密码可解密 %d / 不可解密 %d' % (ok, bad))
+" 2>/dev/null | tail -n 1 || echo "[start] ⚠️ 密钥自检失败（不影响启动）"
 
 UNIT_COUNT="$("$PY" manage.py shell -c "from info_tech.models import Unit; print(Unit.objects.count())" | tail -n 1)"
 if [ "$UNIT_COUNT" = "0" ]; then
