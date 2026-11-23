@@ -105,10 +105,41 @@ fi
 echo "[start] 迁移数据库"
 "$PY" manage.py migrate --noinput
 
+# 排障产物：只写「密钥是否一致」和「可解密条数」，不写密钥指纹、不写任何密钥原文。
+# 线上无法直接看日志时，用它确认「脚本是否被更新」「seed 密钥是否随包上传」。
+DIAG="$ROOT/web/__boot_diag.txt"
+"$PY" - "$DATA/password_keys.env" "$SEED/password_keys.env" <<'PYDIAG' > "$DIAG" 2>&1 || true
+import datetime
+import hashlib
+import os
+import sys
+
+data_path, seed_path = sys.argv[1], sys.argv[2]
+
+
+def fingerprint(path):
+    try:
+        with open(path, 'rb') as fh:
+            raw = fh.read()
+    except OSError:
+        return 'missing'
+    return hashlib.sha256(raw).hexdigest() if raw else 'empty'
+
+
+data_fp = fingerprint(data_path)
+seed_fp = fingerprint(seed_path)
+print('boot_marker=372a093-diag2')
+print('time_utc=%s' % datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
+print('seed_dir_exists=%s' % ('yes' if os.path.isdir(os.path.dirname(seed_path)) else 'no'))
+print('keys_match=%s' % (
+    'same' if data_fp == seed_fp and data_fp not in ('missing', 'empty') else 'diff'
+))
+PYDIAG
+
 # 密钥自检：启动日志里直接给出「能解出多少 / 解不出多少」，
 # 避免再次出现"接口说可查看、点开却 409"这种只在用户侧才暴露的问题。
 echo "[start] 校验学生密码可解密情况"
-"$PY" manage.py shell -c "
+PWD_CHECK="$("$PY" manage.py shell -c "
 from django.conf import settings
 from users.models import CustomUser
 from users.security import StudentPasswordCipher, PasswordEncryptionError
@@ -121,8 +152,10 @@ for u in qs.iterator():
         ok += 1
     except PasswordEncryptionError:
         bad += 1
-print('[start] 学生密码可解密 %d / 不可解密 %d' % (ok, bad))
-" 2>/dev/null | tail -n 1 || echo "[start] ⚠️ 密钥自检失败（不影响启动）"
+print('decrypt_ok=%d decrypt_fail=%d' % (ok, bad))
+" 2>/dev/null | tail -n 1)"
+echo "[start] ${PWD_CHECK:-密钥自检失败（不影响启动）}"
+printf '%s\n' "${PWD_CHECK:-decrypt_check=failed}" >> "$DIAG" 2>/dev/null || true
 
 UNIT_COUNT="$("$PY" manage.py shell -c "from info_tech.models import Unit; print(Unit.objects.count())" | tail -n 1)"
 if [ "$UNIT_COUNT" = "0" ]; then
