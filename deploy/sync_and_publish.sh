@@ -123,6 +123,49 @@ rsync -a --delete \
 rsync -a --delete "$SRC/problems/" "$OUT/problems/"
 rsync -a --delete "$SRC/frontend/dist/" "$OUT/web/"
 
+# 静态资源预压缩：构建期生成 .gz，server.py 命中后直接发送，请求路径上零压缩开销。
+# 沙箱出网带宽约 14Mbps，压缩是目前最有效的加速手段（JS 596K->~180K，wasm 9.1M->~3M）。
+echo "      生成预压缩副本"
+python3 - "$OUT/web" <<'PRELOAD'
+import gzip
+import os
+import shutil
+import sys
+
+web = sys.argv[1]
+EXTS = {'.js', '.mjs', '.css', '.json', '.svg', '.html', '.htm', '.map', '.txt', '.wasm', '.xml'}
+orig_total = gz_total = count = 0
+for root, _dirs, files in os.walk(web):
+    for name in files:
+        if name.endswith('.gz'):
+            continue
+        if os.path.splitext(name)[1].lower() not in EXTS:
+            continue
+        src = os.path.join(root, name)
+        try:
+            size = os.path.getsize(src)
+        except OSError:
+            continue
+        if size < 1024:
+            continue
+        dst = src + '.gz'
+        with open(src, 'rb') as fin, gzip.GzipFile(dst, 'wb', compresslevel=6, mtime=0) as fout:
+            shutil.copyfileobj(fin, fout, 262144)
+        gz = os.path.getsize(dst)
+        if gz >= size * 0.95:
+            os.remove(dst)
+            continue
+        orig_total += size
+        gz_total += gz
+        count += 1
+if count:
+    saved = (1 - gz_total / max(orig_total, 1)) * 100
+    print("      {} 个文件：{:.1f}MB -> {:.1f}MB（省 {:.0f}%）".format(
+        count, orig_total / 1048576, gz_total / 1048576, saved))
+else:
+    print("      无需要压缩的文件")
+PRELOAD
+
 # 打字练习正式题库（启动时由 release_typing_bank 导入；不进 Web 目录，不对外暴露）
 BANK_SRC="$SRC/typing-bank2/dist/全部.jsonl"
 if [ -f "$BANK_SRC" ]; then

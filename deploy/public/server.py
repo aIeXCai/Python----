@@ -34,6 +34,13 @@ mimetypes.add_type("application/javascript", ".mjs")
 mimetypes.add_type("text/css", ".css")
 mimetypes.add_type("image/svg+xml", ".svg")
 
+# 可压缩类型：构建期由 sync_and_publish.sh 生成同名 .gz，运行时直接发送压缩文件，
+# 不在请求路径上做压缩（9MB 的 wasm 现压会把 GIL 占满，反而更慢）。
+COMPRESSIBLE_EXT = {
+    ".js", ".mjs", ".css", ".json", ".svg", ".html", ".htm",
+    ".txt", ".wasm", ".map", ".xml",
+}
+
 
 def should_proxy(path):
     return any(path == p.rstrip("/") or path.startswith(p) for p in PROXY_PREFIXES)
@@ -54,11 +61,29 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return os.path.join(WEB_DIR, normalized.lstrip("/"))
 
+    def _accepts_gzip(self):
+        return "gzip" in (self.headers.get("Accept-Encoding") or "").lower()
+
+    def _pick_file(self, full_path):
+        """返回 (实际发送的文件, 是否 gzip)。优先用构建期生成的 .gz。"""
+        ext = os.path.splitext(full_path)[1].lower()
+        if ext not in COMPRESSIBLE_EXT or not self._accepts_gzip():
+            return full_path, False
+        gz_path = full_path + ".gz"
+        try:
+            if os.path.getmtime(gz_path) < os.path.getmtime(full_path):
+                return full_path, False  # .gz 比源文件旧，弃用
+        except OSError:
+            return full_path, False
+        return gz_path, True
+
     def _send_file(self, full_path, status=200):
         ctype = mimetypes.guess_type(full_path)[0] or "application/octet-stream"
+        ext = os.path.splitext(full_path)[1].lower()
+        target, use_gzip = self._pick_file(full_path)
         try:
-            size = os.path.getsize(full_path)
-            fh = open(full_path, "rb")
+            size = os.path.getsize(target)
+            fh = open(target, "rb")
         except OSError:
             self._send_error_page(404, "Not Found")
             return
@@ -66,6 +91,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(size))
+            if use_gzip:
+                self.send_header("Content-Encoding", "gzip")
+            if ext in COMPRESSIBLE_EXT:
+                # 同一 URL 依 Accept-Encoding 返回不同体积，必须声明 Vary，
+                # 否则中间缓存可能把压缩内容发给不支持 gzip 的客户端
+                self.send_header("Vary", "Accept-Encoding")
             if "/assets/" in full_path:
                 self.send_header("Cache-Control", "public, max-age=31536000, immutable")
             else:
