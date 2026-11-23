@@ -21,11 +21,20 @@ SRC_KEY="${2:-}"
 
 mkdir -p "$OUT"
 TMP="$OUT/db.sqlite3"
+# 清掉上一次遗留的 db.sqlite3 / -wal / -shm：残留的只读 -shm 会让 SQLite
+# 报 "attempt to write a readonly database"。
+rm -f "$OUT"/db.sqlite3 "$OUT"/db.sqlite3-wal "$OUT"/db.sqlite3-shm
 
 echo "[1/5] 复制数据库（$(du -h "$SRC_DB" | cut -f1)）"
 cp "$SRC_DB" "$TMP"
+# 源库常以只读权限交付（如微信收到的文件是 444），cp 会继承该权限，
+# 导致后续清理与 VACUUM 报 readonly database，这里显式放开写权限。
+chmod u+w "$TMP"
 # 若源库带 WAL，一并落盘
-[ -f "$SRC_DB-wal" ] && cp "$SRC_DB-wal" "$TMP-wal" || true
+if [ -f "$SRC_DB-wal" ] && [ -s "$SRC_DB-wal" ]; then
+    cp "$SRC_DB-wal" "$TMP-wal"
+    chmod u+w "$TMP-wal"
+fi
 
 echo "[2/5] 清理 Runner 历史回执并压缩"
 python3 - "$TMP" <<'PY'
@@ -39,7 +48,10 @@ for table in ("execution_runnerrequestreceipt",):
     except sqlite3.Error as exc:
         print(f"      跳过 {table}: {exc}")
 con.commit()
-cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+# PRAGMA 的结果必须取走，否则游标仍有未完成的语句，VACUUM 会报
+# "cannot VACUUM - SQL statements in progress"。
+cur.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchall()
+cur.close()
 con.execute("VACUUM")
 con.close()
 PY
@@ -93,7 +105,7 @@ print(h.hexdigest()[:12])
 PY
 )"
 printf '%s\n' "$SEED_ID" > "$OUT/ID"
-echo "      ID: $SEED_ID（线上若已导入过同 ID 的种子，重启时不会重复覆盖）"
+echo "      ID: ${SEED_ID}（线上若已导入过同 ID 的种子，重启时不会重复覆盖）"
 
 echo "[6/6] 完成"
 du -sh "$OUT"
