@@ -367,8 +367,9 @@ export default function InfoAdmin() {
 
   useEffect(() => { if (tab === 'sessions') loadSessions() }, [tab, loadSessions])
 
-  const openNewSession = () => {
-    setSForm({ name: '', grade: unitGradeFilter, units: [], duration: 30, question_count: 10, difficulty_ratio: { easy: 10 }, visible_classes: [] })
+  const openNewSession = grade => {
+    // 列表里已按年级筛选时，新建小测默认落在该年级，省得再选一次
+    setSForm({ name: '', grade: grade || unitGradeFilter, units: [], duration: 30, question_count: 10, difficulty_ratio: { easy: 10 }, visible_classes: [] })
     setSMsg({ type: '', text: '' })
     setSModal({ open: true, mode: 'create', data: null })
   }

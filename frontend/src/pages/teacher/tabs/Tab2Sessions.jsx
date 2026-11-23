@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { ClipboardList, Plus, Edit2, Trash2, Play, X, ChevronDown } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { ClipboardList, Plus, Edit2, Trash2, Play, X, ChevronDown, Filter } from 'lucide-react'
 import { apiUrl } from '../../../api/config.js'
 import { GRADES } from '../../../constants/grades.js'
 
@@ -13,6 +13,40 @@ export default function Tab2Sessions({
 }) {
   const gradeColor = (g) => ({ '七年级': '#38ef7d', '八年级': '#11999e', '九年级': '#f59e0b' })[g] || '#888'
 
+  // 筛选：空字符串表示“不筛选”。列表接口返回该教师的全部小测，因此在前端过滤即可。
+  const [gradeFilter, setGradeFilter] = useState('')
+  const [unitFilter, setUnitFilter] = useState('')
+
+  // 年级选项只列出现有小测实际用到的年级，避免下拉里全是空结果
+  const gradeOptions = useMemo(() => {
+    const used = new Set(sessions.map(s => s.grade).filter(Boolean))
+    const ordered = GRADES.filter(g => used.has(g))
+    const extra = [...used].filter(g => !GRADES.includes(g)).sort((a, b) => a.localeCompare(b, 'zh'))
+    return [...ordered, ...extra]
+  }, [sessions])
+
+  // 大单元选项跟随年级联动：选了年级就只列该年级的大单元
+  const unitOptions = useMemo(() => {
+    const source = gradeFilter ? sessions.filter(s => s.grade === gradeFilter) : sessions
+    const names = new Set()
+    source.forEach(s => (s.big_unit_names || []).forEach(n => n && names.add(n)))
+    return [...names].sort((a, b) => a.localeCompare(b, 'zh'))
+  }, [sessions, gradeFilter])
+
+  const filteredSessions = useMemo(() => sessions.filter(s => {
+    if (gradeFilter && s.grade !== gradeFilter) return false
+    if (unitFilter && !(s.big_unit_names || []).includes(unitFilter)) return false
+    return true
+  }), [sessions, gradeFilter, unitFilter])
+
+  const hasFilter = Boolean(gradeFilter || unitFilter)
+  const clearFilters = () => { setGradeFilter(''); setUnitFilter('') }
+
+  const selectStyle = {
+    padding: '7px 10px', borderRadius: 8, border: '1.5px solid #ddd',
+    fontSize: 13, background: 'white', color: '#333', cursor: 'pointer',
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
@@ -25,12 +59,66 @@ export default function Tab2Sessions({
         <ClipboardList size={18} style={{ color: '#667eea' }} />
         <span style={{ fontSize: 15, fontWeight: 700, color: '#333' }}>小测列表</span>
         <span style={{ marginLeft: 4, fontSize: 12, color: '#888' }}>共 {sessions.length} 场小测</span>
-        <button onClick={openNewSession} style={{
+        <button onClick={() => openNewSession?.(gradeFilter || undefined)} style={{
           marginLeft: 'auto', padding: '7px 16px', borderRadius: 8, border: 'none', background: '#667eea', color: 'white',
           cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6
         }}>
           <Plus size={14} /> 新建小测
         </button>
+      </div>
+
+      {/* 筛选栏 */}
+      <div style={{
+        background: 'white', borderRadius: 14, padding: '14px 20px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap'
+      }}>
+        <Filter size={15} style={{ color: '#667eea' }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#555' }}>筛选</span>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#666' }}>
+          年级
+          <select
+            aria-label="按年级筛选"
+            value={gradeFilter}
+            onChange={e => { setGradeFilter(e.target.value); setUnitFilter('') }}
+            style={selectStyle}
+          >
+            <option value="">全部年级</option>
+            {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#666' }}>
+          大单元
+          <select
+            aria-label="按大单元筛选"
+            value={unitFilter}
+            onChange={e => setUnitFilter(e.target.value)}
+            disabled={unitOptions.length === 0}
+            style={{ ...selectStyle, cursor: unitOptions.length ? 'pointer' : 'not-allowed', color: unitOptions.length ? '#333' : '#aaa' }}
+          >
+            <option value="">全部大单元</option>
+            {unitOptions.map(name => <option key={name} value={name}>{name}</option>)}
+          </select>
+        </label>
+
+        {hasFilter && (
+          <>
+            <span style={{ fontSize: 12, color: '#667eea', fontWeight: 600 }}>
+              筛选出 {filteredSessions.length} / {sessions.length} 场
+            </span>
+            <button
+              onClick={clearFilters}
+              style={{
+                background: 'none', border: '1px solid #cfd4ff', borderRadius: 6, cursor: 'pointer',
+                color: '#667eea', padding: '3px 10px', fontSize: 12, fontWeight: 600,
+              }}
+            >
+              清除筛选
+            </button>
+          </>
+        )}
       </div>
 
       {/* 列表层提示：开始/结束/删除失败时后端会返回具体原因（如题库不足），
@@ -46,6 +134,20 @@ export default function Tab2Sessions({
             <ClipboardList size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
             <p>暂无小测</p>
           </div>
+        ) : filteredSessions.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+            <Filter size={36} style={{ opacity: 0.3, marginBottom: 12 }} />
+            <p style={{ marginBottom: 12 }}>没有符合筛选条件的小测</p>
+            <button
+              onClick={clearFilters}
+              style={{
+                background: 'none', border: '1px solid #cfd4ff', borderRadius: 6, cursor: 'pointer',
+                color: '#667eea', padding: '4px 12px', fontSize: 12, fontWeight: 600,
+              }}
+            >
+              清除筛选
+            </button>
+          </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -57,7 +159,7 @@ export default function Tab2Sessions({
                 </tr>
               </thead>
               <tbody>
-                {sessions.map((s, i) => {
+                {filteredSessions.map((s, i) => {
                   const status = s.status === 'open'
                     ? { label: '进行中', color: '#38ef7d', bg: '#d4edda' }
                     : s.status === 'closed'

@@ -16,6 +16,7 @@ vi.mock('lucide-react', () => ({
   X: () => <span data-testid="icon-x">X</span>,
   ChevronDown: () => <span data-testid="icon-chevron-down">ChevronDown</span>,
   Save: () => <span data-testid="icon-save">Save</span>,
+  Filter: () => <span data-testid="icon-filter">Filter</span>,
 }))
 
 import Tab2Sessions from './Tab2Sessions.jsx'
@@ -328,5 +329,76 @@ describe('Tab2Sessions', () => {
   it('SessionModal sSaving 时保存按钮显示加载文本', () => {
     render(<SimplifiedTab2Sessions {...defaultProps} sModal={{ open: true }} sSaving={true} sForm={{ ...defaultProps.sForm, units: [1] }} />)
     expect(screen.getByTestId('submit-btn').textContent).toBe('保存中...')
+  })
+})
+
+describe('Tab2Sessions 年级与大单元筛选', () => {
+  const filterSessions = [
+    { id: 11, title: '七上算法', grade: '七年级', visible_classes: [], status: 'draft', submission_count: 0, time_limit: 20, num_questions: 5, big_unit_names: ['算法初步'], section_names: [] },
+    { id: 12, title: '七上网络', grade: '七年级', visible_classes: [], status: 'closed', submission_count: 2, time_limit: 20, num_questions: 5, big_unit_names: ['网络基础'], section_names: [] },
+    { id: 13, title: '八上数据', grade: '八年级', visible_classes: [], status: 'open', submission_count: 0, time_limit: 20, num_questions: 5, big_unit_names: ['数据处理'], section_names: [] },
+  ]
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFetch.mockImplementation(async () => ({ ok: true, json: async () => [] }))
+  })
+
+  it('默认不筛选，显示全部小测', () => {
+    render(<Tab2Sessions {...defaultProps} sessions={filterSessions} />)
+    expect(screen.getByText('共 3 场小测')).toBeInTheDocument()
+    expect(screen.getByText('七上算法')).toBeInTheDocument()
+    expect(screen.getByText('八上数据')).toBeInTheDocument()
+  })
+
+  it('按年级筛选只保留该年级的小测', async () => {
+    const user = userEvent.setup()
+    render(<Tab2Sessions {...defaultProps} sessions={filterSessions} />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '按年级筛选' }), '八年级')
+
+    expect(screen.getByText('八上数据')).toBeInTheDocument()
+    expect(screen.queryByText('七上算法')).not.toBeInTheDocument()
+    expect(screen.queryByText('七上网络')).not.toBeInTheDocument()
+    expect(screen.getByText('筛选出 1 / 3 场')).toBeInTheDocument()
+  })
+
+  it('大单元选项随年级联动', async () => {
+    const user = userEvent.setup()
+    render(<Tab2Sessions {...defaultProps} sessions={filterSessions} />)
+
+    // 未选年级时，三个大单元都在
+    expect(screen.getByRole('option', { name: '算法初步' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: '数据处理' })).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '按年级筛选' }), '八年级')
+
+    // 选八年级后，只剩该年级的大单元
+    expect(screen.getByRole('option', { name: '数据处理' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: '算法初步' })).not.toBeInTheDocument()
+  })
+
+  it('按大单元筛选只保留命中该单元的小测', async () => {
+    const user = userEvent.setup()
+    render(<Tab2Sessions {...defaultProps} sessions={filterSessions} />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '按大单元筛选' }), '网络基础')
+
+    expect(screen.getByText('七上网络')).toBeInTheDocument()
+    expect(screen.queryByText('七上算法')).not.toBeInTheDocument()
+    expect(screen.queryByText('八上数据')).not.toBeInTheDocument()
+  })
+
+  it('清除筛选后恢复全部小测', async () => {
+    const user = userEvent.setup()
+    render(<Tab2Sessions {...defaultProps} sessions={filterSessions} />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '按年级筛选' }), '七年级')
+    expect(screen.queryByText('八上数据')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '清除筛选' }))
+
+    expect(screen.getByText('八上数据')).toBeInTheDocument()
+    expect(screen.getByText('七上算法')).toBeInTheDocument()
   })
 })
