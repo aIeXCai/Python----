@@ -93,10 +93,16 @@ export default function Tab2Sessions({
           大单元
           <select
             aria-label="按大单元筛选"
+            title={unitFilter || '全部大单元'}
             value={unitFilter}
             onChange={e => setUnitFilter(e.target.value)}
             disabled={unitOptions.length === 0}
-            style={{ ...selectStyle, cursor: unitOptions.length ? 'pointer' : 'not-allowed', color: unitOptions.length ? '#333' : '#aaa' }}
+            style={{
+              ...selectStyle,
+              maxWidth: 320,
+              cursor: unitOptions.length ? 'pointer' : 'not-allowed',
+              color: unitOptions.length ? '#333' : '#aaa',
+            }}
           >
             <option value="">全部大单元</option>
             {unitOptions.map(name => <option key={name} value={name}>{name}</option>)}
