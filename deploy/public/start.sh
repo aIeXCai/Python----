@@ -104,16 +104,23 @@ if [ "$UNIT_COUNT" = "0" ]; then
         ai_courses/fixtures/current_ai_catalog.json
 fi
 
-# 打字题库：release_typing_bank 把已核对文章写入正式题池，只做一次
+# 打字题库：release_typing_bank 把已核对文章写入正式题池。
+# 以前只在题池为空时导入，题库换代后线上仍跑旧文章；现在按 bank.jsonl 的指纹判断，
+# 题库一变就重新发布（release 会把清单外的旧版本统一降为待审，等于自动下线旧文章）。
 BANK="$ROOT/typing-bank/bank.jsonl"
 if [ -f "$BANK" ]; then
-    ART_COUNT="$("$PY" manage.py shell -c \
-        "from typing_practice.models import TypingArticleRevision as R; print(R.objects.count())" | tail -n 1)"
-    if [ "$ART_COUNT" = "0" ]; then
-        echo "[start] 首次导入打字题库（$(wc -l < "$BANK" | tr -d ' ') 篇）"
-        "$PY" manage.py release_typing_bank "$BANK" || echo "[start] ⚠️ 题库导入失败，打字练习将无题可用"
+    BANK_ID="$("$PY" -c 'import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$BANK")"
+    BANK_APPLIED=""
+    [ -f "$DATA/.bank_applied" ] && BANK_APPLIED="$(cat "$DATA/.bank_applied")"
+    if [ "$BANK_ID" != "$BANK_APPLIED" ]; then
+        echo "[start] 题库版本变更（${BANK_APPLIED:-无} -> $BANK_ID），导入打字题库（$(wc -l < "$BANK" | tr -d ' ') 篇）"
+        if "$PY" manage.py release_typing_bank "$BANK"; then
+            printf '%s\n' "$BANK_ID" > "$DATA/.bank_applied"
+        else
+            echo "[start] ⚠️ 题库导入失败，保留线上现有题库"
+        fi
     else
-        echo "[start] 打字题库已存在（$ART_COUNT 条修订），跳过导入"
+        echo "[start] 打字题库已是最新版本，跳过导入"
     fi
 fi
 
