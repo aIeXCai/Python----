@@ -1,3 +1,4 @@
+from collections import Counter
 from decimal import Decimal, ROUND_HALF_UP, localcontext
 from fractions import Fraction
 
@@ -124,6 +125,17 @@ def sync_attempt(student, pk, data, *, action=None):
     return attempt
 
 
+def _board_label(student, name_counts):
+    """海拔榜显示名：优先学生姓名；同班重名时补学号区分；没有姓名才回退学号。"""
+    name = (student.display_name or '').strip()
+    number = (student.student_number or '').strip()
+    if not name:
+        return f'{number} 号' if number else (student.username or '')
+    if number and name_counts.get(name, 0) > 1:
+        return f'{name} {number}号'
+    return name
+
+
 def leaderboard(student, activity, language):
     entries = {}
     records = TypingAttempt.objects.filter(
@@ -134,6 +146,11 @@ def leaderboard(student, activity, language):
     for row in records:
         if row.student_id not in entries:
             entries[row.student_id] = row
+    name_counts = Counter(
+        (row.student.display_name or '').strip()
+        for row in entries.values()
+        if (row.student.display_name or '').strip()
+    )
     output = []
     previous = None
     for index, row in enumerate(entries.values(), 1):
@@ -141,7 +158,8 @@ def leaderboard(student, activity, language):
             rank = index
         previous = row.progress
         output.append({
-            'id': row.student_id, 'label': f'{row.student.student_number} 号', 'self': row.student_id == student.pk,
+            'id': row.student_id, 'label': _board_label(row.student, name_counts),
+            'self': row.student_id == student.pk,
             'progress': float(row.progress), 'altitude': altitude(peak, row.progress), 'rank': rank,
         })
     return output

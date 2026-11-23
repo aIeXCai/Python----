@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { BookOpen, Send, ArrowLeft, Loader, CheckCircle, XCircle, Clock, Play, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react'
-import Editor from '@monaco-editor/react'
+import Editor from '../../../components/MonacoEditorLazy.jsx'
 import Navbar from '../../../components/Navbar.jsx'
 import {
   getActiveExecutionTask,

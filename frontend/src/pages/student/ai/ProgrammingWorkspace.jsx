@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import Editor from '@monaco-editor/react'
+import Editor from '../../../components/MonacoEditorLazy.jsx'
 import { Loader, Play, RotateCcw, Terminal } from 'lucide-react'
 import { getAIQuizProgrammingItem } from '../../../api/aiStudentQuiz.js'
 import { useChat } from '../../../contexts/ChatContext.jsx'

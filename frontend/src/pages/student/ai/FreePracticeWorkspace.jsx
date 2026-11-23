@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import Editor from '@monaco-editor/react'
+import Editor from '../../../components/MonacoEditorLazy.jsx'
 import { Loader, Play, Terminal } from 'lucide-react'
 import { pollExecutionTask, runCode } from '../../../api/index.js'
 import { useChat } from '../../../contexts/ChatContext.jsx'
