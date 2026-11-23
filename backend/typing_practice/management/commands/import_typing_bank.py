@@ -11,8 +11,10 @@ from typing_practice.models import Language, TypingArticle, TypingArticleRevisio
 
 
 # 编制规格的五分钟篇幅参考值（汉字数、英文字符数），仅供审阅报告。
+# 2026-11 起线上题库换成新闻体，七、八年级给足冗余：满分只需 110–150 汉字 / 450–500 字符，
+# 文章写到 300+ 汉字 / 1200+ 字符，手快的学生五分钟也打不完。
 REFERENCE_LENGTHS = {3: (75, 250), 4: (85, 290), 5: (95, 330),
-                     6: (110, 380), 7: (130, 450), 8: (150, 500)}
+                     6: (110, 380), 7: (300, 1200), 8: (340, 1300)}
 
 
 class Command(BaseCommand):

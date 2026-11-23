@@ -3,7 +3,7 @@
 import json, os
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-DIST = os.path.join(ROOT, "dist")
+DIST = os.path.join(ROOT, "dist-legacy")  # 旧版题库，线上题库见 dist/
 rows = [json.loads(l) for l in open(os.path.join(DIST, "全部.jsonl"), encoding="utf-8")]
 
 SPEED = {"zh": {3: 15, 4: 17, 5: 19, 6: 22, 7: 26, 8: 30},

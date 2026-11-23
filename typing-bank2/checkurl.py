@@ -21,7 +21,7 @@ def page_text(h):
     return CC.convert(html.unescape(re.sub(r"<[^>]+>", " ", h)))
 
 
-rows = [json.loads(l) for l in open("dist/全部.jsonl", encoding="utf-8")]
+rows = [json.loads(l) for l in open("dist-legacy/全部.jsonl", encoding="utf-8")]
 seen = {}
 report = []
 for r in rows:

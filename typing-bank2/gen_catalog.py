@@ -2,7 +2,7 @@
 """生成分年级可读目录"""
 import json, os, collections
 
-DIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dist")
+DIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dist-legacy")  # 旧版题库，线上题库见 dist/
 rows = [json.loads(l) for l in open(os.path.join(DIST, "全部.jsonl"), encoding="utf-8")]
 
 L = []

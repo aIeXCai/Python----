@@ -12,7 +12,7 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DIST = os.path.join(HERE, "dist")
+DIST = os.path.join(HERE, "dist-legacy")  # 旧版题库，线上题库见 dist/
 
 SPEED = {"zh": {3: 15, 4: 17, 5: 19, 6: 22, 7: 26, 8: 30},
          "en": {3: 50, 4: 58, 5: 66, 6: 76, 7: 90, 8: 100}}
