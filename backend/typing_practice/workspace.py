@@ -59,10 +59,14 @@ def finish(attempt, now):
         return
     count, accuracy, progress = calculate(attempt, session_articles(attempt), attempt.checkpoint)
     score = score_for(progress)
+    # 积分：打多少次发多少次，不封顶（2026-11-24 定稿口径）；
+    # 单价按 POINTS_TYPING_WEIGHT 折算，结果面板要显示真正到账的分。
+    from points.services import safe_settle, settle_typing, typing_points_for
+    points = typing_points_for(score)
     setup = attempt.activity.languages[attempt.language]
     elapsed_seconds = max(1, min(DURATION_SECONDS, DURATION_SECONDS - (attempt.deadline_at - now).total_seconds()))
     attempt.result = {
-        'score': str(score), 'points': str(score), 'progress': float(progress),
+        'score': str(score), 'points': str(points), 'progress': float(progress),
         'altitude': altitude(setup['peak'], attempt.progress),
         'speed': round(count / (5 if attempt.language == Language.ENGLISH else 1) / (elapsed_seconds / 60), 1),
         'accuracy': accuracy, 'summit': progress == 1,
@@ -71,6 +75,8 @@ def finish(attempt, now):
     attempt.active_student = None
     attempt.save(update_fields=['result', 'active_student'])
     TypingPointSubmission.objects.create(attempt=attempt, score=score, settled_at=now)
+    # 积分：打多少次发多少次，不封顶（2026-11-24 定稿口径）。
+    safe_settle(settle_typing, attempt, score, settled_at=now)
 
 
 @transaction.atomic

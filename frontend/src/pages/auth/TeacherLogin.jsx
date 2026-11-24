@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GraduationCap, User, Lock, Briefcase, ArrowLeft } from 'lucide-react'
+import { Sparkles, User, Lock, Briefcase, ArrowLeft } from 'lucide-react'
 import { login } from '../../api/index.js'
 
 export default function TeacherLogin() {
@@ -48,7 +48,7 @@ export default function TeacherLogin() {
 
       <div className="main-container">
         <div className="header">
-          <h1><GraduationCap size={38} /> Python 学习平台</h1>
+          <h1><Sparkles size={36} /> 白省修仙传</h1>
           <p className="subtitle">教师后台管理</p>
         </div>
 

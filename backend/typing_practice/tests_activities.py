@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 from io import StringIO
 from unittest.mock import patch
 
@@ -213,7 +214,11 @@ class TypingActivityTests(APITestCase):
             replay = self.client.post(sync_url, checkpoint, format='json').data
             self.assertEqual(finished['result'], replay['result'])
             self.assertEqual(finished['ack'], 1)
-            self.assertEqual(finished['result']['score'], finished['result']['points'])
+            # 分数是成绩，积分是按折算系数算出的实发值（默认 0.6），两者不再相等
+            from points.services import typing_points_for
+            score = Decimal(finished['result']['score'])
+            self.assertEqual(Decimal(finished['result']['points']), typing_points_for(score))
+            self.assertLess(Decimal(finished['result']['points']), score)
             self.assertEqual(finished['result']['accuracy'], 100)
             self.assertEqual(TypingPointSubmission.objects.filter(attempt_id=attempt_id).count(), 1)
             self.assertIsNone(TypingAttempt.objects.get(pk=attempt_id).active_student_id)

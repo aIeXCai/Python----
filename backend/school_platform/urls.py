@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/info/', include('info_tech.urls_student')),  # 学生路由 /api/info/
     path('api/chat/', include('chat.urls')),
     path('api/typing/', include('typing_practice.urls')),
+    path('api/points/', include('points.urls')),
 ]
 
 # 开发环境：提供 media 文件访问

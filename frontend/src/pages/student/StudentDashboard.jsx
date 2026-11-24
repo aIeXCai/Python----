@@ -1,14 +1,19 @@
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Trophy, CheckCircle, BarChart2, BookOpen, RefreshCw, Loader, FileText, Clock, Code2 } from 'lucide-react'
+import { Trophy, CheckCircle, BarChart2, BookOpen, RefreshCw, Loader, FileText, Clock, Code2, Sparkles } from 'lucide-react'
 import Navbar from '../../components/Navbar.jsx'
+import PointsCard from '../../components/PointsCard.jsx'
+import PointsBoard from '../../components/PointsBoard.jsx'
+import TitleLadder from '../../components/TitleLadder.jsx'
 import FreePracticeWorkspace from './ai/FreePracticeWorkspace.jsx'
 import { getProblems, getScores, getStudentStats } from '../../api/index.js'
 import { getInfoQuizzes } from '../../api/info.js'
 import { getStudentAIQuizzes } from '../../api/aiStudentQuiz.js'
+import { getMyPoints, getPointsLeaderboard } from '../../api/points.js'
 import { useChat } from '../../contexts/ChatContext.jsx'
 
 const PRACTICE_COMPLETION_SCORE = 100
+const POINTS_POLL_MS = 20000
 
 export default function StudentDashboard() {
   const chat = useChat()
@@ -27,6 +32,72 @@ export default function StudentDashboard() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const mountedRef = useRef(true)
+
+  // ── 积分：个人卡片 + 班级风云榜（20 秒轮询，切回标签页立即刷新）──
+  const [points, setPoints] = useState(null)
+  const [board, setBoard] = useState(null)
+  const [pointsLoading, setPointsLoading] = useState(true)
+  const [boardUpdatedAt, setBoardUpdatedAt] = useState('')
+  const [breakthrough, setBreakthrough] = useState(null)
+  const [ladderOpen, setLadderOpen] = useState(false)
+  const [ladderFocus, setLadderFocus] = useState(null)
+
+  // 点称号看天梯：传 entry 时高亮那个人的段位（风云榜），不传就是看自己的
+  const openLadder = useCallback((entry) => {
+    const title = entry?.title
+    setLadderFocus(title ? { level: title.level, label: entry.label } : null)
+    setLadderOpen(true)
+  }, [])
+  const closeLadder = useCallback(() => setLadderOpen(false), [])
+
+  // 破境提示：本机记住上次看到的等级，轮询发现等级上升时弹一次（首次登录不弹）
+  const checkBreakthrough = useCallback((title) => {
+    const level = Number(title?.level) || 0
+    if (!level) return
+    let key = 'points_title_level_me'
+    try {
+      const raw = JSON.parse(localStorage.getItem('user') || '{}')
+      key = `points_title_level_${raw.username || 'me'}`
+    } catch {
+      // 本地存储异常时退回通用 key，不影响积分展示
+    }
+    const previous = Number(localStorage.getItem(key) || 0)
+    if (previous && level > previous) {
+      setBreakthrough(title)
+      window.setTimeout(() => setBreakthrough(null), 6000)
+    }
+    localStorage.setItem(key, String(level))
+  }, [])
+
+  const loadPoints = useCallback(async () => {
+    setPointsLoading(true)
+    try {
+      const [me, boardData] = await Promise.all([getMyPoints(), getPointsLeaderboard()])
+      if (!mountedRef.current) return
+      setPoints(me)
+      setBoard(boardData)
+      setBoardUpdatedAt(new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
+      checkBreakthrough(me?.title)
+    } catch (err) {
+      // 积分接口异常不应影响小测与题库的展示
+      if (mountedRef.current) console.error('[Dashboard] 积分加载失败:', err)
+    } finally {
+      if (mountedRef.current) setPointsLoading(false)
+    }
+  }, [checkBreakthrough])
+
+  useEffect(() => {
+    loadPoints()
+    const timer = setInterval(loadPoints, POINTS_POLL_MS)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadPoints()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [loadPoints])
 
   // 优先读 URL 参数（导航带过来的），其次读 localStorage，最后默认 ai
   const getCourse = () => searchParams.get('course') || localStorage.getItem('selected_course') || 'ai'
@@ -126,6 +197,20 @@ export default function StudentDashboard() {
           <p>{isInfo ? '选择一个单元小测来检验你的学习成果吧！' : '先完成老师发布的小测，也可以继续从题库中练习编程。'}</p>
         </div>
 
+        {breakthrough ? (
+          <div className="points-breakthrough" role="status">
+            <Sparkles size={18} aria-hidden="true" />
+            <span>
+              境界突破 ·{' '}
+              <strong style={{ color: breakthrough.color }}>{breakthrough.name}</strong>
+            </span>
+          </div>
+        ) : null}
+
+        <PointsCard data={points} loading={pointsLoading} onOpenLadder={() => openLadder(null)} />
+
+        <div className="points-layout">
+          <div className="points-main">
         {/* 统计卡片 */}
         <div className="stats-grid">
           <div className="stat-card problems">
@@ -329,7 +414,28 @@ export default function StudentDashboard() {
             <FreePracticeWorkspace />
           </div>
         )}
+          </div>
+          <aside className="points-aside">
+            <PointsBoard
+              data={board}
+              loading={pointsLoading}
+              onRefresh={loadPoints}
+              updatedAt={boardUpdatedAt}
+              onOpenTitle={openLadder}
+            />
+          </aside>
+        </div>
       </main>
+
+      <TitleLadder
+        open={ladderOpen}
+        onClose={closeLadder}
+        ladder={points?.ladder || []}
+        title={points?.title || null}
+        focus={ladderFocus}
+        split={points ? { typing: points.typing_total, quiz: points.quiz_total } : null}
+        paths={points?.paths || []}
+      />
     </div>
   )
 }

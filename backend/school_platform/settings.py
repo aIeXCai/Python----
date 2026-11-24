@@ -162,6 +162,7 @@ INSTALLED_APPS = [
     'platform_ops',
     'execution',
     'typing_practice',
+    'points',
 ]
 
 MIDDLEWARE = [
@@ -248,6 +249,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # to run behind an HTTPS reverse proxy.
 IS_PRODUCTION = ENVIRONMENT == 'production'
 TYPING_PRACTICE_FORMAL = get_bool('TYPING_PRACTICE_FORMAL', default=IS_PRODUCTION)
+# 积分系统上线时刻（ISO 8601）。早于该时刻结算的成绩不发积分，避免历史数据被补发。
+# 留空表示不设限（服务只在结算时记账，本身不会回溯历史）。
+POINTS_START_AT = (os.environ.get('POINTS_START_AT') or '').strip()
+# 道号（疾风/智识/双修）判定参数：弱项达到强项的这个比例即算「双修」。
+# 觉得双修太难（人人都是疾风）就调低，如 0.6；调高到 0.8 则只有极均衡的学生能拿。
+POINTS_PATH_BALANCE_RATIO = (os.environ.get('POINTS_PATH_BALANCE_RATIO') or '0.7').strip()
+POINTS_PATH_MIN = (os.environ.get('POINTS_PATH_MIN') or '50').strip()
+# 打字积分折算系数（默认 0.6）。打字可无限重复、小测一场封顶 100 分，
+# 若 1:1 发放则「2 次打字 + 1 次小测」的标准节奏下打字恒为小测两倍，
+# 道号「智识」永远出不来。折算后标准节奏约 120 : 100，两条路才可比。
+POINTS_TYPING_WEIGHT = (os.environ.get('POINTS_TYPING_WEIGHT') or '0.6').strip()
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if IS_PRODUCTION else None
 SECURE_SSL_REDIRECT = get_bool('DJANGO_SECURE_SSL_REDIRECT', default=IS_PRODUCTION)
 SESSION_COOKIE_SECURE = get_bool('DJANGO_SESSION_COOKIE_SECURE', default=IS_PRODUCTION)

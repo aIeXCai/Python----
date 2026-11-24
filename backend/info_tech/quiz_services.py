@@ -150,6 +150,9 @@ def _settle_locked(attempt, *, now, reason, final_answers=None, revision=None):
         'answers_json', 'answer_revision', 'status', 'score', 'correct_count',
         'total_count', 'submitted_at', 'updated_at',
     ])
+    # 积分：同场小测只认最高分，破纪录才补差（2026-11-24 定稿口径）。
+    from points.services import safe_settle, settle_info_quiz
+    safe_settle(settle_info_quiz, attempt, settled_at=now)
     return attempt
 
 

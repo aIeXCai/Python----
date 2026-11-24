@@ -3,6 +3,12 @@
 
 set -Eeuo pipefail
 
+# 若在 WorkBuddy / CodeBuddy 等 IDE 的受管终端里启动，NODE_OPTIONS 会被注入沙箱 broker shim。
+# 该 shim 绑定的是当时的会话，会话一结束，Node 的每次文件/网络访问都会抛
+# "execution attempt 不存在或已关闭"，vite 表现为整站 500 Internal Server Error。
+# 本地开发服务不需要这层代理，启动前统一剥离。
+unset NODE_OPTIONS CODEBUDDY_BROKERED_FS_HOOK_ENABLED SANDBOX_CENTER_IPC_ADDRESS
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 PID_FILE="$SCRIPT_DIR/.server_pids"

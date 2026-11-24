@@ -196,6 +196,9 @@ def finalize_attempt(attempt_id):
         'correct_count', 'choice_count', 'grading_issue_count', 'settled_at',
         'result_revision', 'updated_at',
     ])
+    # 积分：AI 小测同样只认同场最高分。
+    from points.services import safe_settle, settle_ai_quiz
+    safe_settle(settle_ai_quiz, attempt, settled_at=attempt.settled_at)
     return attempt
 
 

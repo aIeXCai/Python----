@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import * as apiIndex from '../../api/index.js'
 import * as apiInfo from '../../api/info.js'
 import * as aiQuizApi from '../../api/aiStudentQuiz.js'
+import * as pointsApi from '../../api/points.js'
 import StudentDashboard from './StudentDashboard.jsx'
 import AuthContext from '../../contexts/AuthContext.jsx'
 
@@ -55,6 +56,19 @@ describe('StudentDashboard.jsx', () => {
     })
     vi.spyOn(apiInfo, 'getInfoQuizzes').mockResolvedValue([])
     vi.spyOn(aiQuizApi, 'getStudentAIQuizzes').mockResolvedValue([])
+    vi.spyOn(pointsApi, 'getMyPoints').mockResolvedValue({
+      balance: '120.0', earned_total: '150.0', spent_total: '30.0',
+      rank: 3, class_size: 42,
+    })
+    vi.spyOn(pointsApi, 'getPointsLeaderboard').mockResolvedValue({
+      grade: '七年级',
+      class_num: '1',
+      entries: [
+        { student_id: 1, label: '李四', points: '200.0', typing_points: '200.0', quiz_points: '0.0', rank: 1, self: false },
+        { student_id: 2, label: '张三', points: '120.0', typing_points: '40.0', quiz_points: '80.0', rank: 2, self: true },
+      ],
+      me: { student_id: 2, label: '张三', points: '120.0', rank: 2, self: true },
+    })
   })
 
   const renderDashboard = () =>
@@ -68,6 +82,61 @@ describe('StudentDashboard.jsx', () => {
   it('renders welcome message with username', () => {
     renderDashboard()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/张三/)
+  })
+
+  it('顶部展示个人积分卡片与班级风云榜', async () => {
+    renderDashboard()
+    await waitFor(() => {
+      expect(screen.getByLabelText('我的积分')).toHaveTextContent('120')
+      expect(screen.getByLabelText('我的积分')).toHaveTextContent('第 3 名')
+    })
+    expect(screen.getByLabelText('班级风云榜')).toBeInTheDocument()
+    expect(screen.getByText('李四')).toBeInTheDocument()
+    expect(screen.getByText('我')).toBeInTheDocument()
+  })
+
+  it('点顶部称号打开进阶天梯，点榜单称号定位到那个人', async () => {
+    const title = {
+      level: 2, key: 'gewu_apprentice', name: '格物学徒', icon: 'star', color: '#60a5fa',
+      group: '格物', peak_level: 2,
+      next: { level: 3, name: '格物修士', threshold: 150, remaining: '30.0' },
+      honor: null,
+    }
+    const ladder = [
+      { level: 1, key: 'mengxue', name: '蒙学童生', min: 0, icon: 'star', color: '#94a3b8', group: '格物', reached: true, current: false, was_reached: true, remaining: null, progress: null },
+      { level: 2, key: 'gewu_apprentice', name: '格物学徒', min: 50, icon: 'star', color: '#60a5fa', group: '格物', reached: true, current: true, was_reached: true, remaining: '30.0', progress: 0.7 },
+      { level: 3, key: 'gewu_master', name: '格物修士', min: 150, icon: 'sparkles', color: '#3b82f6', group: '格物', reached: false, current: false, was_reached: false, remaining: null, progress: null },
+    ]
+    pointsApi.getMyPoints.mockResolvedValueOnce({
+      balance: '120.0', earned_total: '150.0', spent_total: '30.0',
+      rank: 3, class_size: 42, title, ladder,
+    })
+    pointsApi.getPointsLeaderboard.mockResolvedValueOnce({
+      grade: '七年级', class_num: '1',
+      entries: [
+        {
+          student_id: 1, label: '李四', points: '200.0', typing_points: '200.0',
+          quiz_points: '0.0', rank: 1, self: false,
+          title: { ...title, level: 3, name: '格物修士' },
+        },
+      ],
+      me: null,
+    })
+
+    renderDashboard()
+    fireEvent.click(await screen.findByRole('button', { name: /天梯/ }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('进阶天梯')
+    expect(dialog).toHaveTextContent('再得 30 分晋升 格物修士')
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭天梯' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    // 榜单里点某人的称号，弹窗标出他所在的段位
+    const board = screen.getByLabelText('班级风云榜')
+    fireEvent.click(within(board).getByRole('button', { name: /格物修士/ }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('李四')
   })
 
   it('renders stats cards with correct labels', async () => {

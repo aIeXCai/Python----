@@ -11,6 +11,7 @@ import QuizPage from './pages/student/info/QuizPage.jsx'
 import QuizResult from './pages/student/info/QuizResult.jsx'
 import TeacherDashboard from './pages/teacher/TeacherDashboard.jsx'
 import StudentManagement from './pages/teacher/StudentManagement.jsx'
+import PointsAdmin from './pages/teacher/PointsAdmin.jsx'
 import InfoAdmin from './pages/teacher/InfoAdmin.jsx'
 import AiAdmin from './pages/teacher/aiAdmin.jsx'
 import ProblemDetail from './pages/student/ai/ProblemDetail.jsx'
@@ -97,6 +98,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AiAdmin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/points"
+            element={
+              <ProtectedRoute>
+                <PointsAdmin />
               </ProtectedRoute>
             }
           />

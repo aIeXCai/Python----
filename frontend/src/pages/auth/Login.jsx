@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GraduationCap, User, Lock, UserPlus, Layers, Users, Hash, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { GraduationCap, Sparkles, User, Lock, UserPlus, Layers, Users, Hash, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { register } from '../../api/index.js'
 import { GRADES } from '../../constants/grades.js'
@@ -113,8 +113,8 @@ export default function Login() {
 
       <div className="main-container">
         <div className="header">
-          <h1><GraduationCap size={38} /> Python 学习平台</h1>
-          <p className="subtitle">开启你的程序设计之旅</p>
+          <h1><Sparkles size={36} /> 白省修仙传</h1>
+          <p className="subtitle">从打字段位一路修到校史留名</p>
         </div>
 
         {/* ── 登录表单 ── */}
