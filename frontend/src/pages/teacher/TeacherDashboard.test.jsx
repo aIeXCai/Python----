@@ -18,6 +18,7 @@ vi.mock('lucide-react', () => ({
   GraduationCap: () => <span data-testid="icon-graduation">GraduationCap</span>,
   Keyboard: () => <span aria-hidden="true" />,
   ListChecks: () => <span data-testid="icon-list">ListChecks</span>,
+  Coins: () => <span data-testid="icon-coins">Coins</span>,
 }))
 
 // Mock react-router-dom
@@ -139,6 +140,14 @@ describe('TeacherDashboard (老师仪表盘)', () => {
     await screen.findByText('学生管理')
     const cards = screen.getAllByText('学生管理')
     await user.click(cards[0])
+  })
+
+  it('显示学生积分卡片并可进入积分管理页', async () => {
+    const user = userEvent.setup()
+    render(<TeacherDashboard />)
+    const card = await screen.findByText('学生积分')
+    await user.click(card)
+    expect(mockNavigate).toHaveBeenCalledWith('/teacher/points')
   })
 
   it('点击打字训练卡片在教师首页打开弹窗', async () => {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Users, BookOpen, BarChart3, Upload, LogOut, Bot, ChevronRight, GraduationCap, Keyboard, ListChecks } from 'lucide-react'
+import { Users, BookOpen, BarChart3, Upload, LogOut, Bot, ChevronRight, GraduationCap, Keyboard, ListChecks, Coins } from 'lucide-react'
 import { getAdminDashboard } from '../../api/index.js'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import TypingTeacher from './TypingTeacher.jsx'
@@ -114,6 +114,7 @@ export default function TeacherDashboard() {
             { label: '信息课管理', desc: '题库·小测·成绩统计', icon: ListChecks, color: '#38ef7d', path: '/teacher/info' },
             { label: '打字训练', desc: '文章模式与拼音', icon: Keyboard, color: '#185b48', dialog: true },
             { label: '学生管理', desc: '管理学生帐号', icon: Users, color: '#f59e0b', path: '/teacher/students' },
+            { label: '学生积分', desc: '查看·调整·批量清零', icon: Coins, color: '#8b5cf6', path: '/teacher/points' },
           ].map(({ label, desc, icon: Icon, color, path, dialog }) => (
             <button
               key={label}
