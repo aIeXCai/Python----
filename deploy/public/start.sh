@@ -93,6 +93,17 @@ export TYPING_PRACTICE_FORMAL=true
 
 cd "$ROOT/app"
 
+# 沙箱重启会保留上一次发布遗留的 gunicorn：它仍占着 8000，新进程 bind 失败后退出，
+# 网关就把请求转给旧进程 —— 表现为「发布成功但代码没变」，还可能与迁移抢 SQLite 锁。
+# 迁移之前先清干净。
+echo "[start] 清理遗留的 gunicorn 进程"
+pkill -f "gunicorn school_platform.wsgi:application" 2>/dev/null || true
+for _ in $(seq 1 10); do
+    pgrep -f "gunicorn school_platform.wsgi:application" >/dev/null 2>&1 || break
+    sleep 0.5
+done
+pkill -9 -f "gunicorn school_platform.wsgi:application" 2>/dev/null || true
+
 # 迁移前先备份现有库（保留最近 3 份），避免新版本迁移出问题时无路可退
 if [ -f "$DATA/db.sqlite3" ]; then
     mkdir -p "$DATA/backups"
@@ -196,6 +207,31 @@ if created:
     u.save()
 print('demo teacher', 'created' if created else 'exists')
 " || echo "[start] 演示账号创建失败，忽略"
+
+# 演示学生：只有发布包里带了 seed/demo_points.on 才造数。
+# 文件首行格式 "id|年级|班号,班号"，例如 "demo-points-v1|七年级|21,22"。
+# 线上库的八年级 1/2 班已有真实学生，所以这里必须显式指定一个空班，
+# 否则演示账号会混进真实班级（班级人数、风云榜都会被污染）。
+# 内容变化（换 id）才会重建，避免每次发布都重置演示数据。
+DEMO_FLAG="$SEED/demo_points.on"
+if [ -f "$DEMO_FLAG" ]; then
+    DEMO_SPEC="$(head -n 1 "$DEMO_FLAG")"
+    DEMO_APPLIED=""
+    [ -f "$DATA/.demo_points_applied" ] && DEMO_APPLIED="$(cat "$DATA/.demo_points_applied")"
+    if [ "$DEMO_SPEC" != "$DEMO_APPLIED" ]; then
+        DEMO_REST="${DEMO_SPEC#*|}"
+        DEMO_GRADE="${DEMO_REST%%|*}"
+        DEMO_CLASSES="${DEMO_REST#*|}"
+        echo "[start] 导入演示学生（${DEMO_SPEC%%|*}：$DEMO_GRADE $DEMO_CLASSES 班）"
+        if "$PY" manage.py seed_demo_points --reset --grade "$DEMO_GRADE" --class-nums "$DEMO_CLASSES"; then
+            printf '%s\n' "$DEMO_SPEC" > "$DATA/.demo_points_applied"
+        else
+            echo "[start] ⚠️ 演示学生导入失败，跳过（不影响启动）"
+        fi
+    else
+        echo "[start] 演示学生已按当前版本导入，跳过"
+    fi
+fi
 
 # ---------- 3. 启动 Django ----------
 echo "[start] 启动 gunicorn"

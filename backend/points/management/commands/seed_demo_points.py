@@ -28,6 +28,10 @@ NOTE_TYPING = '演示数据 · 打字练习'
 NOTE_QUIZ = '演示数据 · 小测最高分'
 
 GRADE = '八年级'
+# 默认落位：1 班、2 班。线上库这两班已有真实学生，启动脚本会显式传 --grade/--class-nums
+# 改到空班，避免把演示账号混进真实班级（班级人数、榜单都会受影响）。
+DEFAULT_CLASS_NUMS = '1,2'
+
 # (班级号, 学生姓名列表) —— 1 班、2 班各 20 人，正好 40 个账号
 CLASSES = [
     ('1', [
@@ -58,8 +62,16 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--reset', action='store_true', help='删除旧演示数据后重建')
         parser.add_argument('--cleanup', action='store_true', help='只删除演示数据')
+        parser.add_argument('--grade', default=GRADE, help=f'放哪个年级（默认 {GRADE}）')
+        parser.add_argument(
+            '--class-nums', default=DEFAULT_CLASS_NUMS,
+            help=f'放哪两个班，逗号分隔（默认 {DEFAULT_CLASS_NUMS}）',
+        )
 
     def handle(self, *args, **options):
+        self.grade = (options.get('grade') or GRADE).strip() or GRADE
+        self.class_nums = _parse_class_nums(options.get('class_nums'))
+
         if options['cleanup'] or options['reset']:
             self._cleanup()
 
@@ -73,7 +85,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f'完成：学生 {len(students)} 个，积分流水 {created_points} 条，演示小测 {len(quizzes)} 场。'
         ))
-        self.stdout.write(f'登录口令：{PASSWORD}（用户名形如 {USERNAME_PREFIX}101：班号 + 两位序号）')
+        self.stdout.write(
+            f'落位：{self.grade} {"、".join(self.class_nums)} 班；登录口令：{PASSWORD}'
+            f'（用户名形如 {USERNAME_PREFIX}{self.class_nums[0]}01）'
+        )
 
     # ── 清理 ──────────────────────────────────────────────────────────────
     def _cleanup(self):
@@ -88,11 +103,11 @@ class Command(BaseCommand):
     # ── 学生 ──────────────────────────────────────────────────────────────
     def _seed_students(self):
         students = []
-        for class_num, names in CLASSES:
+        for (default_class, names), class_num in zip(CLASSES, self.class_nums):
             # 真实班级里可能已有学生（如 1 班已有学号 1），演示账号顺延占用空学号
             taken = set(
                 CustomUser.objects
-                .filter(grade=GRADE, class_num=class_num)
+                .filter(grade=self.grade, class_num=class_num)
                 .exclude(username__startswith=USERNAME_PREFIX)
                 .values_list('student_number', flat=True)
             )
@@ -109,7 +124,7 @@ class Command(BaseCommand):
                     student = CustomUser(
                         username=username,
                         role='student',
-                        grade=GRADE,
+                        grade=self.grade,
                         class_num=class_num,
                         student_number=number,
                         display_name=name,
@@ -191,7 +206,7 @@ class Command(BaseCommand):
                     'time_limit': minutes,
                     'status': QuizSession.STATUS_OPEN,
                     'opened_at': now,
-                    'visible_grades': [GRADE],
+                    'visible_grades': [self.grade],
                     'visible_classes': [],
                     'archived_at': None,
                 },
@@ -203,3 +218,11 @@ class Command(BaseCommand):
 
 def _clamp(value, low, high):
     return max(low, min(high, value))
+
+
+def _parse_class_nums(raw):
+    """把 "21,22" 解析成 ['21', '22']；最多两个班（对应两套姓名表）。"""
+    nums = [part.strip() for part in str(raw or '').split(',') if part.strip()]
+    if not nums:
+        nums = [part.strip() for part in DEFAULT_CLASS_NUMS.split(',') if part.strip()]
+    return nums[:len(CLASSES)]
