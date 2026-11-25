@@ -6,7 +6,7 @@ import { getMyPoints, getPointsLeaderboard } from '../../api/points.js'
 import { typingApi } from '../../api/typing.js'
 import Navbar from '../../components/Navbar.jsx'
 import PointsBoard from '../../components/PointsBoard.jsx'
-import PointsStrip from '../../components/PointsStrip.jsx'
+import PointsCard from '../../components/PointsCard.jsx'
 import TitleLadder from '../../components/TitleLadder.jsx'
 import './CourseSelect.css'
 
@@ -154,10 +154,15 @@ export default function CourseSelect() {
           <p>请选择你要进入的课程</p>
         </div>
 
+        {/* 与仪表盘同一套积分卡：余额、境界（可点开天梯）、排名、累计与消耗 */}
+        <PointsCard
+          data={points}
+          loading={pointsLoading}
+          onOpenLadder={() => openLadder(null)}
+        />
+
         <div className="select-layout">
           <div className="select-main">
-            <PointsStrip data={points} loading={pointsLoading} />
-
             <div className="course-card-grid">
               <CourseCard name="ai" title="人工智能课" icon={Brain}
                 to="/student/dashboard?course=ai" onClick={() => localStorage.setItem('selected_course', 'ai')}

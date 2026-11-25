@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import CourseSelect from './CourseSelect.jsx'
 import { typingApi } from '../../api/typing.js'
@@ -29,6 +29,7 @@ vi.mock('lucide-react', () => ({
   Check: () => <span aria-hidden="true" />,
   Lock: () => <span aria-hidden="true" />,
   X: () => <span aria-hidden="true" />,
+  ChevronRight: () => <span aria-hidden="true" />,
 }))
 
 describe('CourseSelect.jsx', () => {
@@ -132,24 +133,50 @@ describe('CourseSelect.jsx', () => {
     expect(card.getByText('英文最佳成绩').nextElementSibling.textContent).toBe('0.0 分')
   })
 
-  // ── 积分条：一登录就能看到积分 ──
+  // ── 积分卡：与仪表盘同一套组件，一登录就能看到积分 ──
   it('登录后直接显示积分、称号与班级排名', async () => {
     localStorage.setItem('token', 'test-token')
     renderAsUser()
-    const strip = await screen.findByLabelText('我的积分')
-    expect(within(strip).getByText('208.7')).toBeTruthy()
-    expect(within(strip).getByText('格物修士')).toBeTruthy()
-    expect(within(strip).getByText(/班级第 3 名/)).toBeTruthy()
-    expect(within(strip).getByText(/共 40 人/)).toBeTruthy()
-    expect(within(strip).getByText(/距 南山执剑 还差 91.3 分/)).toBeTruthy()
+    const card = await screen.findByLabelText('我的积分')
+    expect(card.classList.contains('points-hero')).toBe(true)
+    expect(card.querySelector('.points-hero-value').textContent).toContain('208.7')
+    expect(within(card).getByText('格物修士')).toBeTruthy()
+    expect(within(card).getByText(/第 3 名/)).toBeTruthy()
+    expect(within(card).getByText(/共 40 人/)).toBeTruthy()
+    expect(within(card).getByText(/距 南山执剑 还差 91.3 分/)).toBeTruthy()
   })
 
-  it('积分接口不可用时不显示积分条，选课入口照常可用', async () => {
+  it('点积分卡上的称号可以打开进阶天梯', async () => {
+    localStorage.setItem('token', 'test-token')
+    getMyPoints.mockResolvedValue({
+      balance: '208.7', earned_total: '208.7', spent_total: '0.0',
+      rank: 3, class_size: 40, typing_total: '116.0', quiz_total: '92.7',
+      title: {
+        name: '格物修士', color: '#60a5fa', icon: 'compass', level: 2,
+        path: { label: '疾风', color: '#f97316' },
+        next: { name: '南山执剑', remaining: '91.3' },
+      },
+      ladder: [
+        { level: 1, name: '蒙学童生', threshold: '0', reached: true, current: false, was_reached: false },
+        { level: 2, name: '格物学徒', threshold: '50', reached: true, current: true, was_reached: false },
+        { level: 3, name: '格物修士', threshold: '150', reached: false, current: false, was_reached: false },
+      ],
+      paths: [],
+    })
+    renderAsUser()
+    const card = await screen.findByLabelText('我的积分')
+    fireEvent.click(within(card).getByLabelText('查看进阶天梯'))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getAllByText(/格物修士/).length).toBeGreaterThan(0)
+  })
+
+  it('积分接口不可用时积分卡显示占位，选课入口照常可用', async () => {
     localStorage.setItem('token', 'test-token')
     getMyPoints.mockRejectedValue(new Error('网络错误'))
     renderAsUser()
     expect(await screen.findByText('人工智能课')).toBeTruthy()
-    expect(screen.queryByLabelText('我的积分')).toBeNull()
+    const card = screen.getByLabelText('我的积分')
+    expect(within(card).getByText('—')).toBeTruthy()
     expect(screen.getByRole('link', { name: '打字训练' })).toBeTruthy()
   })
 
@@ -165,18 +192,20 @@ describe('CourseSelect.jsx', () => {
     expect(within(board).getByText(/我目前第 3 名/)).toBeTruthy()
   })
 
-  it('风云榜与课程卡片分列左右两栏', async () => {
+  it('风云榜与课程卡片分列左右两栏，积分卡横跨上方', async () => {
     localStorage.setItem('token', 'test-token')
     renderAsUser()
     await screen.findByLabelText('班级风云榜')
     const main = document.querySelector('.select-layout .select-main')
     const aside = document.querySelector('.select-layout .select-aside')
     expect(main.querySelector('.course-card-grid')).toBeTruthy()
-    expect(main.querySelector('.points-strip')).toBeTruthy()
     expect(aside.querySelector('.points-board')).toBeTruthy()
+    const card = document.querySelector('.points-hero')
+    expect(card).toBeTruthy()
+    expect(card.closest('.select-layout')).toBeNull()
   })
 
-  it('风云榜接口失败时不影响选课与积分条', async () => {
+  it('风云榜接口失败时不影响选课与积分卡', async () => {
     localStorage.setItem('token', 'test-token')
     getPointsLeaderboard.mockRejectedValue(new Error('网络错误'))
     renderAsUser()

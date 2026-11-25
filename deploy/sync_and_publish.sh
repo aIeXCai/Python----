@@ -12,10 +12,15 @@
 # 执行完这个脚本后，需要在 WorkBuddy 对话里让它发布目录 deploy/public（发布通道不在命令行里）。
 set -Eeuo pipefail
 
+# 每步带上时间戳，构建慢时一眼能看出卡在哪一步
+ts() { date +%H:%M:%S; }
+
 DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DEPLOY_DIR/.." && pwd)"
 OUT="$DEPLOY_DIR/public"
-SRC="$ROOT/.deploy-src"
+# 导出目录放 /tmp：工作区一次解包 769 个文件要 2 分钟以上（每个写入都过文件代理），
+# 同样的解包放到 /tmp 只要 1.5 秒。发布产物仍然写回工作区的 deploy/public。
+SRC="${DEPLOY_SRC:-/tmp/pylearn-deploy-src}"
 TARBALL="/tmp/pylearn-src-$$.tar.gz"
 REF="${1:-origin/main}"
 BRANCH="${REF#origin/}"
@@ -38,7 +43,7 @@ fi
 cleanup() { rm -f "$TARBALL"; }
 trap cleanup EXIT
 
-echo "[1/5] 获取 GitHub 上 $BRANCH 的最新提交"
+echo "$(ts) [1/5] 获取 GitHub 上 $BRANCH 的最新提交"
 
 MODE="git"
 if ! git -c http.version=HTTP/1.1 fetch origin --quiet 2>/dev/null; then
@@ -92,28 +97,60 @@ if [ -n "$LOCAL_BRANCH" ] && [ "$LOCAL_BRANCH" != "HEAD" ] && [ "$LOCAL_BRANCH" 
     fi
 fi
 
-echo "[2/5] 导出该版本的已提交源码（不含未提交改动）"
-rm -rf "$SRC"
+echo "$(ts) [2/5] 导出该版本的已提交源码（不含未提交改动）"
+# 全量导出＝先删掉整个目录再写回几千个文件，在沙箱的文件代理下每次要 2 分钟以上。
+# 改成增量：记住上次导出到哪个提交，只解包变动的文件、删掉被删除的文件。
+# 首次构建（没有标记文件）或上次提交不在当前历史里，才退回全量。
 mkdir -p "$SRC"
-if [ "$MODE" = "git" ]; then
-    git archive "$SHA" | tar -x -C "$SRC"
-else
-    curl -sL --max-time 240 -o "$TARBALL" \
-        "https://codeload.github.com/$SLUG/tar.gz/refs/heads/$BRANCH"
-    if [ ! -s "$TARBALL" ]; then
-        echo "源码包下载失败，无法继续" >&2
-        exit 1
-    fi
-    tar -xzf "$TARBALL" -C "$SRC" --strip-components=1
+STAMP="$SRC/.built-from"
+LAST="$(cat "$STAMP" 2>/dev/null || true)"
+INCREMENTAL=0
+if [ "$MODE" = "git" ] && [ -n "$LAST" ] && git cat-file -e "$LAST^{commit}" 2>/dev/null \
+   && git merge-base --is-ancestor "$LAST" "$SHA" 2>/dev/null; then
+    INCREMENTAL=1
 fi
 
-echo "[3/5] 构建前端（复用本地 node_modules 加速）"
+if [ "$INCREMENTAL" = "1" ]; then
+    CHANGED=()
+    while IFS= read -r -d '' f; do CHANGED+=("$f"); done \
+        < <(git diff -z --name-only --diff-filter=ACMRT "$LAST" "$SHA")
+    DELETED=()
+    while IFS= read -r -d '' f; do DELETED+=("$f"); done \
+        < <(git diff -z --name-only --diff-filter=D "$LAST" "$SHA")
+    echo "      增量：$(printf '%.7s' "$LAST") → $(printf '%.7s' "$SHA")，改动 ${#CHANGED[@]} 个、删除 ${#DELETED[@]} 个文件"
+    if [ "${#CHANGED[@]}" -gt 0 ]; then
+        git archive "$SHA" -- "${CHANGED[@]}" | tar -x -C "$SRC"
+    fi
+    for f in "${DELETED[@]+"${DELETED[@]}"}"; do
+        rm -f "$SRC/$f"
+    done
+else
+    echo "      全量导出（首次构建或历史不连续）"
+    rm -rf "$SRC"
+    mkdir -p "$SRC"
+    if [ "$MODE" = "git" ]; then
+        git archive "$SHA" | tar -x -C "$SRC"
+    else
+        curl -sL --max-time 240 -o "$TARBALL" \
+            "https://codeload.github.com/$SLUG/tar.gz/refs/heads/$BRANCH"
+        if [ ! -s "$TARBALL" ]; then
+            echo "源码包下载失败，无法继续" >&2
+            exit 1
+        fi
+        tar -xzf "$TARBALL" -C "$SRC" --strip-components=1
+    fi
+fi
+printf '%s\n' "$SHA" > "$STAMP"
+
+echo "$(ts) [3/5] 构建前端（复用本地 node_modules 加速）"
 if [ -d "$ROOT/frontend/node_modules" ] && [ ! -e "$SRC/frontend/node_modules" ]; then
     ln -s "$ROOT/frontend/node_modules" "$SRC/frontend/node_modules"
 fi
+echo "      $(ts) 开始构建前端"
 (cd "$SRC/frontend" && npx vite build >/dev/null)
+echo "      $(ts) 前端构建完成"
 
-echo "[4/5] 组装发布目录"
+echo "$(ts) [4/5] 组装发布目录"
 mkdir -p "$OUT"
 rsync -a --delete \
     --exclude='__pycache__' --exclude='*.pyc' --exclude='.env*' \
@@ -121,12 +158,13 @@ rsync -a --delete \
     --exclude='media/*' --exclude='submissions/*' \
     "$SRC/backend/" "$OUT/app/"
 rsync -a --delete "$SRC/problems/" "$OUT/problems/"
-rsync -a --delete "$SRC/frontend/dist/" "$OUT/web/"
 
 # 静态资源预压缩：构建期生成 .gz，server.py 命中后直接发送，请求路径上零压缩开销。
 # 沙箱出网带宽约 14Mbps，压缩是目前最有效的加速手段（JS 596K->~180K，wasm 9.1M->~3M）。
+# 预压缩在 /tmp 的导出目录里做：把 100+ 个 .gz 写进工作区要走安全删除/回滚代理，
+# 逐个写会卡住。压缩完再用一次 rsync 整体同步（含 .gz），顺便删掉失效的旧文件。
 echo "      生成预压缩副本"
-python3 - "$OUT/web" <<'PRELOAD'
+python3 - "$SRC/frontend/dist" <<'PRELOAD'
 import gzip
 import os
 import shutil
@@ -135,6 +173,7 @@ import sys
 web = sys.argv[1]
 EXTS = {'.js', '.mjs', '.css', '.json', '.svg', '.html', '.htm', '.map', '.txt', '.wasm', '.xml'}
 orig_total = gz_total = count = 0
+
 for root, _dirs, files in os.walk(web):
     for name in files:
         if name.endswith('.gz'):
@@ -166,6 +205,9 @@ else:
     print("      无需要压缩的文件")
 PRELOAD
 
+# 前端产物（含刚生成的 .gz）一次性同步；--delete 顺手清掉上一版失效的哈希文件
+rsync -a --delete "$SRC/frontend/dist/" "$OUT/web/"
+
 # 打字练习正式题库（启动时由 release_typing_bank 导入；不进 Web 目录，不对外暴露）
 BANK_SRC="$SRC/typing-bank2/dist/全部.jsonl"
 if [ -f "$BANK_SRC" ]; then
@@ -182,6 +224,6 @@ done
 
 printf '%s\n%s\n' "$SHA" "$COMMIT_SUBJECT" > "$OUT/VERSION"
 
-echo "[5/5] 完成：$OUT ($(du -sh "$OUT" | cut -f1))，版本 $SHA"
+echo "$(ts) [5/5] 完成：$OUT ($(du -sh "$OUT" | cut -f1))，版本 $SHA"
 echo
 echo "下一步：在 WorkBuddy 里说一句「把 deploy/public 发布上线」，它会重新发布到同一个链接。"
