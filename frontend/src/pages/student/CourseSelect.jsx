@@ -1,9 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Brain, Keyboard, Monitor } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getCurrentUser, getToken } from '../../api/index.js'
+import { getMyPoints } from '../../api/points.js'
 import { typingApi } from '../../api/typing.js'
 import Navbar from '../../components/Navbar.jsx'
+import PointsStrip from '../../components/PointsStrip.jsx'
 import './CourseSelect.css'
 
 function CourseCard({ name, title, icon: Icon, to, onClick, children, footer }) {
@@ -43,6 +45,26 @@ export default function CourseSelect() {
   const [user, setUser] = useState(() => getCurrentUser() || {})
   const [scores, setScores] = useState(null)
   const [scoreStatus, setScoreStatus] = useState('loading')
+  const [points, setPoints] = useState(null)
+  const [pointsStatus, setPointsStatus] = useState('loading')
+
+  // 积分：选课页只做摘要展示，进课程前就能看到余额与境界。
+  // 接口不可用时整条不渲染（不显示假数据），不影响选课本身。
+  const loadPoints = useCallback(async signal => {
+    if (!getToken()) {
+      setPointsStatus('error')
+      return
+    }
+    setPointsStatus('loading')
+    try {
+      const data = await getMyPoints()
+      if (signal?.aborted) return
+      setPoints(data)
+      setPointsStatus('ready')
+    } catch {
+      if (!signal?.aborted) setPointsStatus('error')
+    }
+  }, [])
 
   useEffect(() => {
     let controller
@@ -56,13 +78,14 @@ export default function CourseSelect() {
       }
       setUser(activeUser)
       setScores(null)
+      controller = new AbortController()
+      const { signal } = controller
+      loadPoints(signal)
       if (!getToken()) {
         setScoreStatus('ready')
         return
       }
       setScoreStatus('loading')
-      controller = new AbortController()
-      const { signal } = controller
       typingApi.bests(signal)
         .then(data => {
           if (signal.aborted) return
@@ -87,7 +110,7 @@ export default function CourseSelect() {
       window.removeEventListener('storage', updateSession)
       window.removeEventListener('pageshow', restorePage)
     }
-  }, [navigate])
+  }, [navigate, loadPoints])
 
   const username = user.display_name || user.username || ''
   return (
@@ -98,6 +121,10 @@ export default function CourseSelect() {
           <h1>欢迎回来，{username}！</h1>
           <p>请选择你要进入的课程</p>
         </div>
+
+        {pointsStatus !== 'error' ? (
+          <PointsStrip data={points} loading={pointsStatus === 'loading'} />
+        ) : null}
 
         <div className="course-card-grid">
           <CourseCard name="ai" title="人工智能课" icon={Brain}
