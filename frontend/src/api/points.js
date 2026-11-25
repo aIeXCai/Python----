@@ -51,6 +51,19 @@ export async function getPointsLeaderboard() {
   return parse(res)
 }
 
+/** 我的积分明细 GET /api/points/ledger/（游标分页：before 传上一页最后一条 id） */
+export async function getMyPointsLedger({ limit = 20, before = null } = {}) {
+  const params = new URLSearchParams()
+  if (limit) params.set('limit', String(limit))
+  if (before) params.set('before', String(before))
+  const query = params.toString()
+  const res = await fetch(
+    `${API_BASE_URL}/points/ledger/${query ? `?${query}` : ''}`,
+    { headers: authHeaders() },
+  )
+  return parse(res)
+}
+
 /** 教师端学生积分列表 GET /api/points/admin/students/ */
 export async function getAdminPointsStudents({ grade = '', class_num = '', q = '' } = {}) {
   const params = new URLSearchParams()

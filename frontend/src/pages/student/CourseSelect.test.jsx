@@ -3,10 +3,14 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import CourseSelect from './CourseSelect.jsx'
 import { typingApi } from '../../api/typing.js'
-import { getMyPoints, getPointsLeaderboard } from '../../api/points.js'
+import { getMyPoints, getPointsLeaderboard, getMyPointsLedger } from '../../api/points.js'
 
 vi.mock('../../api/typing.js', () => ({ typingApi: { bests: vi.fn() } }))
-vi.mock('../../api/points.js', () => ({ getMyPoints: vi.fn(), getPointsLeaderboard: vi.fn() }))
+vi.mock('../../api/points.js', () => ({
+  getMyPoints: vi.fn(),
+  getPointsLeaderboard: vi.fn(),
+  getMyPointsLedger: vi.fn(),
+}))
 
 // Mock Navbar — must be before component import
 vi.mock('../../components/Navbar.jsx', () => ({ default: () => <div data-testid="navbar">Mock Navbar</div> }))
@@ -30,6 +34,13 @@ vi.mock('lucide-react', () => ({
   Lock: () => <span aria-hidden="true" />,
   X: () => <span aria-hidden="true" />,
   ChevronRight: () => <span aria-hidden="true" />,
+  Receipt: () => <span aria-hidden="true" />,
+  Coins: () => <span aria-hidden="true" />,
+  Gift: () => <span aria-hidden="true" />,
+  Loader2: () => <span aria-hidden="true" />,
+  RotateCcw: () => <span aria-hidden="true" />,
+  SlidersHorizontal: () => <span aria-hidden="true" />,
+  Target: () => <span aria-hidden="true" />,
 }))
 
 describe('CourseSelect.jsx', () => {
@@ -60,6 +71,16 @@ describe('CourseSelect.jsx', () => {
           title: { name: '格物修士', color: '#60a5fa', icon: 'compass', path: { label: '疾风', color: '#f97316' } },
         },
       ],
+    })
+    getMyPointsLedger.mockReset().mockResolvedValue({
+      entries: [
+        {
+          id: 12, delta: '24.5', balance_after: '208.7', reason: 'typing_attempt',
+          reason_label: '打字练习', note: '', time: '11-25 15:02',
+        },
+      ],
+      has_more: false,
+      next_before: null,
     })
   })
 
@@ -213,5 +234,42 @@ describe('CourseSelect.jsx', () => {
     const board = await screen.findByLabelText('班级风云榜')
     expect(within(board).getByText(/还没有人获得积分/)).toBeTruthy()
     expect(screen.getByRole('link', { name: '人工智能课' })).toBeTruthy()
+  })
+
+  // ── 积分明细：顶部积分栏的按钮点开流水 ──
+  it('顶部积分栏有「积分明细」按钮，点开显示流水', async () => {
+    localStorage.setItem('token', 'test-token')
+    renderAsUser()
+    const card = await screen.findByLabelText('我的积分')
+    fireEvent.click(within(card).getByRole('button', { name: /积分明细/ }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('积分明细')).toBeTruthy()
+    expect(await within(dialog).findByText('打字练习')).toBeTruthy()
+    expect(within(dialog).getByText('+24.5')).toBeTruthy()
+    expect(getMyPointsLedger).toHaveBeenCalledTimes(1)
+  })
+
+  it('积分明细弹窗关闭后不再占据页面', async () => {
+    localStorage.setItem('token', 'test-token')
+    renderAsUser()
+    const card = await screen.findByLabelText('我的积分')
+    fireEvent.click(within(card).getByRole('button', { name: /积分明细/ }))
+    await screen.findByRole('dialog')
+
+    fireEvent.click(screen.getByRole('button', { name: /关闭积分明细/ }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('积分明细接口失败时弹窗给出错误提示，不影响选课', async () => {
+    localStorage.setItem('token', 'test-token')
+    getMyPointsLedger.mockRejectedValue(new Error('请求失败（500）'))
+    renderAsUser()
+    const card = await screen.findByLabelText('我的积分')
+    fireEvent.click(within(card).getByRole('button', { name: /积分明细/ }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('请求失败（500）')
+    expect(screen.getByRole('link', { name: '打字训练' })).toBeTruthy()
   })
 })

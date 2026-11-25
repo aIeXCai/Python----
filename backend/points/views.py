@@ -1,10 +1,11 @@
-"""积分接口：学生端看余额与班级风云榜，教师端查改与批量清零。"""
+"""积分接口：学生端看余额、班级风云榜、个人流水，教师端查改与批量清零。"""
 
 from collections import Counter
 from decimal import Decimal, InvalidOperation
 
 from django.db.models import DecimalField, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -175,6 +176,62 @@ class PointsLeaderboardView(APIView):
         return no_store_response({
             'grade': user.grade, 'class_num': user.class_num,
             'entries': entries, 'me': me,
+        })
+
+
+LEDGER_DEFAULT_LIMIT = 20
+LEDGER_MAX_LIMIT = 100
+
+
+class MyPointsLedgerView(APIView):
+    """当前学生的积分明细（只读流水）。
+
+    游标分页：`before` 传上一页最后一条的 id，避免 offset 在新增流水时错位。
+    负数流水（消费/清零）照原样返回，由前端按正负渲染。
+    """
+
+    permission_classes = [IsStudent]
+
+    def get(self, request):
+        user = request.user
+        try:
+            limit = int(request.query_params.get('limit', LEDGER_DEFAULT_LIMIT))
+        except (TypeError, ValueError):
+            limit = LEDGER_DEFAULT_LIMIT
+        limit = max(1, min(limit, LEDGER_MAX_LIMIT))
+
+        queryset = PointsLedger.objects.filter(user=user)
+        before = (request.query_params.get('before') or '').strip()
+        if before.isdigit():
+            queryset = queryset.filter(pk__lt=int(before))
+
+        # 多取一条用来判断还有没有下一页，省一次 count 查询
+        rows = list(queryset.order_by('-id')[: limit + 1])
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+
+        account = PointsAccount.objects.filter(user=user).first()
+        entries = [
+            {
+                'id': row.pk,
+                'delta': str(quantize(row.delta)),
+                'balance_after': str(quantize(row.balance_after)),
+                'reason': row.reason,
+                'reason_label': row.get_reason_display(),
+                'note': row.note or '',
+                'created_at': timezone.localtime(row.created_at).isoformat(),
+                'time': timezone.localtime(row.created_at).strftime('%m-%d %H:%M'),
+            }
+            for row in rows
+        ]
+
+        return no_store_response({
+            'balance': str(quantize(account.balance)) if account else '0.0',
+            'earned_total': str(quantize(account.earned_total)) if account else '0.0',
+            'spent_total': str(quantize(account.spent_total)) if account else '0.0',
+            'entries': entries,
+            'has_more': has_more,
+            'next_before': entries[-1]['id'] if has_more and entries else None,
         })
 
 

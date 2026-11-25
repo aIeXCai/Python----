@@ -1,4 +1,4 @@
-import { ChevronRight, Sparkles, Trophy } from 'lucide-react'
+import { ChevronRight, Receipt, Sparkles, Trophy } from 'lucide-react'
 import TitleBadge from './TitleBadge.jsx'
 
 function formatPoints(value) {
@@ -10,9 +10,9 @@ function formatPoints(value) {
 /**
  * 登录后最上方的积分卡片：个人积分 + 本班排名 + 当前境界。
  * data 为 GET /api/points/me/ 的返回；为空时显示占位。
- * 点称号可展开进阶天梯（onOpenLadder）。
+ * 点称号可展开进阶天梯（onOpenLadder）；传 onOpenLedger 时右侧多出「积分明细」按钮。
  */
-export default function PointsCard({ data, loading, onOpenLadder }) {
+export default function PointsCard({ data, loading, onOpenLadder, onOpenLedger }) {
   const balance = formatPoints(data?.balance)
   const rank = data?.rank
   const classSize = data?.class_size
@@ -57,27 +57,42 @@ export default function PointsCard({ data, loading, onOpenLadder }) {
         </div>
       </div>
 
-      <dl className="points-hero-stats">
-        <div>
-          <dt>积分排名</dt>
-          <dd>
-            {rank ? (
-              <>
-                <Trophy size={14} aria-hidden="true" /> 第 {rank} 名
-              </>
-            ) : '—'}
-            {classSize ? <span className="points-hero-sub">共 {classSize} 人</span> : null}
-          </dd>
-        </div>
-        <div>
-          <dt>累计获得</dt>
-          <dd>{earned}<span className="points-hero-sub">分</span></dd>
-        </div>
-        <div>
-          <dt>已消耗</dt>
-          <dd>{spent}<span className="points-hero-sub">分</span></dd>
-        </div>
-      </dl>
+      <div className="points-hero-side">
+        <dl className="points-hero-stats">
+          <div>
+            <dt>积分排名</dt>
+            <dd>
+              {rank ? (
+                <>
+                  <Trophy size={14} aria-hidden="true" /> 第 {rank} 名
+                </>
+              ) : '—'}
+              {classSize ? <span className="points-hero-sub">共 {classSize} 人</span> : null}
+            </dd>
+          </div>
+          <div>
+            <dt>累计获得</dt>
+            <dd>{earned}<span className="points-hero-sub">分</span></dd>
+          </div>
+          <div>
+            <dt>已消耗</dt>
+            <dd>{spent}<span className="points-hero-sub">分</span></dd>
+          </div>
+        </dl>
+
+        {onOpenLedger ? (
+          <button
+            type="button"
+            className="points-hero-detail-btn"
+            onClick={onOpenLedger}
+            title="查看积分明细"
+          >
+            <Receipt size={15} aria-hidden="true" />
+            积分明细
+            <ChevronRight size={14} className="points-hero-detail-hint" aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
     </section>
   )
 }

@@ -4,6 +4,7 @@ import { Trophy, CheckCircle, BarChart2, BookOpen, RefreshCw, Loader, FileText, 
 import Navbar from '../../components/Navbar.jsx'
 import PointsCard from '../../components/PointsCard.jsx'
 import PointsBoard from '../../components/PointsBoard.jsx'
+import PointsLedger from '../../components/PointsLedger.jsx'
 import TitleLadder from '../../components/TitleLadder.jsx'
 import FreePracticeWorkspace from './ai/FreePracticeWorkspace.jsx'
 import { getProblems, getScores, getStudentStats } from '../../api/index.js'
@@ -41,6 +42,7 @@ export default function StudentDashboard() {
   const [breakthrough, setBreakthrough] = useState(null)
   const [ladderOpen, setLadderOpen] = useState(false)
   const [ladderFocus, setLadderFocus] = useState(null)
+  const [ledgerOpen, setLedgerOpen] = useState(false)
 
   // 点称号看天梯：传 entry 时高亮那个人的段位（风云榜），不传就是看自己的
   const openLadder = useCallback((entry) => {
@@ -207,7 +209,12 @@ export default function StudentDashboard() {
           </div>
         ) : null}
 
-        <PointsCard data={points} loading={pointsLoading} onOpenLadder={() => openLadder(null)} />
+        <PointsCard
+          data={points}
+          loading={pointsLoading}
+          onOpenLadder={() => openLadder(null)}
+          onOpenLedger={() => setLedgerOpen(true)}
+        />
 
         <div className="points-layout">
           <div className="points-main">
@@ -435,6 +442,12 @@ export default function StudentDashboard() {
         focus={ladderFocus}
         split={points ? { typing: points.typing_total, quiz: points.quiz_total } : null}
         paths={points?.paths || []}
+      />
+
+      <PointsLedger
+        open={ledgerOpen}
+        onClose={() => setLedgerOpen(false)}
+        balance={points?.balance ?? null}
       />
     </div>
   )

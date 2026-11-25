@@ -334,6 +334,63 @@ class PointsApiTests(APITestCase):
         response = self.client.get('/api/points/admin/students/', **auth(self.a))
         self.assertEqual(response.status_code, 403)
 
+    def test_ledger_lists_own_entries_newest_first(self):
+        response = self.client.get('/api/points/ledger/', **auth(self.a))
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['balance'], '120.0')
+        self.assertEqual(len(body['entries']), 1)
+        entry = body['entries'][0]
+        self.assertEqual(entry['delta'], '120.0')
+        self.assertEqual(entry['reason'], PointsReason.TYPING)
+        self.assertEqual(entry['reason_label'], '打字练习')
+        self.assertEqual(entry['balance_after'], '120.0')
+        self.assertTrue(entry['time'])
+
+    def test_ledger_keeps_negative_rows_for_traceability(self):
+        teacher_adjust(self.teacher, self.a, Decimal('-20.0'), note='课堂扣分')
+        body = self.client.get('/api/points/ledger/', **auth(self.a)).json()
+        newest = body['entries'][0]
+        self.assertEqual(newest['delta'], '-20.0')
+        self.assertEqual(newest['note'], '课堂扣分')
+        self.assertEqual(newest['reason_label'], '教师调整')
+        self.assertEqual(body['entries'][1]['delta'], '120.0')
+        self.assertEqual(body['balance'], '100.0')
+
+    def test_ledger_never_leaks_other_students(self):
+        body = self.client.get('/api/points/ledger/', **auth(self.a)).json()
+        self.assertEqual({e['id'] for e in body['entries']},
+                         set(PointsLedger.objects.filter(user=self.a).values_list('pk', flat=True)))
+        self.assertNotIn('80.0', [e['delta'] for e in body['entries']])
+
+    def test_ledger_cursor_pagination(self):
+        for index in range(5):
+            award_points(self.a, Decimal('1.0'), reason=PointsReason.TYPING,
+                         source_type='typing_attempt', source_id=f'extra-{index}')
+        first = self.client.get('/api/points/ledger/?limit=2', **auth(self.a)).json()
+        self.assertEqual(len(first['entries']), 2)
+        self.assertTrue(first['has_more'])
+        self.assertEqual(first['next_before'], first['entries'][-1]['id'])
+
+        second = self.client.get(
+            f'/api/points/ledger/?limit=2&before={first["next_before"]}', **auth(self.a),
+        ).json()
+        self.assertEqual(len(second['entries']), 2)
+        # 两页不能有重叠，且严格更旧
+        self.assertLess(max(e['id'] for e in second['entries']),
+                        min(e['id'] for e in first['entries']))
+
+    def test_ledger_limit_is_clamped(self):
+        body = self.client.get('/api/points/ledger/?limit=9999', **auth(self.a)).json()
+        self.assertEqual(body['has_more'], False)
+        body = self.client.get('/api/points/ledger/?limit=0', **auth(self.a)).json()
+        self.assertEqual(len(body['entries']), 1)
+
+    def test_ledger_requires_student(self):
+        response = self.client.get('/api/points/ledger/', **auth(self.teacher))
+        self.assertEqual(response.status_code, 403)
+
+
 
 class InfoQuizHookTests(APITestCase):
     """端到端验证：走真实交卷接口，积分钩子必须自动记账。"""

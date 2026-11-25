@@ -10,7 +10,7 @@ vi.mock('lucide-react', () => {
   return {
     Star: Stub, Sparkles: Stub, Trophy: Stub, Compass: Stub, Sword: Stub,
     Flame: Stub, Wand2: Stub, Crown: Stub, Gem: Stub, RefreshCw: Stub,
-    ChevronRight: Stub,
+    ChevronRight: Stub, Receipt: Stub,
   }
 })
 
@@ -72,6 +72,23 @@ describe('积分卡片上的称号', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /查看进阶天梯/ }))
     expect(onOpenLadder).toHaveBeenCalledTimes(1)
+  })
+
+  it('传 onOpenLedger 时出现「积分明细」按钮并能点开', () => {
+    const onOpenLedger = vi.fn()
+    render(
+      <PointsCard
+        data={{ balance: '286.1', rank: 15, class_size: 21, title: MERIDIAN }}
+        onOpenLedger={onOpenLedger}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /积分明细/ }))
+    expect(onOpenLedger).toHaveBeenCalledTimes(1)
+  })
+
+  it('没传 onOpenLedger 时不渲染明细按钮（避免影响未接入弹窗的页面）', () => {
+    render(<PointsCard data={{ balance: '286.1', rank: 15, class_size: 21, title: MERIDIAN }} />)
+    expect(screen.queryByRole('button', { name: /积分明细/ })).toBeNull()
   })
 })
 

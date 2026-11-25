@@ -7,6 +7,7 @@ import { typingApi } from '../../api/typing.js'
 import Navbar from '../../components/Navbar.jsx'
 import PointsBoard from '../../components/PointsBoard.jsx'
 import PointsCard from '../../components/PointsCard.jsx'
+import PointsLedger from '../../components/PointsLedger.jsx'
 import TitleLadder from '../../components/TitleLadder.jsx'
 import './CourseSelect.css'
 
@@ -55,6 +56,7 @@ export default function CourseSelect() {
   const [boardUpdatedAt, setBoardUpdatedAt] = useState('')
   const [ladderOpen, setLadderOpen] = useState(false)
   const [ladderFocus, setLadderFocus] = useState(null)
+  const [ledgerOpen, setLedgerOpen] = useState(false)
 
   // 点风云榜里某人的称号，打开天梯图并高亮他的段位
   const openLadder = useCallback(entry => {
@@ -159,6 +161,7 @@ export default function CourseSelect() {
           data={points}
           loading={pointsLoading}
           onOpenLadder={() => openLadder(null)}
+          onOpenLedger={() => setLedgerOpen(true)}
         />
 
         <div className="select-layout">
@@ -200,6 +203,12 @@ export default function CourseSelect() {
           focus={ladderFocus}
           split={points ? { typing: points.typing_total, quiz: points.quiz_total } : null}
           paths={points?.paths || []}
+        />
+
+        <PointsLedger
+          open={ledgerOpen}
+          onClose={() => setLedgerOpen(false)}
+          balance={points?.balance ?? null}
         />
       </main>
     </div>
