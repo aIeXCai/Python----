@@ -3,15 +3,15 @@ import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import CourseSelect from './CourseSelect.jsx'
 import { typingApi } from '../../api/typing.js'
-import { getMyPoints } from '../../api/points.js'
+import { getMyPoints, getPointsLeaderboard } from '../../api/points.js'
 
 vi.mock('../../api/typing.js', () => ({ typingApi: { bests: vi.fn() } }))
-vi.mock('../../api/points.js', () => ({ getMyPoints: vi.fn() }))
+vi.mock('../../api/points.js', () => ({ getMyPoints: vi.fn(), getPointsLeaderboard: vi.fn() }))
 
 // Mock Navbar — must be before component import
 vi.mock('../../components/Navbar.jsx', () => ({ default: () => <div data-testid="navbar">Mock Navbar</div> }))
 
-// Mock lucide-react icons（含称号徽章与积分条用到的图标）
+// Mock lucide-react icons（含称号徽章、积分条与风云榜用到的图标）
 vi.mock('lucide-react', () => ({
   Keyboard: () => <span aria-hidden="true" />,
   Brain: () => <span data-testid="brain-icon">Brain</span>,
@@ -25,6 +25,10 @@ vi.mock('lucide-react', () => ({
   Gem: () => <span aria-hidden="true" />,
   Sword: () => <span aria-hidden="true" />,
   Wand2: () => <span aria-hidden="true" />,
+  RefreshCw: () => <span aria-hidden="true" />,
+  Check: () => <span aria-hidden="true" />,
+  Lock: () => <span aria-hidden="true" />,
+  X: () => <span aria-hidden="true" />,
 }))
 
 describe('CourseSelect.jsx', () => {
@@ -40,6 +44,21 @@ describe('CourseSelect.jsx', () => {
         next: { name: '南山执剑', remaining: '91.3' },
       },
       ladder: [], paths: [],
+    })
+    getPointsLeaderboard.mockReset().mockResolvedValue({
+      me: { student_id: 9, rank: 3 },
+      entries: [
+        {
+          student_id: 1, label: '王雨桐', points: '546.2', typing_points: '328.0', quiz_points: '218.2',
+          rank: 1, self: false,
+          title: { name: '南山执剑', color: '#a855f7', icon: 'sword', path: { label: '双修', color: '#8b5cf6' } },
+        },
+        {
+          student_id: 9, label: '张三', points: '208.7', typing_points: '116.0', quiz_points: '92.7',
+          rank: 3, self: true,
+          title: { name: '格物修士', color: '#60a5fa', icon: 'compass', path: { label: '疾风', color: '#f97316' } },
+        },
+      ],
     })
   })
 
@@ -132,5 +151,38 @@ describe('CourseSelect.jsx', () => {
     expect(await screen.findByText('人工智能课')).toBeTruthy()
     expect(screen.queryByLabelText('我的积分')).toBeNull()
     expect(screen.getByRole('link', { name: '打字训练' })).toBeTruthy()
+  })
+
+  // ── 班级风云榜：一登录就能看到本班排名 ──
+  it('首页直接显示班级风云榜，并标出本人', async () => {
+    localStorage.setItem('token', 'test-token')
+    renderAsUser()
+    const board = await screen.findByLabelText('班级风云榜')
+    expect(within(board).getByText('王雨桐')).toBeTruthy()
+    expect(within(board).getByText('546.2')).toBeTruthy()
+    expect(within(board).getByText('张三')).toBeTruthy()
+    expect(within(board).getByText('我')).toBeTruthy()
+    expect(within(board).getByText(/我目前第 3 名/)).toBeTruthy()
+  })
+
+  it('风云榜与课程卡片分列左右两栏', async () => {
+    localStorage.setItem('token', 'test-token')
+    renderAsUser()
+    await screen.findByLabelText('班级风云榜')
+    const main = document.querySelector('.select-layout .select-main')
+    const aside = document.querySelector('.select-layout .select-aside')
+    expect(main.querySelector('.course-card-grid')).toBeTruthy()
+    expect(main.querySelector('.points-strip')).toBeTruthy()
+    expect(aside.querySelector('.points-board')).toBeTruthy()
+  })
+
+  it('风云榜接口失败时不影响选课与积分条', async () => {
+    localStorage.setItem('token', 'test-token')
+    getPointsLeaderboard.mockRejectedValue(new Error('网络错误'))
+    renderAsUser()
+    expect(await screen.findByLabelText('我的积分')).toBeTruthy()
+    const board = await screen.findByLabelText('班级风云榜')
+    expect(within(board).getByText(/还没有人获得积分/)).toBeTruthy()
+    expect(screen.getByRole('link', { name: '人工智能课' })).toBeTruthy()
   })
 })

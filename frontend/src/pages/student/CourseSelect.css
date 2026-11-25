@@ -66,6 +66,24 @@
   .points-strip-next { margin-left: 0; width: 100%; }
 }
 
+/* ─── 两栏：左侧课程入口，右侧班级风云榜 ────────────────────────────── */
+/* 只用布局，不改积分条与榜单原有的外观 */
+.select-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
+  align-items: start;
+  margin-top: 20px;
+}
+
+.select-main { min-width: 0; }
+.select-aside { position: sticky; top: 24px; }
+
+@media (max-width: 1080px) {
+  .select-layout { grid-template-columns: 1fr; }
+  .select-aside { position: static; }
+}
+
 .course-card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -125,10 +143,8 @@
 .course-card-bests dt { font-size: .8rem; }
 .course-card-bests dd { margin: 2px 0 0; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-@media (max-width: 780px) {
-  .course-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-}
-@media (max-width: 520px) {
+/* 卡片收窄后仍保持一行三张：只在手机宽度才改成单列 */
+@media (max-width: 600px) {
   .course-card-grid { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
